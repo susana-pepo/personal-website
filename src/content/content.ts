@@ -465,7 +465,7 @@ export const content: SiteContent = {
   objectTooltips: {
     vinyl: 'What I’m listening to',
     books: 'My booklist',
-    laptop: 'Things I’ve built',
+    laptop: 'My work',
     deskbooks: 'My experience',
     woman: 'Hey there, I’m Susana',
     coffee: 'Let’s chat',

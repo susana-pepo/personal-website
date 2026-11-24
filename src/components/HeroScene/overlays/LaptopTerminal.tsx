@@ -163,9 +163,10 @@ export function LaptopTerminal({ open, motionAllowed }: LaptopTerminalProps) {
             <i />
             <i />
           </div>
-          <div className="laptop-terminal__body">
+          {/* --chars: how long the command takes to type, and when the cursor starts breathing */}
+          <div className="laptop-terminal__body" style={{ ['--chars' as string]: COMMAND.length }}>
             <span className="laptop-terminal__prompt">~ %</span>{' '}
-            <span className="laptop-terminal__typed" style={{ ['--chars' as string]: COMMAND.length }}>
+            <span className="laptop-terminal__typed">
               {COMMAND}
             </span>
             <span className="laptop-terminal__cursor" />
