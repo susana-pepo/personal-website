@@ -1,0 +1,104 @@
+/*
+ * The stations' drawings: one cream line (1.5 on a 32 grid, round ends), a finer line for
+ * inner detail, and the site's spot colour once. The animations always run but sit paused
+ * until the station plays, so a pause holds the drawing where it was instead of snapping back.
+ */
+.station-icon {
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  fill: none;
+  stroke: var(--on-sleeve);
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.station-icon * {
+  animation-play-state: paused;
+}
+
+.station-icon[data-playing] * {
+  animation-play-state: running;
+}
+
+.station-icon__fine {
+  stroke-width: 1;
+  opacity: 0.55;
+}
+
+.station-icon__spot {
+  stroke: var(--spot);
+}
+
+/* Lo-fi: the reels turn slowly, the speed of a tape, not a record. */
+.station-icon__reel {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: station-reel 3.6s linear infinite;
+}
+
+@keyframes station-reel {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Binaural: the same wave for each ear, the right a touch quicker, so they slide in and out of step. */
+.station-icon__wave {
+  stroke-width: 1.4;
+  animation: station-wave 3.4s linear infinite;
+}
+
+.station-icon__wave--right {
+  stroke-width: 1.2;
+  animation-duration: 2.8s;
+}
+
+@keyframes station-wave {
+  to {
+    transform: translateX(-12px);
+  }
+}
+
+/* Classical: the keys pressed one after another up the keyboard, a slow broken chord. */
+.station-icon__black {
+  fill: var(--on-sleeve);
+  stroke: none;
+}
+
+.station-icon__press {
+  fill: var(--spot);
+  stroke: none;
+  opacity: 0;
+  animation: station-press 2.8s var(--ease-out) infinite;
+}
+
+@keyframes station-press {
+  0% {
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.9;
+  }
+  40%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* While paused the keys rest unpressed; held mid-press they'd look like a glitch. */
+.station-icon:not([data-playing]) .station-icon__press {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .station-icon * {
+    animation: none !important;
+  }
+
+  /* still, the chord shows as three held keys */
+  .station-icon[data-playing] .station-icon__press:nth-child(odd) {
+    opacity: 0.7;
+  }
+}

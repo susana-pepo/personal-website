@@ -1,25 +1,30 @@
-import { PLAYLIST, RAIN_SRC, type RadioTrack } from './playlist'
+import { RAIN_SRC, isStationId, stationById, type RadioTrack, type Station, type StationId } from './playlist'
+import { startBinaural } from './binaural'
 
 /**
  * The room radio: "Focus with me". One instance for the page, driven from the footer player.
  *
- * - A press starts a 25-minute focus session: lo-fi, and the rain outside when it rains.
- *   At the end the music fades away slowly and the session is done; a press starts another.
+ * - A press starts a 25-minute focus session on the chosen station (lo-fi, binaural
+ *   tones or classical piano), with rain if wanted. At the end the music fades away
+ *   slowly and the session is done; a press starts another.
  * - Nothing plays until the visitor presses play (browsers require a click).
  * - Music and rain run through Web Audio gains, so every change fades (and
  *   fades work on iPhones, where an <audio> element's volume is fixed).
  * - The rain is a short recording looped with a crossfade, so there is no seam.
- *   It is heard while the radio is on, the rain switch is on and the window
- *   shows rain.
+ *   Until the visitor sets its level, it follows the window: on while it rains outside.
  */
 
 export type RadioStatus = 'idle' | 'loading' | 'playing' | 'paused' | 'done' | 'error'
 
 export interface RadioState {
   status: RadioStatus
+  station: StationId
+  /** The track within the station (file stations only). */
   index: number
-  /** The visitor's rain switch (remembered). */
-  rainOn: boolean
+  /** The music's level, 0 to 1 (remembered). */
+  musicLevel: number
+  /** The rain's level, 0 to 1, once the visitor sets it (remembered); null follows the window. */
+  rainLevel: number | null
   /** The window shows rain right now. */
   raining: boolean
 }
@@ -28,9 +33,15 @@ export interface RadioState {
 
 export const nextIndex = (index: number, count: number) => (count > 0 ? (index + 1) % count : 0)
 
-/** The rain is heard only while the radio plays, the switch is on and it rains outside. */
-export const rainAudible = (s: Pick<RadioState, 'status' | 'rainOn' | 'raining'>) =>
-  (s.status === 'playing' || s.status === 'loading') && s.rainOn && s.raining
+/** The rain level used when the visitor hasn't chosen one and it rains outside. */
+export const WINDOW_RAIN = 0.65
+
+/** How loud the rain is: the visitor's level, or else the window's weather. */
+export const rainLevelOf = (s: Pick<RadioState, 'rainLevel' | 'raining'>) => s.rainLevel ?? (s.raining ? WINDOW_RAIN : 0)
+
+/** The rain is heard while the radio plays and its level is above zero. */
+export const rainAudible = (s: Pick<RadioState, 'status' | 'rainLevel' | 'raining'>) =>
+  (s.status === 'playing' || s.status === 'loading') && rainLevelOf(s) > 0
 
 export const clock = (seconds: number) => {
   const s = Math.max(0, Math.floor(Number.isFinite(seconds) ? seconds : 0))
@@ -43,17 +54,32 @@ export const FOCUS_SECONDS = 25 * 60
 /** Seconds left in a session, never below zero. */
 export const focusLeft = (elapsed: number, total = FOCUS_SECONDS) => Math.max(0, total - Math.max(0, elapsed))
 
+export interface RadioPrefs {
+  station: StationId
+  index: number
+  musicLevel: number
+  rainLevel: number | null
+}
+
+export const DEFAULT_PREFS: RadioPrefs = { station: 'lofi', index: 0, musicLevel: 0.85, rainLevel: null }
+
+const level = (value: unknown): number | undefined =>
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1 ? value : undefined
+
 /** Saved preferences, read defensively: anything unexpected falls back to the defaults. */
-export function readPrefs(raw: string | null, count: number): { rainOn: boolean; index: number } {
-  const fallback = { rainOn: true, index: 0 }
-  if (!raw) return fallback
+export function readPrefs(raw: string | null): RadioPrefs {
+  if (!raw) return { ...DEFAULT_PREFS }
   try {
     const data = JSON.parse(raw) as Record<string, unknown>
+    const station = isStationId(data.station) ? data.station : DEFAULT_PREFS.station
+    const count = stationById(station).tracks.length
     const index =
       Number.isInteger(data.index) && (data.index as number) >= 0 && (data.index as number) < count ? (data.index as number) : 0
-    return { rainOn: data.rainOn !== false, index }
+    // an earlier version saved an on/off rain switch
+    const rainLevel = level(data.rainLevel) ?? (data.rainOn === false ? 0 : null)
+    return { station, index, musicLevel: level(data.musicLevel) ?? DEFAULT_PREFS.musicLevel, rainLevel }
   } catch {
-    return fallback
+    return { ...DEFAULT_PREFS }
   }
 }
 
@@ -64,10 +90,15 @@ export const rainStarts = (from: number, length: number, fade: number, count: nu
 /* ── The player ── */
 
 const PREFS_KEY = 'room-radio'
-const MUSIC_LEVEL = 0.7
-const RAIN_LEVEL = 0.4
+/** The gains at full level on the sliders. */
+const MUSIC_MAX = 0.8
+const RAIN_MAX = 0.6
 const FADE_IN = 0.8
 const FADE_OUT = 0.35
+/** Changing station: the old one dips away, the new one rises. */
+const SWITCH_FADE = 0.3
+/** A slider being moved. */
+const NUDGE = 0.12
 const RAIN_FADE = 2.5
 const RAIN_XFADE = 3
 /** The music's slow fade at the end of a session. */
@@ -82,12 +113,18 @@ class RoomRadio {
   private musicGain: GainNode | null = null
   private rainGain: GainNode | null = null
   private audio: HTMLAudioElement | null = null
+  /** The file the audio element holds (its own `src` is resolved to a full URL). */
+  private loadedSrc = ''
+  /** Stops the binaural tones while they play. */
+  private stopTones: (() => void) | null = null
   private rainBuffer: AudioBuffer | null = null
   private rainLoading: Promise<void> | null = null
   private rainSources: AudioBufferSourceNode[] = []
   private rainNext = 0
   private rainTimer: number | undefined
+  private rainTarget = -1
   private pauseTimer: number | undefined
+  private switchTimer: number | undefined
   /** Focus time from earlier stretches of this session (seconds), and when the current stretch began. */
   private focusBanked = 0
   private focusSince: number | null = null
@@ -100,8 +137,7 @@ class RoomRadio {
     } catch {
       /* storage blocked: defaults */
     }
-    const prefs = readPrefs(raw, PLAYLIST.length)
-    this.state = { status: 'idle', index: prefs.index, rainOn: prefs.rainOn, raining: false }
+    this.state = { status: 'idle', raining: false, ...readPrefs(raw) }
   }
 
   subscribe = (listener: Listener) => {
@@ -111,8 +147,13 @@ class RoomRadio {
 
   getSnapshot = () => this.state
 
-  get track(): RadioTrack {
-    return PLAYLIST[this.state.index] ?? PLAYLIST[0]!
+  get station(): Station {
+    return stationById(this.state.station)
+  }
+
+  get track(): RadioTrack | undefined {
+    const { tracks } = this.station
+    return tracks[this.state.index] ?? tracks[0]
   }
 
   /** Seconds focused in this session so far, and the session's length. */
@@ -121,24 +162,52 @@ class RoomRadio {
     return { elapsed: Math.min(FOCUS_SECONDS, this.focusBanked + running), total: FOCUS_SECONDS }
   }
 
+  private get on() {
+    return this.state.status === 'playing' || this.state.status === 'loading'
+  }
+
   toggle = () => {
-    if (this.state.status === 'playing' || this.state.status === 'loading') this.pause()
+    if (this.on) this.pause()
     else void this.play()
   }
 
   next = () => {
-    const index = nextIndex(this.state.index, PLAYLIST.length)
-    const wasOn = this.state.status === 'playing' || this.state.status === 'loading'
-    this.set({ index })
-    if (this.audio) {
-      this.audio.src = this.track.src
-      if (wasOn) void this.play()
-    }
+    const count = this.station.tracks.length
+    if (!count) return
+    this.set({ index: nextIndex(this.state.index, count) })
     this.save()
+    if (this.on) void this.play()
   }
 
-  setRainOn = (rainOn: boolean) => {
-    this.set({ rainOn })
+  setStation = (station: StationId) => {
+    if (station === this.state.station) return
+    const wasOn = this.on
+    this.set({ station, index: 0 })
+    this.save()
+    if (!this.ctx) return
+    window.clearTimeout(this.switchTimer)
+    if (!wasOn) {
+      this.stopSource()
+      return
+    }
+    this.ramp(this.musicGain!, 0, SWITCH_FADE)
+    this.switchTimer = window.setTimeout(
+      () => {
+        this.stopSource()
+        if (this.on) void this.play()
+      },
+      SWITCH_FADE * 1000 + 40,
+    )
+  }
+
+  setMusicLevel = (musicLevel: number) => {
+    this.set({ musicLevel: Math.min(1, Math.max(0, musicLevel)) })
+    this.save()
+    if (this.ctx && this.on) this.ramp(this.musicGain!, this.musicTarget, NUDGE)
+  }
+
+  setRainLevel = (rainLevel: number) => {
+    this.set({ rainLevel: Math.min(1, Math.max(0, rainLevel)) })
     this.save()
   }
 
@@ -150,15 +219,14 @@ class RoomRadio {
     // Created inside the click, as browsers require.
     if (!this.graph()) return this.set({ status: 'error' })
     const ctx = this.ctx!
-    const audio = this.audio!
     window.clearTimeout(this.pauseTimer)
+    window.clearTimeout(this.switchTimer)
     if (this.state.status === 'done') this.focusBanked = 0
-    if (!audio.src) audio.src = this.track.src
     this.set({ status: 'loading' })
     try {
       if (ctx.state !== 'running') await ctx.resume()
-      this.ramp(this.musicGain!, MUSIC_LEVEL, FADE_IN)
-      await audio.play()
+      this.ramp(this.musicGain!, this.musicTarget, FADE_IN)
+      await this.startSource()
       this.startFocus()
       this.set({ status: 'playing' })
     } catch {
@@ -168,12 +236,40 @@ class RoomRadio {
 
   pause() {
     this.stopFocus()
-    if (!this.ctx || !this.audio) return this.set({ status: 'paused' })
+    window.clearTimeout(this.switchTimer)
+    if (!this.ctx) return this.set({ status: 'paused' })
     this.ramp(this.musicGain!, 0, FADE_OUT)
     this.set({ status: 'paused' })
-    const audio = this.audio
     window.clearTimeout(this.pauseTimer)
-    this.pauseTimer = window.setTimeout(() => audio.pause(), FADE_OUT * 1000 + 60)
+    this.pauseTimer = window.setTimeout(() => this.stopSource(), FADE_OUT * 1000 + 60)
+  }
+
+  private get musicTarget() {
+    return MUSIC_MAX * this.state.musicLevel
+  }
+
+  /** Starts the station's sound: its current file, or the binaural tones. */
+  private async startSource() {
+    const track = this.track
+    if (!track) {
+      this.audio!.pause()
+      this.stopTones ??= startBinaural(this.ctx!, this.musicGain!)
+      return
+    }
+    this.stopTones?.()
+    this.stopTones = null
+    const audio = this.audio!
+    if (this.loadedSrc !== track.src) {
+      audio.src = track.src
+      this.loadedSrc = track.src
+    }
+    await audio.play()
+  }
+
+  private stopSource() {
+    this.audio?.pause()
+    this.stopTones?.()
+    this.stopTones = null
   }
 
   /* ── The focus session ── */
@@ -202,11 +298,10 @@ class RoomRadio {
     }
     this.stopFocus()
     this.focusBanked = FOCUS_SECONDS
-    if (this.ctx && this.audio) {
+    if (this.ctx) {
       this.ramp(this.musicGain!, 0, END_FADE)
-      const audio = this.audio
       window.clearTimeout(this.pauseTimer)
-      this.pauseTimer = window.setTimeout(() => audio.pause(), END_FADE * 1000 + 100)
+      this.pauseTimer = window.setTimeout(() => this.stopSource(), END_FADE * 1000 + 100)
     }
     this.set({ status: 'done' })
   }
@@ -219,8 +314,9 @@ class RoomRadio {
   }
 
   private save() {
+    const { station, index, musicLevel, rainLevel } = this.state
     try {
-      window.localStorage.setItem(PREFS_KEY, JSON.stringify({ rainOn: this.state.rainOn, index: this.state.index }))
+      window.localStorage.setItem(PREFS_KEY, JSON.stringify({ station, index, musicLevel, rainLevel }))
     } catch {
       /* storage blocked: nothing remembered */
     }
@@ -236,11 +332,12 @@ class RoomRadio {
     audio.preload = 'none'
     audio.addEventListener('ended', () => this.next())
     audio.addEventListener('error', () => {
-      if (this.state.status !== 'idle') this.set({ status: 'error' })
+      if (this.on && this.track) this.set({ status: 'error' })
     })
     const music = ctx.createGain()
     music.gain.value = 0
-    ctx.createMediaElementSource(audio).connect(music).connect(ctx.destination)
+    music.connect(ctx.destination)
+    ctx.createMediaElementSource(audio).connect(music)
     const rain = ctx.createGain()
     rain.gain.value = 0
     rain.connect(ctx.destination)
@@ -268,6 +365,7 @@ class RoomRadio {
       // at the end of a session the rain fades away with the music
       const fade = this.state.status === 'done' ? END_FADE : RAIN_FADE / 2
       this.ramp(this.rainGain, 0, fade)
+      this.rainTarget = -1
       window.clearInterval(this.rainTimer)
       this.rainTimer = undefined
       const sources = this.rainSources
@@ -291,14 +389,18 @@ class RoomRadio {
       await this.rainLoading
       if (!this.rainBuffer || !rainAudible(this.state)) return
     }
+    const target = RAIN_MAX * rainLevelOf(this.state)
     if (this.rainSources.length) {
-      this.ramp(this.rainGain!, RAIN_LEVEL, RAIN_FADE)
+      // already raining: follow the slider quickly
+      if (target !== this.rainTarget) this.ramp(this.rainGain!, target, NUDGE)
+      this.rainTarget = target
       return
     }
     if (this.rainTimer !== undefined) return
     this.rainNext = ctx.currentTime + 0.05
     this.scheduleRain()
-    this.ramp(this.rainGain!, RAIN_LEVEL, RAIN_FADE)
+    this.ramp(this.rainGain!, target, RAIN_FADE)
+    this.rainTarget = target
     this.rainTimer = window.setInterval(() => this.scheduleRain(), 1000)
   }
 
@@ -333,11 +435,11 @@ class RoomRadio {
   private syncMediaSession() {
     if (!('mediaSession' in navigator) || this.state.status === 'idle') return
     try {
-      navigator.mediaSession.metadata = new MediaMetadata({ title: 'Focus with me', artist: 'Lo-fi and rain' })
+      navigator.mediaSession.metadata = new MediaMetadata({ title: 'Focus with me', artist: this.station.name })
       navigator.mediaSession.playbackState = this.state.status === 'playing' ? 'playing' : 'paused'
       navigator.mediaSession.setActionHandler('play', () => void this.play())
       navigator.mediaSession.setActionHandler('pause', () => this.pause())
-      navigator.mediaSession.setActionHandler('nexttrack', () => this.next())
+      navigator.mediaSession.setActionHandler('nexttrack', this.station.tracks.length ? () => this.next() : null)
     } catch {
       /* not supported here */
     }
