@@ -158,15 +158,46 @@ surfaces or text. No purple, blue or neon. No glows.
 
 ## 6. Motion & Interaction
 
-- **Curves:** ease-out `cubic-bezier(0.23, 1, 0.32, 1)` for entering and feedback; drawer curve
-  `cubic-bezier(0.32, 0.72, 0, 1)` for the panel; plain `ease` for colour and opacity.
-- **Durations:** press 160ms; hover labels 180–220ms; dim/glow 240ms; panel in 420ms, out 240ms
-  (leaving is faster than arriving).
-- **First arrival only:** the room settles from scale 0.985, blur 6px and opacity 0 over 900ms;
-  the name, player and copyright rise 6px in a 60ms stagger.
-- **Panel cascade:** on open and on each section change, the header and each content block rise
-  12px and fade in over 560ms, 45ms apart (opacity only under reduced motion). No blur inside the
-  scrolling panel.
+- **One set of tokens** (`src/styles/tokens.css`). Use them before writing a literal.
+  - Curves: `--ease-out` `(0.23, 1, 0.32, 1)` for entering and feedback, about four motions in
+    five; `--ease-exit` `(0.4, 0, 1, 1)` for leaving, paired with a linear fade over the whole exit
+    so nothing travels unseen; `--ease-drawer` `(0.32, 0.72, 0, 1)` for the sheet, drawers and the
+    record's flight; `--ease-sine` `(0.45, 0, 0.55, 1)` for the room's crossfades and ambient
+    motion (the CSS twin of `easeInOut()`); `--ease-drift` `(0.33, 0, 0.2, 1)` for words that
+    float away; `--ease-in-out` only for the turntable arm. Plain `ease` for colour and opacity.
+  - Durations: `--dur-quick` 160ms (press, colour, focus), `--dur-soft` 240ms (hover, tooltips,
+    small exits), `--dur-panel` 460ms (the sheet, drawers, the page cascade), `--dur-panel-exit`
+    260ms (leaving is quicker than arriving). The room keeps its own slower clock: 900ms for the
+    entrance, 1800ms for a time-of-day fade, 2600ms for rain.
+- **JS never copies a timing.** A timer that waits for a motion reads it from the computed style
+  through `src/lib/motion.ts` (`transitionMs`, `animationMs`, `cssToken`), with a fallback only
+  for when there is nothing to read. Change a timing in the CSS and the JS follows, reduced
+  motion included.
+- **First arrival only:** the room fades in from opacity 0 and scale 0.99 over 900ms. No blur
+  over the room: on a large Retina screen it made the browser drop parts of the picture for a
+  frame. The name rises 6px over 600ms from 160ms; the player and copyright follow at 260 and
+  320ms (the footer's third child, the "Explore the room" chip, keeps its own later delay,
+  `--hint-delay`, so it lands after the halo sweep). The greeting floats once.
+- **The panel:** the sheet slides in 3rem (rises from below on phones) over `--dur-panel` on the
+  drawer curve and is solid within 200ms (140ms on phones). It leaves over `--dur-panel-exit`
+  (320ms on phones) on `--ease-exit`, and the dialog is removed when the sheet's own fade ends,
+  never on a timer alone. The room dims by opacity, never by repainting a colour: 460ms after
+  40ms in, 240ms out so it finishes before the sheet.
+- **The room stays still while a page is open.** No transform, scale or filter on `.cover` or
+  the room behind the sheet: scaling the whole room made pages flicker as they opened and closed
+  on Retina. The deeper backdrop is what sets the page apart.
+- **Panel cascade:** on open, the header and each content block rise 12px and fade in over
+  `--dur-panel`, from 120ms, 45ms apart, the seventh block and later together. On a section
+  change the old page fades over 180ms and slides 14px away over 260ms; from 60ms the new blocks
+  move 18px with the direction of travel over 380ms, and the section number rolls and the tab
+  ink glides with them. Opacity only under reduced motion. No blur inside the scrolling panel.
+- **Layers:** no `will-change` on the woman's clips (on their own layer Chrome dropped her for
+  single frames on Retina) and no new large GPU layers (`will-change`, `translateZ`, `filter`,
+  `backdrop-filter` on big elements). `.cover .stage { transform: translateZ(0) }` is deliberate,
+  for Safari's rounded clip.
+- **Halo invitation (off):** `halo-breathe` lets the halos breathe until the first object is
+  found. It is switched off by configuration (every `glow.invite` in `scene-layout.json` is 0);
+  raise one above 0 to bring it back. It is kept as an option, not dead code.
 - **Texture:** a 5% light grain on a fixed layer behind the page (never over the painting); a
   7% fibre texture on panel card.
 - **Feedback:** pressable things scale to 0.94–0.97 on `:active`. Hover lifts only under

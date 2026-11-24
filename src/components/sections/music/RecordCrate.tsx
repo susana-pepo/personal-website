@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from 'react'
 import { flushSync } from 'react-dom'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { transitionMs } from '../../../lib/motion'
 import { nextSleeve, sleeveAt } from './crate'
 import { Desk } from './Desk'
 import { boxIn, flySleeve, wait, type Box } from './flight'
@@ -15,8 +16,8 @@ const SWAP_BACK_MS = 420
 /** The record slides back into its sleeve before the sleeve leaves the desk. */
 const SLIDE_IN_MS = 380
 const SETTLE_MS = 120
-/** Must match --dur-panel: the desk stays drawn while it folds away. */
-const DESK_FOLD_MS = 440
+/** The desk's fold in music.css (--dur-panel), for when it can't be read. */
+const DESK_FOLD_FALLBACK_MS = 460
 /** A drag of more than this flips through the crate instead of tapping a sleeve. */
 const DRAG_SLOP = 8
 
@@ -121,6 +122,7 @@ export function RecordCrate({ records, heading, description, variant = 'records'
     const section = sectionRef.current
     if (i == null || !section) return
     flushSync(() => setDesk((d) => d && { ...d, out: false }))
+    let foldFrom = 0 // when the desk started folding (it folds while the sleeve flies back)
     if (!reduced) {
       await wait(SLIDE_IN_MS)
       const sleeve = deskSleeveRef.current
@@ -137,14 +139,22 @@ export function RecordCrate({ records, heading, description, variant = 'records'
               },
           ),
         )
+        foldFrom = performance.now()
         await flySleeve(section, sleeve, from, to, fold ? PUT_BACK_MS : SWAP_BACK_MS)
       }
     } else if (fold) {
       flushSync(() => setDesk((d) => d && { ...d, open: false, settled: false }))
+      foldFrom = performance.now()
     }
     flushSync(() => setSlotOut(null))
     outRef.current = null
-    if (fold) foldTimer.current = window.setTimeout(() => setDesk(null), reduced ? 0 : DESK_FOLD_MS)
+    // The desk stays drawn while it folds away, with a frame to spare, counted from when the
+    // fold began (during the flight back), so a player left open stops as the desk closes.
+    if (fold) {
+      const foldMs = reduced ? 0 : transitionMs(wrapRef.current, 'grid-template-rows', DESK_FOLD_FALLBACK_MS) + 20
+      const left = Math.max(0, foldMs - (foldFrom ? performance.now() - foldFrom : 0))
+      foldTimer.current = window.setTimeout(() => setDesk(null), left)
+    }
   }
 
   const takeOut = async (i: number) => {

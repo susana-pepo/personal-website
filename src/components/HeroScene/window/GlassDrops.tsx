@@ -86,19 +86,43 @@ function drawSprite(canvas: HTMLCanvasElement, time: TimeOfDay) {
   ctx.fillRect(0, 0, SPRITE, SPRITE)
 }
 
+const BG_W = Math.round(W * BG_SCALE)
+const BG_H = Math.round(H * BG_SCALE)
+
+/**
+ * The view's still, decoded and shrunk to half the backdrop's size off the main thread where the
+ * browser can (createImageBitmap), so a change of time doesn't stall the room for a frame or
+ * two: drawing the full still into a canvas decoded it on the main thread and read it back from
+ * the GPU (measured 50-70 ms).
+ */
+function halfStill(img: HTMLImageElement): Promise<CanvasImageSource> {
+  if (typeof createImageBitmap !== 'function') return Promise.resolve(img)
+  return createImageBitmap(img, {
+    resizeWidth: Math.round(BG_W / 2),
+    resizeHeight: Math.round(BG_H / 2),
+    resizeQuality: 'low', // the same soft half-size step as the canvas it replaces
+  }).catch(() => img)
+}
+
 /** The view behind the glass, small and soft, for the drops to refract (re-mixed to an overcast sky by day). */
-function drawBackdrop(canvas: HTMLCanvasElement, img: HTMLImageElement, overcast: boolean, gain: number) {
-  const w = Math.round(W * BG_SCALE)
-  const h = Math.round(H * BG_SCALE)
-  const half = document.createElement('canvas')
-  half.width = Math.round(w / 2)
-  half.height = Math.round(h / 2)
-  half.getContext('2d')!.drawImage(img, 0, 0, half.width, half.height)
+function drawBackdrop(canvas: HTMLCanvasElement, img: CanvasImageSource, overcast: boolean, gain: number) {
+  const w = BG_W
+  const h = BG_H
+  let small: CanvasImageSource = img
+  const halfSized = typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap && img.width === Math.round(w / 2)
+  if (!halfSized) {
+    // no bitmap (an older browser): shrink it here, on a canvas kept on the CPU
+    const half = document.createElement('canvas')
+    half.width = Math.round(w / 2)
+    half.height = Math.round(h / 2)
+    half.getContext('2d', { willReadFrequently: true })!.drawImage(img, 0, 0, half.width, half.height)
+    small = half
+  }
   canvas.width = w
   canvas.height = h
   const ctx = canvas.getContext('2d', { willReadFrequently: true })!
   ctx.imageSmoothingQuality = 'high'
-  ctx.drawImage(half, 0, 0, w, h) // down and up again: a soft, out-of-focus view
+  ctx.drawImage(small, 0, 0, w, h) // down and up again: a soft, out-of-focus view
   // A drop gathers light: what it shows is a little brighter and clearer than the glass around it.
   const data = ctx.getImageData(0, 0, w, h)
   const px = data.data
@@ -234,10 +258,17 @@ export function GlassDrops({ raining, time, moving }: GlassDropsProps) {
     const nextLamp = time === 'night' ? 1 : 0
     let gone = false
     let frame = 0
-    void loadImage(WINDOW_VIEWS[time].still).then((img) => {
-      if (gone) return
+    void loadImage(WINDOW_VIEWS[time].still).then(halfStill).then((img) => {
+      const release = () => {
+        if (typeof ImageBitmap !== 'undefined' && img instanceof ImageBitmap) img.close()
+      }
+      if (gone) return release()
       const nextBackdrop = document.createElement('canvas')
-      drawBackdrop(nextBackdrop, img, overcast, GLINT[time].lift)
+      try {
+        drawBackdrop(nextBackdrop, img, overcast, GLINT[time].lift)
+      } finally {
+        release()
+      }
       const first = s.backdrop.width === 0
       const fromBackdrop = copyOf(s.backdrop)
       const fromSprite = copyOf(s.sprite)

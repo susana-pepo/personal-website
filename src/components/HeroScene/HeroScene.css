@@ -155,10 +155,13 @@
   height: 100%;
 }
 
+/* No will-change here: on its own layer, her large animated picture made Chrome drop that layer
+   for single frames on Retina screens (22 times in 10 minutes, measured), and she blinked out.
+   Painted with the room, 0. The handover between clips needs no layer of its own: the last
+   clip stays underneath for 300ms (WomanOverlay's SETTLE_MS). */
 .woman__clips > img {
   display: block;
   object-fit: contain;
-  will-change: transform; /* its own layer */
 }
 
 /* The woman is the largest figure in the room: she only leans in slightly. */
@@ -245,6 +248,7 @@
  * (3.6 s, offset per object so the light drifts round the room). It stops for
  * good, for this visit, on the first hover, focus or tap; the steady resting
  * glow stays. Reduced motion keeps the steady glow only.
+ * Switched off for now (every overlay's invite is 0 in scene-layout.json); kept as an option.
  */
 .scene[data-inviting] .scene-object:not([data-highlighted]) .scene-object__halo {
   animation: halo-breathe 3.6s ease-in-out calc(var(--discover-order) * -0.9s) infinite alternate;
@@ -259,9 +263,10 @@
   }
 }
 
-/* One gentle look around the room, left to right, then everything rests. */
+/* One gentle look around the room, left to right, then everything rests. The step (180ms)
+   is DISCOVERY_STEP_MS in HeroScene.tsx; the chip's arrival is timed to the last peak. */
 .scene[data-discovering] .scene-object:not([data-highlighted]) .scene-object__halo {
-  animation: halo-discover 820ms ease-in-out calc(var(--discover-order) * 260ms) 1 both;
+  animation: halo-discover 820ms ease-in-out calc(var(--discover-order) * 180ms) 1 both;
 }
 
 @keyframes halo-discover {
@@ -662,7 +667,12 @@
   transition-delay: 350ms;
 }
 
-/* Keyboard focus (and the cat's reply) shows it straight away. */
+/* While the visitor is exploring (another label was up a moment ago), it answers almost at once. */
+.hotspot-label[data-warm] {
+  transition-delay: 80ms;
+}
+
+/* Keyboard focus (and the cat's reply) shows it straight away; after the warm rule, so it wins. */
 .hotspot-label[data-immediate] {
   transition-delay: 0ms;
 }
@@ -1198,10 +1208,27 @@
   mask: url('/media/scene/window/glass-mask.png') 0 0 / 100% 100% no-repeat;
 }
 
+/*
+ * Each sheet is only as big as the glass needs, so its layer stays small. The glass
+ * (glass-mask.png, alpha box) spans x 906-1840 and y 0-658 of the 1920 × 1080 canvas;
+ * padded by 12 and raised by one tile of travel (300, the near tile; the far one is 220),
+ * the sheet must cover x 894-1852, y -312-670 at every moment of its fall. It turns 10deg
+ * about the canvas centre (960, 540), so the box it needs is those four corners turned
+ * back by 10deg (x' = 960 + dx cos10 + dy sin10, y' = 540 - dx sin10 + dy cos10):
+ * x 747-1861, y -454-679, which is 38.9-96.9cqw and -42.0-62.9cqh. Rounded outward
+ * below. The turn stays about the canvas centre (transform-origin) and the tiles keep
+ * their old origin (background-position = the old corner, -15cqw -30cqh, minus the new
+ * one), so every streak falls exactly where it did when the sheet was inset -30% -15%.
+ */
 .window-rain__fall {
   position: absolute;
-  inset: -30% -15%;
+  left: 38.5cqw;
+  top: -42.5cqh;
+  width: 58.5cqw;
+  height: 105.5cqh;
+  transform-origin: 11.5cqw 92.5cqh;
   rotate: 10deg; /* a gentle slant; the streaks fall along it */
+  background-position: -53.5cqw 12.5cqh;
   background-repeat: repeat;
   will-change: translate;
   animation: rain-fall linear infinite;
@@ -1236,6 +1263,31 @@
   animation-play-state: paused;
 }
 
+/*
+ * Phone, with a page open: the sheet rises over the whole room and leaves only a 3.5rem strip
+ * of the page above it, where the room never reaches (the room starts 158px down; measured from
+ * 320 to 639px wide, and from 640px tall the page cannot scroll the window up into the strip).
+ * So the rain and the tower light, which move for ever, are taken out of view under the sheet
+ * and stop costing the GPU anything. Hidden rather than paused: the sheet takes about 180ms to
+ * cover the window, and a pause from the start would freeze the rain in sight; the 500ms delay
+ * lets the sheet land first (and its 180ms fade with reduced motion). They show again the
+ * moment the page starts to close, while the sheet still covers the window. The rain's opacity
+ * fade is WeatherLayer.css's own, repeated so this rule doesn't cut one short.
+ */
+@media (max-width: 639px) and (min-height: 640px) {
+  html[data-panel='open'] .window-rain__fall {
+    visibility: hidden;
+    transition:
+      opacity 1800ms cubic-bezier(0.45, 0, 0.55, 1),
+      visibility 0s linear 500ms;
+  }
+
+  html[data-panel='open'] .tower-light__dot {
+    visibility: hidden;
+    transition: visibility 0s linear 500ms;
+  }
+}
+
 
 /* ── Evening mood: a warm dimming over the room and every object, clear where the
    desk lamp reaches, deepest in the far corners. The lamp light (z 10) sits above. ── */
@@ -1266,7 +1318,14 @@
   z-index: 9;
   pointer-events: none;
   opacity: 0;
-  transition: opacity var(--view-fade) cubic-bezier(0.45, 0, 0.55, 1);
+  /* Out of view once faded, so a room-sized blend layer that shows nothing is not kept on
+     the GPU. It turns visible at once when shown, and hidden only after a whole fade's
+     length when not, so even a fade reversed midway (which the browser shortens) is never
+     cut off before it reaches 0. */
+  visibility: hidden;
+  transition:
+    opacity var(--view-fade) cubic-bezier(0.45, 0, 0.55, 1),
+    visibility 0s linear var(--view-fade);
 }
 
 .time-light--day {
@@ -1289,6 +1348,10 @@
 .scene[data-time='midday'] .time-light--day,
 .scene[data-time='night'] .time-light--night {
   opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--view-fade) cubic-bezier(0.45, 0, 0.55, 1),
+    visibility 0s;
 }
 
 /* ── The coffee's steam thins out as it rises: untouched at the mug (its rim is
@@ -1316,8 +1379,9 @@
    (or while Work is open). It belongs to the painting: half the screen's size,
    translucent so the wallpaper glows through it, a touch soft, and lit warm from
    the lamp's side. It sits under the room's evening layer and the lamp light, so
-   the room's lighting falls on it too. Motion: a small rise that settles out of
-   a soft blur (about 0.7 s, decelerating), a quicker fade away. ── */
+   the room's lighting falls on it too. Motion: a genie (LaptopTerminal.tsx) that
+   pours out of the screen's Dock point in 800ms, decelerating, and is drawn back
+   in over 600ms. ── */
 .laptop-terminal {
   --lt-in: cubic-bezier(0.22, 1, 0.36, 1);
   --lt-out: cubic-bezier(0.4, 0, 0.6, 1);
@@ -1424,9 +1488,10 @@
   opacity: 0.85;
 }
 
-/* the command types itself once the window has settled */
+/* the command types itself once the window has all but settled (its 800ms opening
+   is nearly done by 700ms, see LaptopTerminal.tsx) */
 .laptop-terminal[data-typed] .laptop-terminal__typed {
-  animation: lt-type calc(var(--chars) * 65ms) steps(var(--chars), end) 1050ms forwards;
+  animation: lt-type calc(var(--chars) * 65ms) steps(var(--chars), end) 700ms forwards;
 }
 
 @keyframes lt-type {
@@ -1437,7 +1502,7 @@
 
 /* steady while typing, then it breathes slowly */
 .laptop-terminal[data-open] .laptop-terminal__cursor {
-  animation: lt-cursor 1.4s cubic-bezier(0.45, 0, 0.55, 1) 1.4s infinite alternate;
+  animation: lt-cursor 1.4s cubic-bezier(0.45, 0, 0.55, 1) 1.85s infinite alternate; /* after the typing: 700ms + 17 x 65ms */
 }
 
 @keyframes lt-cursor {
@@ -1463,13 +1528,24 @@
   }
 }
 
-/* ── The cat: no glow, just a quiet, slow lean towards you on hover ── */
+/* ── The cat: no glow, just a quiet, slow lean towards you on hover, and a quick settle back
+   when you leave (this rule's 260ms; the lean in is the 520ms below). ── */
 .scene-object.cat {
   --hover-scale: 1.025;
   --hover-in: 520ms;
   transition:
     opacity 500ms var(--ease-out),
-    transform 420ms cubic-bezier(0.4, 0, 0.2, 1);
+    transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Only where things may move: the reduced-motion rule that stills the cat weighs the same and
+   comes earlier, so this must not apply there. */
+@media (prefers-reduced-motion: no-preference) {
+  .scene-object.cat[data-highlighted] {
+    transition:
+      opacity 500ms var(--ease-out),
+      transform var(--hover-in) cubic-bezier(0.4, 0, 0.2, 1);
+  }
 }
 
 /* ── The record player's power light: the left front button glows red from
@@ -1488,6 +1564,34 @@
 .power-light[data-highlighted] {
   transform: scale(var(--hover-scale));
   transition-duration: var(--hover-in);
+}
+
+/* ── A press: the object under a pointer press sinks a touch below its hover size (to 0.985 on
+   touch, where nothing grows), so the room's main gesture answers at once, and lifts back on
+   release. HotspotLayer reports the press and SceneObject sets data-pressed. Keys never press,
+   and with reduced motion nothing moves. Placed after the cat's rules, so it wins over them. ── */
+@media (prefers-reduced-motion: no-preference) {
+  .scene {
+    --press-depth: 0.015; /* read by the object and by the record player's power light */
+  }
+
+  .scene .scene-object[data-pressed] {
+    transform: scale(calc(var(--hover-scale) - var(--press-depth)));
+    transition:
+      opacity 500ms var(--ease-out),
+      transform 120ms var(--ease-out);
+  }
+
+  /* The lamp never changes size: its light is drawn separately and must stay on the bulb. */
+  .scene .scene-object--lamp {
+    --press-depth: 0;
+  }
+
+  /* The power light copies the record player's size, or the red light would slide off its button. */
+  .scene-object--vinyl[data-pressed] ~ .power-light {
+    transform: scale(calc(var(--hover-scale) - var(--press-depth)));
+    transition-duration: 120ms;
+  }
 }
 
 .power-light__button {
@@ -1566,23 +1670,38 @@
   pointer-events: none;
   mix-blend-mode: color;
   opacity: 0;
-  transition: opacity 1080ms cubic-bezier(0.65, 0, 0.35, 1) 70ms;
+  /* Out of view once faded out, like .time-light: visible at once, hidden only after a
+     whole fade's length (so a reversed fade is never cut off). */
+  visibility: hidden;
+  transition:
+    opacity 1080ms cubic-bezier(0.65, 0, 0.35, 1) 70ms,
+    visibility 0s linear 1150ms;
 }
 
 .lamp-colour[data-on] {
   opacity: 1;
+  visibility: visible;
+  transition:
+    opacity 1080ms cubic-bezier(0.65, 0, 0.35, 1) 70ms,
+    visibility 0s;
 }
 
 .lamp-colour--glow[data-on] {
   opacity: 0.9;
 }
 
-/* glare round the bulb: the light itself, so it's added (screen), not blended */
+/* glare round the bulb: the light itself, so it's added (screen), not blended. The glare
+   fades to nothing 6cqi from the bulb, so its box is just that circle's square, centred on
+   the bulb (--bulb-x/--bulb-y are canvas percentages, set by LampColour), not the whole room:
+   the same light on a far smaller blend layer. */
 .lamp-colour--glare {
-  inset: 0;
+  left: calc(var(--bulb-x) - 6cqi);
+  top: calc(var(--bulb-y) - 6cqi);
+  width: 12cqi;
+  height: 12cqi;
   mix-blend-mode: screen;
   background: radial-gradient(
-    circle 6cqi at var(--bulb-x) var(--bulb-y),
+    circle 6cqi at 50% 50%,
     color-mix(in oklch, var(--tone) 60%, transparent) 0%,
     color-mix(in oklch, var(--tone) 24%, transparent) 30%,
     color-mix(in oklch, var(--tone) 7%, transparent) 60%,
@@ -1598,7 +1717,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lamp-colour {
+  .lamp-colour,
+  .lamp-colour[data-on] {
     transition-duration: 260ms;
     transition-delay: 0ms;
   }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode, type TransitionEvent } from 'react'
 import { content } from '../../../content/content'
 import { TIMES, type TimeOfDay } from '../../../scene/windowViews'
 import { optionForKey } from '../../../lib/radioGroup'
@@ -17,6 +17,8 @@ export function timeForKey(current: TimeOfDay, key: string): TimeOfDay | null {
 
 /** How long an option's name stays up after a tap, where there is no hover to show it. */
 const NAME_HOLD_MS = 1600
+/** How long a pill stays warm after the pointer leaves it, so coming straight back is still quick. */
+const WARM_FOR_MS = 400
 
 interface SceneControlProps {
   value: TimeOfDay
@@ -49,6 +51,14 @@ export function SceneControl({ value, onChange, weather, weathers, onWeatherChan
     hold.current = window.setTimeout(() => setTapped(null), NAME_HOLD_MS)
   }
 
+  // A name held up after a tap gives way (fades as usual) once the pointer moves to another
+  // option, so the two names don't overlap.
+  const giveWay = (key: string) => {
+    if (tapped === null || tapped === key) return
+    window.clearTimeout(hold.current)
+    setTapped(null)
+  }
+
   return (
     <div className="time-control" role="group" aria-labelledby={captionId} data-time={value} data-weather={weather}>
       <span id={captionId} className="time-control__caption">
@@ -62,6 +72,7 @@ export function SceneControl({ value, onChange, weather, weathers, onWeatherChan
           nameOf={(t) => content.timeOfDay[t]}
           icon={(t) => <TimeIcon time={t} />}
           tapped={tapped}
+          onPointerOn={giveWay}
           onChoose={(t, how) => {
             if (how === 'pointer') flash(`time:${t}`)
             onChange(t) // even the time already shown: choosing it keeps it there
@@ -75,6 +86,7 @@ export function SceneControl({ value, onChange, weather, weathers, onWeatherChan
           nameOf={(w) => content.weather[w]}
           icon={(w) => <WeatherIcon weather={w} />}
           tapped={tapped}
+          onPointerOn={giveWay}
           onChoose={(w, how) => {
             if (how === 'pointer') flash(`weather:${w}`)
             onWeatherChange(w)
@@ -93,12 +105,13 @@ interface ChoiceGroupProps<T extends string> {
   nameOf: (option: T) => string
   icon: (option: T) => ReactNode
   tapped: string | null
+  onPointerOn: (key: string) => void
   keyPrefix: string
   onChoose: (option: T, how: 'pointer' | 'keys') => void
 }
 
 /** One radio group of icon options in its own glass pill; one tab stop, arrows move within. */
-function ChoiceGroup<T extends string>({ label, options, value, nameOf, icon, tapped, keyPrefix, onChoose }: ChoiceGroupProps<T>) {
+function ChoiceGroup<T extends string>({ label, options, value, nameOf, icon, tapped, onPointerOn, keyPrefix, onChoose }: ChoiceGroupProps<T>) {
   const buttons = useRef<(HTMLButtonElement | null)[]>([])
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
@@ -112,13 +125,35 @@ function ChoiceGroup<T extends string>({ label, options, value, nameOf, icon, ta
     buttons.current[options.indexOf(next)]?.focus()
   }
 
+  // Warm once a name has fully shown under the pointer: from then on the names swap at once as
+  // the pointer moves across the options (SceneControl.css). It cools shortly after the pointer
+  // leaves the pill. Waiting for the first name's fade to end, rather than a timer, keeps that
+  // first fade whole and needs no copy of the CSS delay here.
+  const [warm, setWarm] = useState(false)
+  const cool = useRef<number | undefined>(undefined)
+  useEffect(() => () => window.clearTimeout(cool.current), [])
+
+  const onTransitionEnd = (event: TransitionEvent<HTMLDivElement>) => {
+    const tip = event.target
+    if (warm || event.propertyName !== 'opacity') return
+    if (!(tip instanceof HTMLElement) || !tip.classList.contains('time-control__tip')) return
+    if (Number(getComputedStyle(tip).opacity) >= 0.99 && event.currentTarget.matches(':hover')) setWarm(true)
+  }
+
   return (
     <div
       className="time-control__group"
       role="radiogroup"
       aria-label={label}
       style={{ '--index': Math.max(0, options.indexOf(value)) } as CSSProperties}
+      data-warm={warm || undefined}
       onKeyDown={onKeyDown}
+      onTransitionEnd={onTransitionEnd}
+      onPointerEnter={() => window.clearTimeout(cool.current)}
+      onPointerLeave={() => {
+        window.clearTimeout(cool.current)
+        cool.current = window.setTimeout(() => setWarm(false), WARM_FOR_MS)
+      }}
     >
       <span className="time-control__thumb" aria-hidden="true" />
       {options.map((option, i) => {
@@ -138,6 +173,7 @@ function ChoiceGroup<T extends string>({ label, options, value, nameOf, icon, ta
             data-checked={checked || undefined}
             data-tapped={tapped === `${keyPrefix}:${option}` || undefined}
             onClick={() => onChoose(option, 'pointer')}
+            onPointerEnter={() => onPointerOn(`${keyPrefix}:${option}`)}
           >
             {icon(option)}
             <span className="time-control__tip" aria-hidden="true">

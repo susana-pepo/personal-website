@@ -488,6 +488,8 @@
 }
 
 /* ════════ 3. The desk: the record pulled out, with its liner notes ════════ */
+/* RecordCrate.tsx and Desk.tsx read the desk's and the player's drawer timings from these
+   rules as they run, so they can change here alone. */
 .desk-wrap {
   display: grid;
   grid-template-rows: 0fr;
@@ -760,9 +762,15 @@
   grid-template-rows: 1fr;
 }
 
+/*
+ * Containment keeps layout and paint work inside this box from spreading outward
+ * (the box's own height still changes every frame of the drawer). It already clips
+ * at its edge, so nothing visible changes.
+ */
 .desk__player > div {
   min-height: 0;
   overflow: hidden;
+  contain: layout paint;
 }
 
 .desk__embed {

@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type Ref } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { transitionMs } from '../../../lib/motion'
 import { SpotifyPlayer } from './SpotifyPlayer'
 import { CoverArt, Vinyl } from './Vinyl'
 import type { CrateRecord } from './types'
 
-/** Must match --dur-panel in tokens.css: the player drawer stays mounted while it closes. */
-const DRAWER_MS = 420
+/** The player drawer's transition in music.css (--dur-panel), for when it can't be read. */
+const DRAWER_FALLBACK_MS = 460
 
 const PLAY_ICON = <path d="M7.2 4.8v10.4l8.4-5.2z" fill="currentColor" />
 const PAUSE_ICON = (
@@ -37,7 +38,9 @@ export function Desk({ record, out, sleeveShown, sleeveRef, disc = true, onPutBa
   const [playing, setPlaying] = useState(false)
   const canPlay = Boolean(record.spotify || (import.meta.env.DEV && record.sample))
 
+  // The player stays mounted while its drawer closes, and comes into view once it has opened.
   useEffect(() => {
+    const drawerMs = reduced ? 0 : transitionMs(playerRef.current, 'grid-template-rows', DRAWER_FALLBACK_MS) + 20 // a frame to spare
     if (player) {
       setMounted(true)
       const timer = window.setTimeout(
@@ -46,11 +49,11 @@ export function Desk({ record, out, sleeveShown, sleeveRef, disc = true, onPutBa
             block: 'nearest',
             behavior: reduced ? 'auto' : 'smooth',
           }),
-        reduced ? 0 : DRAWER_MS,
+        drawerMs,
       )
       return () => window.clearTimeout(timer)
     }
-    const timer = window.setTimeout(() => setMounted(false), reduced ? 0 : DRAWER_MS)
+    const timer = window.setTimeout(() => setMounted(false), drawerMs)
     return () => window.clearTimeout(timer)
   }, [player, reduced])
 

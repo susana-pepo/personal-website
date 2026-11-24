@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { clamp, layoutShelf, type PlacedBook } from '../../../content/bookGeometry'
 import type { Book, Shelf } from '../../../content/types'
+import { transitionMs } from '../../../lib/motion'
 import { BookCover } from '../books/BookCover'
 import { BookDetail } from './BookDetail'
 import { BookSpine } from '../books/BookSpine'
@@ -10,10 +11,12 @@ import { ShelfBoard } from '../books/ShelfBoard'
 /** Stable identity for a book, used for the open state and to return focus. */
 export const bookKey = (book: Book) => `${book.shelf}:${book.title}|${book.author}`
 
-/** Matches the drawer's closing transition, so the detail stays put while it folds away. */
-const CLOSE_MS = 320
-/** Matches the drawer's opening transition. */
-const OPEN_MS = 440
+/* The drawer's own timings in bookshelf.css (closing 300ms, opening --dur-panel), read from
+   it as it moves; these are only for when there is no style to read. */
+const CLOSE_FALLBACK_MS = 300
+const OPEN_FALLBACK_MS = 460
+/** A frame to spare after the drawer stops. */
+const SPARE_MS = 20
 
 const vars = (v: Record<string, string | number>) => v as CSSProperties
 const units = (n: number) => `calc(${n} * var(--u))`
@@ -44,17 +47,19 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
   const peek = placed.find((p) => bookKey(p.book) === peekKey) ?? null
   const featured = shelf.id === 'reading' ? (placed[0] ?? null) : null
 
+  const drawerRef = useRef<HTMLDivElement>(null)
+
   // Keep the last book in the drawer while it closes.
   const [shown, setShown] = useState<PlacedBook | null>(null)
   if (openPlaced && openPlaced !== shown) setShown(openPlaced)
   useEffect(() => {
     if (openPlaced) return
-    const timer = window.setTimeout(() => setShown(null), CLOSE_MS)
+    const closeMs = transitionMs(drawerRef.current, 'grid-template-rows', CLOSE_FALLBACK_MS) + SPARE_MS
+    const timer = window.setTimeout(() => setShown(null), closeMs)
     return () => window.clearTimeout(timer)
   }, [openPlaced])
 
   // Once the drawer has opened, bring the whole detail into view if it is below the fold.
-  const drawerRef = useRef<HTMLDivElement>(null)
   const wasOpen = useRef(false)
   useEffect(() => {
     if (!openPlaced) {
@@ -62,7 +67,8 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
       return
     }
     // (with reduced motion the drawer opens at once, so there's nothing to wait for)
-    const delay = wasOpen.current || reducedMotion ? 0 : OPEN_MS
+    const delay =
+      wasOpen.current || reducedMotion ? 0 : transitionMs(drawerRef.current, 'grid-template-rows', OPEN_FALLBACK_MS) + SPARE_MS
     wasOpen.current = true
     const timer = window.setTimeout(
       () => drawerRef.current?.scrollIntoView({ block: 'nearest', behavior: reducedMotion ? 'auto' : 'smooth' }),

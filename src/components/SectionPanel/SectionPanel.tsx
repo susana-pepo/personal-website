@@ -14,7 +14,7 @@ import {
 import { content } from '../../content/content'
 import { SECTION_IDS, type SectionId } from '../../content/types'
 import { closeSection, currentSection, hrefFor } from '../../lib/router'
-import { prefersReducedMotion } from '../../lib/motion'
+import { animationMs, prefersReducedMotion } from '../../lib/motion'
 import { sectionComponent } from '../sections/registry'
 import {
   inkTransform,
@@ -28,8 +28,8 @@ import '../sections/sections.css'
 import '../sections/panel-sections.css'
 import './SectionPanel.css'
 
-/** How long the outgoing page stays on screen while the next one turns in. */
-const LEAVE_MS = 280
+/** The outgoing page's slide in SectionPanel.css, for when its animations can't be read. */
+const LEAVE_FALLBACK_MS = 260
 
 type PanelState = 'closed' | 'open' | 'closing'
 
@@ -164,7 +164,8 @@ export function SectionPanel({ section }: SectionPanelProps) {
     if (pageRef.current) finish()
   }, [section])
 
-  // Let the room step back a touch while a page is out.
+  // Mark the page while a panel is out (html[data-panel]). The room itself stays still;
+  // HeroScene.css uses it to hide the rain and tower loops behind the phone sheet.
   useEffect(() => {
     const root = document.documentElement
     if (state === 'closed') delete root.dataset.panel
@@ -173,10 +174,12 @@ export function SectionPanel({ section }: SectionPanelProps) {
 
   useEffect(() => () => void delete document.documentElement.dataset.panel, [])
 
-  // The outgoing page is removed once it has faded.
+  // The outgoing page is removed once it has faded and slid away (read from its own
+  // animations, so reduced motion's shorter fade lets it go sooner), with a frame to spare.
   useEffect(() => {
     if (!leaving) return
-    const timer = window.setTimeout(() => setLeaving(null), LEAVE_MS)
+    const page = bodyRef.current?.querySelector('.panel__page.is-leaving')
+    const timer = window.setTimeout(() => setLeaving(null), animationMs(page, LEAVE_FALLBACK_MS) + 20)
     return () => window.clearTimeout(timer)
   }, [leaving])
 

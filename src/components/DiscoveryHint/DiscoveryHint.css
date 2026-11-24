@@ -20,8 +20,12 @@
   -webkit-backdrop-filter: var(--glass-blur, blur(22px) saturate(170%));
   box-shadow: var(--glass-shadow, 0 10px 24px -12px oklch(0.05 0.01 45 / 0.7));
   translate: -50% 0;
-  /* When it arrives, after the room has settled. The glint below keys off it too. */
-  --hint-delay: 2.4s;
+  /* When it arrives, counted from the entrance (data-entered; it is paused until then): it
+     finishes landing as the halo sweep's last object peaks. The sweep starts 3400ms in
+     (settled at 1300 + DISCOVERY_DELAY_MS 2100, HeroScene.tsx), its sixth object 5 x 180ms
+     later, peaking 45% into its 820ms swell: 3400 + 900 + 369 = 4669ms, less this 700ms
+     arrival. The glint below keys off it too. */
+  --hint-delay: 3.97s;
   /* It rests visible: the backwards fill keeps it hidden through the delay (and while the
      entrance gate holds it paused), and nothing is held once it has arrived. */
   animation: hint-in 700ms var(--ease-out) var(--hint-delay) backwards;
@@ -59,7 +63,7 @@
   fill: var(--lamp-wash, oklch(0.88 0.08 75));
   filter: drop-shadow(0 0 4px oklch(0.88 0.08 75 / 0.55));
   opacity: 0.85;
-  animation: hint-glint 900ms ease-in-out calc(var(--hint-delay, 2.4s) + 700ms);
+  animation: hint-glint 900ms ease-in-out calc(var(--hint-delay, 3.97s) + 700ms);
 }
 
 /* The chip waits for the entrance gate (HeroScene.css); its glint waits with it, so the one

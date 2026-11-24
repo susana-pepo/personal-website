@@ -1,6 +1,13 @@
-import { useState, type CSSProperties, type ReactNode } from 'react'
+import { createContext, useContext, useState, type CSSProperties, type ReactNode } from 'react'
 import { HALO_MARGIN, pctX, pctY, type Overlay } from '../../../scene/layout'
 import { usePlacedOverlay } from '../../../scene/layoutOverrides'
+
+/**
+ * The overlay a pointer is pressing on right now (its outline lives in HotspotLayer), so the
+ * object can sink a touch under the press. A context, because the cat, woman, coffee and record
+ * player draw their SceneObject inside their own components.
+ */
+export const PressedObject = createContext<string | null>(null)
 
 interface SceneObjectProps {
   overlay: Overlay
@@ -28,6 +35,7 @@ interface SceneObjectProps {
 export function SceneObject({ overlay: base, highlighted, discoveryIndex, children, extra, className, dataAttributes }: SceneObjectProps) {
   const overlay = usePlacedOverlay(base) // development sandbox only; identical in production
   const [loaded, setLoaded] = useState(false)
+  const pressed = useContext(PressedObject) === overlay.id
   // The halo image covers the object's box plus HALO_MARGIN canvas px on every side.
   const halo = {
     left: `${-(HALO_MARGIN / overlay.width) * 100}%`,
@@ -52,6 +60,7 @@ export function SceneObject({ overlay: base, highlighted, discoveryIndex, childr
     <div
       className={`scene-object scene-object--${overlay.id}${className ? ` ${className}` : ''}`}
       data-highlighted={highlighted ? '' : undefined}
+      data-pressed={pressed ? '' : undefined}
       data-loaded={children || loaded ? '' : undefined}
       style={style}
       {...dataAttributes}

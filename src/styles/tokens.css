@@ -56,19 +56,37 @@
   --space-3xl: 6rem;
   --gutter: clamp(1rem, 0.4rem + 2.4vw, 2.75rem);
 
-  /* Motion: exponential ease-outs, no bounce */
+  /*
+   * Motion: one calm language, no bounce (DESIGN.md §6). JS reads these through
+   * lib/motion.ts rather than keeping copies.
+   */
+  /* Entering and feedback, about four motions in five: starts at once, settles softly. */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
-  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  /* Leaving: moves from the first frame and gathers pace, without hanging before it goes.
+     Pair it with a linear fade over the whole exit, so nothing travels unseen. */
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+  /* Sheets, drawers and the record's flight (music/flight.ts reads it). */
   --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
-  --dur-quick: 160ms;
-  --dur-soft: 240ms;
-  --dur-panel: 420ms;
-  --dur-panel-exit: 240ms;
+  /* The room: crossfades, ambient light, the cat. The CSS twin of easeInOut() in lib/motion.ts. */
+  --ease-sine: cubic-bezier(0.45, 0, 0.55, 1);
+  /* Words that float up and away, like the room's speech labels. */
+  --ease-drift: cubic-bezier(0.33, 0, 0.2, 1);
+  /* A steeper swing, kept for the turntable arm's slow move on and off the record. */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+
+  /* Three UI steps plus the panel's exit. The room keeps its own slower clock
+     (900ms entrance, 1800ms time-of-day fade), set where it is used. */
+  --dur-quick: 160ms; /* press, colour, focus */
+  --dur-soft: 240ms; /* hover, labels, tooltips, small exits */
+  --dur-panel: 460ms; /* the sheet, drawers, the page cascade */
+  --dur-panel-exit: 260ms; /* about 60% of the way in: leaving is quicker than arriving */
 
   --header-h: 3.5rem;
   --radius: 2px;
 }
 
+/* Reduced motion: whatever still runs is a short fade. --dur-quick all but vanishes, so it
+   suits presses, not a fade that should still be seen. */
 @media (prefers-reduced-motion: reduce) {
   :root {
     --dur-quick: 1ms;

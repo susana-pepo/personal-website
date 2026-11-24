@@ -11,8 +11,10 @@
   --slot: var(--opt);
   --pad: 3px;
   --thumb-inset: 0px;
-  --ease-time: cubic-bezier(0.22, 1, 0.36, 1);
-  --dur-time: 420ms;
+  /* the site's ease-out (this curve was a near-identical twin of it) */
+  --ease-time: var(--ease-out);
+  /* quick enough that the highlight arrives with the click; it also times the icon's swell */
+  --dur-time: 280ms;
   display: grid;
   justify-items: end;
   gap: 0.4rem;
@@ -132,7 +134,7 @@
   -webkit-tap-highlight-color: transparent;
   transition:
     opacity var(--dur-time) var(--ease-time),
-    transform 160ms var(--ease-out);
+    transform var(--dur-quick) var(--ease-out);
 }
 
 .time-control__option[data-checked] {
@@ -195,9 +197,13 @@
     0 6px 14px -6px oklch(0.05 0.01 45 / 0.7);
   opacity: 0;
   transform: translate(-50%, 3px);
+  /* A faded-out name leaves the GPU with its glass: it turns visible as it starts to show,
+     and hidden only after a whole fade's length, so a reversed fade is never cut off. */
+  visibility: hidden;
   transition:
     opacity 200ms var(--ease-out),
-    transform 240ms var(--ease-time);
+    transform var(--dur-soft) var(--ease-time),
+    visibility 0s linear 200ms;
   pointer-events: none;
 }
 
@@ -205,13 +211,26 @@
 .time-control__option:focus-visible .time-control__tip {
   opacity: 1;
   transform: translate(-50%, 0);
+  visibility: visible;
+  transition-delay: 0s;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .time-control__option:hover .time-control__tip {
     opacity: 1;
     transform: translate(-50%, 0);
+    visibility: visible;
     transition-delay: 120ms;
+  }
+}
+
+/* Once a name has shown (the group is data-warm, set by SceneControl.tsx), moving across the
+   neighbouring options swaps the names at once, with no wait and no fade, so two never overlap.
+   It holds only while the pointer is over the pill: the last name still fades out when it
+   leaves. Reduced motion keeps its own short fade. */
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .time-control__group[data-warm]:hover .time-control__tip {
+    transition: none;
   }
 }
 
@@ -244,6 +263,8 @@
   .time-control__option:focus-visible .time-control__tip,
   .time-control__option[data-tapped] .time-control__tip {
     transform: translate(-50%, 0);
-    transition: opacity 120ms linear;
+    transition:
+      opacity 120ms linear,
+      visibility 120ms linear;
   }
 }

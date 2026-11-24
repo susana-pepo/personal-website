@@ -14,15 +14,19 @@ html:has(.panel[open]) {
  * header and one rhythm.
  */
 .panel {
-  /* Motion (panel-local, so the room's timings are untouched) */
-  --folio-open: 460ms;
+  /* Motion: the panel steps of tokens.css, named here so phones and reduced motion
+     can retune the sheet without touching the room's timings. */
+  --folio-open: var(--dur-panel);
   /* The sheet is solid well before it lands, so the slide is never spent invisible. */
   --folio-fade-in: 200ms;
   /* SectionPanel.tsx reads this as the backup for removing the dialog. */
-  --folio-exit: 260ms;
+  --folio-exit: var(--dur-panel-exit);
   --folio-stagger: 45ms;
+  /* When a turned page starts to arrive: its blocks, the rolling number and the tab ink
+     all set off together, just after the old page has begun to leave. */
+  --folio-turn-at: 60ms;
   /* Gentle exit: moves from the first frame instead of hanging before it goes. */
-  --folio-ease-exit: var(--ease-exit, cubic-bezier(0.4, 0, 1, 1));
+  --folio-ease-exit: var(--ease-exit);
 
   /* Paper */
   --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -216,7 +220,9 @@ html:has(.panel[open]) {
   background: var(--spot-ink);
   opacity: 0;
   transform-origin: 0 50%;
-  transition: transform 380ms var(--ease-out);
+  /* It only ever glides on a page turn (SectionPanel.tsx places it at once otherwise),
+     so it waits for the incoming page, as the number does. */
+  transition: transform 380ms var(--ease-out) var(--folio-turn-at);
   pointer-events: none;
 }
 
@@ -242,7 +248,7 @@ html:has(.panel[open]) {
   cursor: pointer;
   transition:
     color var(--dur-quick) var(--ease-out),
-    transform 160ms var(--ease-out);
+    transform var(--dur-quick) var(--ease-out);
 }
 
 .panel__close:hover {
@@ -251,6 +257,12 @@ html:has(.panel[open]) {
 
 .panel__close:active {
   transform: scale(0.96);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel__close:active {
+    transform: none;
+  }
 }
 
 .panel__close svg {
@@ -364,7 +376,7 @@ html:has(.panel[open]) {
 .panel__page[data-enter='open'] > .panel__header,
 .panel__page[data-enter='open'] > .section > * {
   animation-name: folio-rise;
-  animation-duration: 440ms;
+  animation-duration: var(--dur-panel);
   animation-delay: calc(120ms + var(--i, 0) * var(--folio-stagger));
 }
 
@@ -372,7 +384,7 @@ html:has(.panel[open]) {
 .panel__page[data-enter='turn'] > .section > * {
   animation-name: folio-turn;
   animation-duration: 380ms;
-  animation-delay: calc(60ms + var(--i, 0) * var(--folio-stagger));
+  animation-delay: calc(var(--folio-turn-at) + var(--i, 0) * var(--folio-stagger));
 }
 
 @keyframes folio-rise {
@@ -442,11 +454,11 @@ html:has(.panel[open]) {
 }
 
 .panel__num[data-roll] > .panel__num-from {
-  animation: folio-roll-out 460ms var(--ease-out) 60ms both;
+  animation: folio-roll-out var(--dur-panel) var(--ease-out) var(--folio-turn-at) both;
 }
 
 .panel__num[data-roll] > .panel__num-to {
-  animation: folio-roll-in 460ms var(--ease-out) 60ms both;
+  animation: folio-roll-in var(--dur-panel) var(--ease-out) var(--folio-turn-at) both;
 }
 
 @keyframes folio-roll-out {
@@ -488,7 +500,7 @@ html:has(.panel[open]) {
 /* Only a slow, cold load ever shows the word: a short one is over before it fades in. */
 .panel__loading {
   color: var(--ink-3);
-  animation: folio-wait 240ms ease 400ms backwards;
+  animation: folio-wait var(--dur-soft) ease 400ms backwards;
 }
 
 @keyframes folio-wait {

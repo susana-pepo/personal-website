@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { easeInOut } from '../../../lib/motion'
+import { easeInOut, easeOut } from '../../../lib/motion'
 import { content } from '../../../content/content'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
 import { quadMatrix, type Pt } from '../../../scene/perspective'
@@ -50,10 +50,13 @@ function genieFrame(q: number): Keyframe {
 const GENIE: Keyframe[] = Array.from({ length: 21 }, (_, i) => genieFrame(i / 20))
 
 /** Full open and full close, in ms (a partial one takes its share). */
-const OPEN_MS = 1200 // unhurried, like the rest of the room
-const CLOSE_MS = 900
-/** Opening pours out and settles softly; closing is one smooth, even sweep into the Dock. */
-// both ways a calm sine ease: it pours out and settles evenly, at the room's unhurried pace
+const OPEN_MS = 800
+const CLOSE_MS = 600
+/**
+ * Opening eases out, so the window pours out the moment the laptop is hovered and then
+ * settles softly; closing is one smooth, even sine sweep into the Dock. The typing in
+ * HeroScene.css (lt-type) starts once the opening has all but settled.
+ */
 const FADE: Keyframe[] = [{ opacity: 0 }, { opacity: 1 }]
 
 interface LaptopTerminalProps {
@@ -113,11 +116,13 @@ export function LaptopTerminal({ open, motionAllowed }: LaptopTerminalProps) {
     if (from === to) return
     const full = reducedMotion ? 180 : open ? OPEN_MS : CLOSE_MS
     const duration = full * Math.abs(to - from)
+    // the reduced-motion fade keeps its even sine either way
+    const ease = open && !reducedMotion ? easeOut : easeInOut
     const start = performance.now()
     let frame = 0
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / duration)
-      progress.current = from + (to - from) * easeInOut(t)
+      progress.current = from + (to - from) * ease(t)
       anim.currentTime = progress.current * 1000
       if (t < 1) frame = requestAnimationFrame(step)
     }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState, type FocusEvent, type KeyboardEvent, type PointerEvent } from 'react'
 import { content } from '../../content/content'
+import { usePrefersReducedMotion } from '../../hooks/useMediaQuery'
 import { dismissDiscoveryHint } from '../../lib/discovery'
 import { hrefFor } from '../../lib/router'
 import { HOTSPOTS, SCENE_HEIGHT, SCENE_WIDTH, pctX, pctY, toPathData, type Hotspot, type HotspotAction } from '../../scene/hotspots'
@@ -8,6 +9,8 @@ import './HotspotSpeech.css'
 interface HotspotLayerProps {
   /** Reports which object is lit (pointer over it, or keyboard focus on it). */
   onActiveChange: (id: string | null) => void
+  /** Reports which object a pointer is pressing on (null on release, cancel or leave). Not for keys. */
+  onPressChange?: (id: string | null) => void
   onAction: (action: HotspotAction) => void
   /** The lamp's current light, spoken with its control (e.g. "Lamp light on"). */
   lampTone?: string
@@ -22,6 +25,11 @@ const PATHS = new Map(HOTSPOTS.map((h) => [h.id, toPathData(h.polygons)]))
 
 /** Objects that answer in the scene itself rather than with a floating tag (the laptop's terminal, the lamp's splash). */
 const LABELLED_IN_SCENE: ReadonlySet<string> = new Set(['laptop', 'lamp'])
+
+/** How long a first hover waits before its label rises (the speech-in delay in HotspotSpeech.css). */
+const LABEL_WAIT_MS = 320
+/** How long the room stays "warm" once nothing is lit; with the 120 ms leave grace, about 600 ms. */
+const WARM_COOL_MS = 480
 
 /** The small tooltip text for an object. */
 export function tooltipFor(hotspot: Hotspot): string {
@@ -47,8 +55,9 @@ export function accessibleLabelFor(hotspot: Hotspot): string {
  * outline, plus the small tooltips. Hover state changes only on enter/leave,
  * never on pointer movement, so moving inside an object doesn't re-render.
  */
-export function HotspotLayer({ onActiveChange, onAction, lampTone, greeting = false }: HotspotLayerProps) {
+export function HotspotLayer({ onActiveChange, onPressChange, onAction, lampTone, greeting = false }: HotspotLayerProps) {
   const uid = useId().replace(/:/g, '')
+  const reducedMotion = usePrefersReducedMotion()
   const [hovered, setHovered] = useState<string | null>(null)
   const [focused, setFocused] = useState<string | null>(null)
   // Escape hides an open tooltip until the pointer or focus moves on.
@@ -58,6 +67,43 @@ export function HotspotLayer({ onActiveChange, onAction, lampTone, greeting = fa
   const viaFocus = hovered === null && focused !== null
 
   useEffect(() => onActiveChange(active), [active, onActiveChange])
+
+  // The first label waits a moment, so a pointer passing by doesn't set words flying. Once one
+  // has been up, the visitor is exploring: the next object's label answers almost at once
+  // (data-warm), until nothing has been lit for about 600 ms.
+  const [exploring, setExploring] = useState(false)
+  useEffect(() => {
+    if (!active) {
+      if (!exploring) return
+      const cool = window.setTimeout(() => setExploring(false), WARM_COOL_MS)
+      return () => window.clearTimeout(cool)
+    }
+    if (exploring) return
+    const warmUp = window.setTimeout(() => setExploring(true), viaFocus ? 0 : LABEL_WAIT_MS)
+    return () => window.clearTimeout(warmUp)
+  }, [active, exploring, viaFocus])
+  // Decided once per object as it lights, so a label already rising never changes pace.
+  const [warmFor, setWarmFor] = useState<{ id: string | null; warm: boolean }>({ id: null, warm: false })
+  if (warmFor.id !== active) setWarmFor({ id: active, warm: active !== null && exploring })
+  const warm = warmFor.id === active && warmFor.warm && !reducedMotion
+
+  // A pointer press on an object is reported up, so the object can sink a touch (HeroScene).
+  const pressedId = useRef<string | null>(null)
+  const press = useCallback(
+    (id: string) => {
+      pressedId.current = id
+      onPressChange?.(id)
+    },
+    [onPressChange],
+  )
+  const release = useCallback(
+    (id: string) => {
+      if (pressedId.current !== id) return
+      pressedId.current = null
+      onPressChange?.(null)
+    },
+    [onPressChange],
+  )
   useEffect(() => {
     if (active !== hushed) setHushed(null)
   }, [active, hushed])
@@ -116,7 +162,15 @@ export function HotspotLayer({ onActiveChange, onAction, lampTone, greeting = fa
         {/* Extra reach for fingers, drawn first so every object's own shape wins over a neighbour's margin. */}
         <g className="hotspots__reach" aria-hidden="true">
           {HOTSPOTS.map((hotspot) => (
-            <ReachArea key={hotspot.id} hotspot={hotspot} onEnter={enter} onLeave={leave} onAction={act} />
+            <ReachArea
+              key={hotspot.id}
+              hotspot={hotspot}
+              onEnter={enter}
+              onLeave={leave}
+              onPress={press}
+              onRelease={release}
+              onAction={act}
+            />
           ))}
         </g>
 
@@ -129,6 +183,8 @@ export function HotspotLayer({ onActiveChange, onAction, lampTone, greeting = fa
               isActive={active === hotspot.id}
               onEnter={enter}
               onLeave={leave}
+              onPress={press}
+              onRelease={release}
               onFocusChange={focusChange}
               onAction={act}
               state={hotspot.action === 'light' ? lampTone : undefined}
@@ -153,6 +209,7 @@ export function HotspotLayer({ onActiveChange, onAction, lampTone, greeting = fa
               data-placement={hotspot.label.placement}
               data-visible={shown ? '' : undefined}
               data-immediate={shown && viaFocus ? '' : undefined}
+              data-warm={shown && warm && active === hotspot.id ? '' : undefined}
               data-greeting={greetingNow ? '' : undefined}
               style={{ left: pctX(hotspot.label.x), top: pctY(hotspot.label.y) }}
               onPointerEnter={() => shown && enter(hotspot.id)}
@@ -180,15 +237,26 @@ function ReachArea({
   hotspot,
   onEnter,
   onLeave,
+  onPress,
+  onRelease,
   onAction,
 }: {
   hotspot: Hotspot
   onEnter: (id: string) => void
   onLeave: (id: string) => void
+  onPress: (id: string) => void
+  onRelease: (id: string) => void
   onAction: (action: HotspotAction) => void
 }) {
   const d = PATHS.get(hotspot.id)
-  const handlers = { onPointerEnter: () => onEnter(hotspot.id), onPointerLeave: () => onLeave(hotspot.id) }
+  const handlers = {
+    onPointerEnter: () => onEnter(hotspot.id),
+    onPointerLeave: () => {
+      onRelease(hotspot.id)
+      onLeave(hotspot.id)
+    },
+    ...pressHandlers(hotspot.id, onPress, onRelease),
+  }
   if (hotspot.section) {
     return (
       <a href={hrefFor(hotspot.section)} tabIndex={-1} onClick={() => dismissDiscoveryHint()} {...handlers}>
@@ -206,12 +274,28 @@ function ReachArea({
   )
 }
 
+/**
+ * A pointer press on an object: the main button or a touch going down, until it lifts or is
+ * cancelled (a scroll, a drag). Keys never press: Enter and Space act without the sink.
+ */
+function pressHandlers(id: string, onPress: (id: string) => void, onRelease: (id: string) => void) {
+  return {
+    onPointerDown: (event: PointerEvent<Element>) => {
+      if (event.button === 0 && !event.ctrlKey) onPress(id) // Ctrl+click on a Mac opens a menu instead
+    },
+    onPointerUp: () => onRelease(id),
+    onPointerCancel: () => onRelease(id),
+  }
+}
+
 interface InteractiveHotspotProps {
   hotspot: Hotspot
   glowFilter: string
   isActive: boolean
   onEnter: (id: string) => void
   onLeave: (id: string) => void
+  onPress: (id: string) => void
+  onRelease: (id: string) => void
   onFocusChange: (id: string | null) => void
   onAction: (action: HotspotAction) => void
   /** Its current state, added to its name (the lamp's light colour). */
@@ -226,7 +310,18 @@ interface InteractiveHotspotProps {
  * click, tap, Enter or Space. Objects painted into the video get a warm wash
  * of lamplight here; overlays light their own precomputed halos (SceneObject).
  */
-export function InteractiveHotspot({ hotspot, glowFilter, isActive, onEnter, onLeave, onFocusChange, onAction, state }: InteractiveHotspotProps) {
+export function InteractiveHotspot({
+  hotspot,
+  glowFilter,
+  isActive,
+  onEnter,
+  onLeave,
+  onPress,
+  onRelease,
+  onFocusChange,
+  onAction,
+  state,
+}: InteractiveHotspotProps) {
   const d = PATHS.get(hotspot.id)
   const spaceDown = useRef(false)
   const shared = {
@@ -240,7 +335,11 @@ export function InteractiveHotspot({ hotspot, glowFilter, isActive, onEnter, onL
       // The lamp waits for a click.
       if (hotspot.action === 'pet' && event.pointerType === 'mouse') onAction(hotspot.action)
     },
-    onPointerLeave: () => onLeave(hotspot.id),
+    onPointerLeave: () => {
+      onRelease(hotspot.id)
+      onLeave(hotspot.id)
+    },
+    ...pressHandlers(hotspot.id, onPress, onRelease),
     onFocus: (event: FocusEvent<Element>) => {
       // Only light up for keyboard focus, not after a mouse click.
       if (event.currentTarget.matches(':focus-visible')) {
@@ -250,6 +349,7 @@ export function InteractiveHotspot({ hotspot, glowFilter, isActive, onEnter, onL
     },
     onBlur: () => {
       spaceDown.current = false
+      onRelease(hotspot.id) // e.g. the window loses focus mid-press, so the release never arrives
       onFocusChange(null)
     },
   }

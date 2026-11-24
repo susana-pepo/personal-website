@@ -1,3 +1,5 @@
+import { cssToken } from '../../../lib/motion'
+
 /** A box relative to some container, in px. */
 export interface Box {
   x: number
@@ -10,9 +12,6 @@ export function boxIn(container: Element, rect: DOMRect): Box {
   const c = container.getBoundingClientRect()
   return { x: rect.left - c.left, y: rect.top - c.top, w: rect.width, h: rect.height }
 }
-
-/** Must match --ease-drawer in tokens.css. */
-const EASE_DRAWER = 'cubic-bezier(0.32, 0.72, 0, 1)'
 
 /**
  * Fly a copy of a sleeve between two places with the Web Animations API.
@@ -31,7 +30,8 @@ export function flySleeve(container: HTMLElement, source: Element, from: Box, to
   const scale = to.w > 0 ? from.w / to.w : 1
   const animation = copy.animate(
     [{ transform: `translate(${from.x - to.x}px, ${from.y - to.y}px) scale(${scale})` }, { transform: 'none' }],
-    { duration, easing: EASE_DRAWER },
+    // The sheets' and drawers' curve, read from tokens.css so the flight always moves like them.
+    { duration, easing: cssToken('--ease-drawer', 'cubic-bezier(0.32, 0.72, 0, 1)') },
   )
   return animation.finished.then(
     () => copy.remove(),

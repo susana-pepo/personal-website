@@ -201,7 +201,7 @@ Four reviews looked at every interaction animation on the stable site (http://lo
 - **Panel routing:** hash routes, deep links, Escape, backdrop and Close, focus returning to the object, and page-turn direction.
 - **Time and weather:** what each pill does, the 1800/2600ms fades, retargeting, and the hour change from the visitor's clock.
 - **Reduced motion:** it may only be extended, never reduced.
-- **Deliberate layers:** `.cover .stage { transform: translateZ(0) }` (Safari rounded clip) and the clip layers' `will-change`.
+- **Deliberate layers:** `.cover .stage { transform: translateZ(0) }` (Safari rounded clip). *(Updated after Phase 1: the woman's clips no longer have `will-change`. On their own layer Chrome dropped her for single frames on Retina, 22 times in 10 minutes against 0 without it. The room lean from 1.1 was also removed: animating the room's scale caused the open/close flicker, 35 dropouts in 12 opens and closes against 0. Don't reintroduce either.)*
 
 **How each phase is checked**
 

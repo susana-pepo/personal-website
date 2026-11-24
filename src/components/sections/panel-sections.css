@@ -738,7 +738,12 @@
   display: none;
 }
 
-/* Chosen by pointer: a short cross-fade, softened with a touch of blur. By keyboard: instant. */
+/*
+ * Chosen by pointer: a short fade with a small rise. By keyboard: instant.
+ * No blur, because a filter inside the scrolling panel repaints the whole page
+ * on every frame. Opacity is done at 60% so the page is solid while it still
+ * settles, as the entrance pattern asks.
+ */
 .cv-page:not([data-instant]) {
   animation: cv-page-in 220ms var(--ease-out) both;
 }
@@ -747,7 +752,10 @@
   from {
     opacity: 0;
     transform: translateY(6px);
-    filter: blur(2px);
+  }
+
+  60% {
+    opacity: 1;
   }
 }
 

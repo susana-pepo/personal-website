@@ -15,7 +15,7 @@ import { CatOverlay, type CatHandle } from './overlays/CatOverlay'
 import { CoffeeOverlay } from './overlays/CoffeeOverlay'
 import { WomanOverlay } from './overlays/WomanOverlay'
 import { HotspotLayer } from './HotspotLayer'
-import { SceneObject } from './overlays/SceneObject'
+import { PressedObject, SceneObject } from './overlays/SceneObject'
 import { PowerLight, VinylPlayer } from './overlays/VinylPlayer'
 import { LampLiquid } from './lamp/LampLiquid'
 import { LampColour } from './lamp/LampColour'
@@ -69,9 +69,15 @@ const ROOM_BOX = {
 // Left to right: the order the objects light up in on a first look (not the cat: it is a playful extra).
 const DISCOVERY_ORDER = ['vinyl', 'books', 'woman', 'deskbooks', 'laptop', 'coffee']
 const discoveryIndex = (id: string) => DISCOVERY_ORDER.indexOf(id)
-/** Pause after the room appears, then each object glows for 820 ms, 260 ms apart (halo-discover in HeroScene.css). */
-const DISCOVERY_DELAY_MS = 1100
-const DISCOVERY_TOTAL_MS = DISCOVERY_DELAY_MS + (DISCOVERY_ORDER.length - 1) * 260 + 820 + 100
+/**
+ * Pause after the room has settled, then each object glows for 820 ms, 180 ms apart
+ * (halo-discover in HeroScene.css). Settled is 1300 ms after the entrance, so the sweep starts
+ * about 3.4 s in, as her greeting fades, and the chip lands as the last halo peaks
+ * (--hint-delay in DiscoveryHint.css is worked out from these numbers).
+ */
+const DISCOVERY_DELAY_MS = 2100
+const DISCOVERY_STEP_MS = 180
+const DISCOVERY_TOTAL_MS = DISCOVERY_DELAY_MS + (DISCOVERY_ORDER.length - 1) * DISCOVERY_STEP_MS + 820 + 100
 /** The lamp's current light, as announced (or that it's off). */
 const lampName = (step: number) => {
   const tone = toneAt(step)
@@ -135,6 +141,9 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   const discovering = discovery === 'running'
 
   const litOverlay = active ? OVERLAY_OF.get(active) : undefined
+  // The object under a pointer press sinks a touch (HeroScene.css), as a sign the press was heard.
+  const [pressed, setPressed] = useState<string | null>(null)
+  const pressedOverlay = (pressed && OVERLAY_OF.get(pressed)) || null
   const section = useSection()
   // Until the visitor first hovers, focuses or taps an object (used by the optional invitation pulse).
   const [explored, setExplored] = useState(false)
@@ -340,41 +349,43 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
         <WindowLife time={lightTime} motionAllowed={playback.motionAllowed} />
         <WeatherLayer weather={weather} time={lightTime} motionAllowed={playback.motionAllowed} />
 
-        {OBJECTS.map((object) => (
-          <SceneObject
-            key={object.id}
-            overlay={object}
-            highlighted={litOverlay === object.id}
-            discoveryIndex={discoveryIndex(object.id)}
-            extra={
-              object.id === 'laptop' ? (
-                <LaptopTerminal open={litOverlay === 'laptop' || section === 'work'} motionAllowed={playback.motionAllowed} />
-              ) : undefined
-            }
+        <PressedObject value={pressedOverlay}>
+          {OBJECTS.map((object) => (
+            <SceneObject
+              key={object.id}
+              overlay={object}
+              highlighted={litOverlay === object.id}
+              discoveryIndex={discoveryIndex(object.id)}
+              extra={
+                object.id === 'laptop' ? (
+                  <LaptopTerminal open={litOverlay === 'laptop' || section === 'work'} motionAllowed={playback.motionAllowed} />
+                ) : undefined
+              }
+            />
+          ))}
+          <VinylPlayer
+            highlighted={litOverlay === 'vinyl'}
+            motionAllowed={playback.motionAllowed}
+            discoveryIndex={discoveryIndex('vinyl')}
           />
-        ))}
-        <VinylPlayer
-          highlighted={litOverlay === 'vinyl'}
-          motionAllowed={playback.motionAllowed}
-          discoveryIndex={discoveryIndex('vinyl')}
-        />
-        <WomanOverlay
-          motionAllowed={playback.motionAllowed}
-          highlighted={litOverlay === 'woman'}
-          discoveryIndex={discoveryIndex('woman')}
-        />
-        <CoffeeOverlay
-          motionAllowed={playback.motionAllowed}
-          highlighted={litOverlay === 'coffee'}
-          discoveryIndex={discoveryIndex('coffee')}
-        />
-        <CatOverlay
-          ref={catRef}
-          motionAllowed={playback.motionAllowed}
-          highlighted={litOverlay === 'cat'}
-          discoveryIndex={-1}
-          onReaction={onCatReaction}
-        />
+          <WomanOverlay
+            motionAllowed={playback.motionAllowed}
+            highlighted={litOverlay === 'woman'}
+            discoveryIndex={discoveryIndex('woman')}
+          />
+          <CoffeeOverlay
+            motionAllowed={playback.motionAllowed}
+            highlighted={litOverlay === 'coffee'}
+            discoveryIndex={discoveryIndex('coffee')}
+          />
+          <CatOverlay
+            ref={catRef}
+            motionAllowed={playback.motionAllowed}
+            highlighted={litOverlay === 'cat'}
+            discoveryIndex={-1}
+            onReaction={onCatReaction}
+          />
+        </PressedObject>
         {/* Evening mood over the room and every object; the lamp's light sits above it. */}
         <span className="room-mood" aria-hidden="true" />
         {/* The time of day in the room's light (none at dawn: the painting as it is). */}
@@ -386,7 +397,13 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
         <LampColour tone={lampTone} />
         <LampSplash ref={lampSplash} />
 
-        <HotspotLayer onActiveChange={setActive} onAction={onAction} lampTone={lampName(lampTone)} greeting={greeting} />
+        <HotspotLayer
+          onActiveChange={setActive}
+          onPressChange={setPressed}
+          onAction={onAction}
+          lampTone={lampName(lampTone)}
+          greeting={greeting}
+        />
 
         {/* Drawn in the masthead above the room (after the menu in the tab order). */}
         {controlSlot &&

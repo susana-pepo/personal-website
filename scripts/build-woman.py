@@ -89,6 +89,14 @@ LIGHT_PROBES = ((300, 850, 650, 1250), (80, 600, 280, 1000))
 CALM_REACH = 3
 CALM_SIGMA = 7.0
 CALM_WEIGHTS = (1.0, 0.85, 0.65, 0.45)
+# Source px per frame: calming fades out where things really move (her hand lifting the pen to
+# turn the page). Shimmer sits on still or slow parts; on fast, thin things (the nib in flight)
+# the flow can't line neighbours up exactly, and blending them speckles instead of calming.
+CALM_MOTION = 3.0
+# Her outline (alpha) is calmed on its own: the generated video's edge wavers from frame to frame
+# even where she is still, and there the colours of neighbouring frames disagree too much for the
+# colour calming to touch it. Matches are judged by how close the edge is, not by colour.
+CALM_ALPHA_SIGMA = 90.0  # alpha levels (of 255)
 MARGIN = 6  # canvas px around everything
 
 
@@ -285,7 +293,7 @@ def source_frames(path):
     return [f.convert('RGBA') for f in ImageSequence.Iterator(Image.open(path))]
 
 
-def fill_hair_gaps(img):
+def _hair_fill(img):
     """Fill the export's see-through slivers between the outer strands of her hair, and the
     pale or grey bits of its old background caught there, with the colour of the hair around
     them, so the room never shows through her hair. Only within HAIR_ZONE, and only pixels
@@ -314,9 +322,44 @@ def fill_hair_gaps(img):
     fix = holes | pale
     recolour = (fix | (grow(fix, 2) & ((a < 250) | (lum > 120)))) & reach & zone
     soft = np.asarray(Image.fromarray((fix * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(0.7)), np.float32) / 255
-    out_rgb = np.where(recolour[..., None], col, rgb)
-    out_a = np.maximum(a, np.maximum(fix * 255.0, soft * 255))
+    return rgb, a, col, np.maximum(fix, soft), recolour.astype(np.float32), (reach & zone).astype(np.float32)
+
+
+def fill_hair_gaps(img):
+    """One frame's hair gaps filled (see _hair_fill)."""
+    rgb, a, col, fill, recolour, _ = _hair_fill(img)
+    return _hair_filled(rgb, a, col, fill, recolour)
+
+
+def _hair_filled(rgb, a, col, fill, recolour):
+    out_rgb = rgb * (1 - recolour[..., None]) + col * recolour[..., None]
+    out_a = np.maximum(a, fill * 255.0)
     return Image.fromarray(np.dstack([out_rgb, out_a]).round().clip(0, 255).astype(np.uint8))
+
+
+HAIR_STEADY = 1.2  # frames: how much the gap filling is evened out over time
+
+
+def fill_hair_gaps_seq(frames):
+    """Every frame's hair gaps filled, the filling evened out over neighbouring frames. Found
+    frame by frame it differs a little each time, and the filled strands' edges flickered
+    (measured: 77% more than the export's own). Her hair down her back hardly moves, so a short
+    average over time is enough and doesn't trail."""
+    parts = [_hair_fill(f) for f in frames]
+    k = np.exp(-0.5 * (np.arange(-3, 4) / HAIR_STEADY) ** 2)
+    out = []
+    for t, (rgb, a, col, _, _, here) in enumerate(parts):
+        fill = np.zeros_like(a)
+        recolour = np.zeros_like(a)
+        wsum = 0.0
+        for j, w in zip(range(t - 3, t + 4), k):
+            if 0 <= j < len(parts):
+                fill += parts[j][3] * w
+                recolour += parts[j][4] * w
+                wsum += w
+        # only where this frame's own hair colour reaches (elsewhere it has none to fill with)
+        out.append(_hair_filled(rgb, a, col, fill / wsum * here, np.clip(recolour / wsum, 0, 1) * here))
+    return out
 
 
 def _barrel(rgba):
@@ -415,6 +458,25 @@ def steady_pen(frames, ref):
     return out, masks
 
 
+PEN_REACH = (600, 620, 1120, 1180)  # source px x0, y0, x1, y1: where the pen can be, also lifted to turn a page
+
+
+def own_pen(rgba):
+    """The frame's own pen (its dark barrel and gold fittings) within PEN_REACH, as a soft 0-1
+    mask: where the clean pen can't be followed, the edge clean-up must still leave the pen
+    alone, or it smears the barrel and dulls the nib."""
+    x = np.asarray(rgba).astype(np.float32)
+    r, g, b, a = x[..., 0], x[..., 1], x[..., 2], x[..., 3]
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    barrel = (lum < 70) & (r >= b) & (a > 200)
+    gold = (r > 140) & (g - b > 60) & (r - b > 90) & (r - g < 90) & (a > 200)  # not skin in shadow
+    reach = np.zeros_like(barrel)
+    x0, y0, x1, y1 = PEN_REACH
+    reach[y0:y1, x0:x1] = True
+    m = _max(((barrel | gold) & reach).astype(np.uint8) * 255, 5) > 0
+    return _blurred(m.astype(np.float32), 1.5)
+
+
 def hold_light(frames, ref):
     """frames (straight RGBA arrays) with each one's exposure held to `ref`'s, per colour channel
     in linear light, measured in LIGHT_PROBES; eased over time so it never flickers itself."""
@@ -477,6 +539,8 @@ def calm_shimmer(frames, keep=None):
             del cache[i]
         acc = pm(t) * CALM_WEIGHTS[0]
         wsum = np.full((H, W), CALM_WEIGHTS[0], np.float32)
+        acc_a = pm(t)[..., 3] * CALM_WEIGHTS[0]
+        wsum_a = np.full((H, W), CALM_WEIGHTS[0], np.float32)
         for k in range(1, CALM_REACH + 1):
             for s_ in (t - k, t + k):
                 if s_ < 0 or s_ >= n:
@@ -486,12 +550,20 @@ def calm_shimmer(frames, keep=None):
                 fb = np.hypot(f_ts[..., 0] + back[..., 0], f_ts[..., 1] + back[..., 1])
                 warped = warp(pm(s_), f_ts)
                 d = np.abs(warped - pm(t)).mean(-1)
-                w = CALM_WEIGHTS[k] * np.exp(-(d / CALM_SIGMA) ** 2) * (fb < 0.75)
+                speed = np.hypot(f_ts[..., 0], f_ts[..., 1]) / k
+                w = CALM_WEIGHTS[k] * np.exp(-(d / CALM_SIGMA) ** 2) * (fb < 0.75) * np.exp(-(speed / CALM_MOTION) ** 2)
                 acc += warped * w[..., None]
                 wsum += w
+                if CALM_ALPHA_SIGMA:
+                    da = np.abs(warped[..., 3] - pm(t)[..., 3])
+                    wa = CALM_WEIGHTS[k] * np.exp(-(da / CALM_ALPHA_SIGMA) ** 2) * (fb < 0.75) * np.exp(-(speed / CALM_MOTION) ** 2)
+                    acc_a += warped[..., 3] * wa
+                    wsum_a += wa
         p = acc / wsum[..., None]
         a = p[..., 3:4]
         rgb = np.where(a > 0.5, p[..., :3] * 255.0 / np.maximum(a, 1e-6), frames[t][..., :3])
+        if CALM_ALPHA_SIGMA:  # the colour stays the colour calming's; only how solid it is changes
+            a = (acc_a / wsum_a)[..., None]
         calmed = np.dstack([rgb, a])
         if keep is not None and keep[t] is not None:  # the clean pen is steady already: kept as it is
             k_ = keep[t][..., None]
@@ -576,9 +648,12 @@ def build_clip(name, width, quality):
     srcs, pens = steady_pen([f for f, _ in layers], home_src)  # 1. one clean pen
     srcs, gains = hold_light([np.asarray(f) for f in srcs], home_ready)  # 2. the light held to the home frame
     print(f'  light held: gains {gains.min():.3f}-{gains.max():.3f}', flush=True)
-    srcs = [np.asarray(fill_hair_gaps(Image.fromarray(f))) for f in srcs]  # 3. hair gaps filled
+    srcs = [np.asarray(f) for f in fill_hair_gaps_seq([Image.fromarray(f) for f in srcs])]  # 3. hair gaps filled, evened over time
     srcs = calm_shimmer(srcs, keep=pens)  # 4. the shimmer calmed (not the clean pen)
-    layers = [(Image.fromarray(f), h, m) for f, h, m in zip(srcs, holds_src, pens)]
+    # 5. what the edge clean-up must leave alone: the clean pen, and the frame's own pen
+    # wherever that shows (lifted to turn a page, the clean pen can't follow it)
+    keeps = [own_pen(f) if m is None else np.maximum(m, own_pen(f)) for f, m in zip(srcs, pens)]
+    layers = [(Image.fromarray(f), h, m) for f, h, m in zip(srcs, holds_src, keeps)]
     del srcs
     home = finished(Image.fromarray(home_ready), home_pen[0]) if name != HOME else None
     out, holds = [], []

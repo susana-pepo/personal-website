@@ -503,6 +503,7 @@
 }
 
 /* ── Detail: the book turns face out ── */
+/* ShelfRow.tsx reads these two timings from the drawer itself, so they can change here alone. */
 .bs-drawer {
   display: grid;
   grid-template-rows: 0fr;
@@ -514,9 +515,16 @@
   transition-duration: var(--dur-panel);
 }
 
+/*
+ * The drawer's height change still reflows what sits below it and the inside too
+ * (its own height changes). Containment only keeps work inside this box from
+ * spreading outward. It already clips at its edge, so paint containment hides
+ * nothing new.
+ */
 .bs-drawer__inner {
   min-height: 0;
   overflow: hidden;
+  contain: layout paint;
 }
 
 .bs-detail {
