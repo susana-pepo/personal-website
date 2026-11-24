@@ -19,6 +19,8 @@
  *    look and her greeting are over. Never while a page is open, the room is paused, the tab
  *    is hidden or an object is being pointed at (that turn is skipped, not queued). With
  *    reduced motion a hint fades in and out where it stands.
+ *  - Their own cursors, in the room's ink (GlimmerCursor): over the cat, a hand that
+ *    strokes; over the lamp, a little bulb that flicks on.
  *  - Found: once a glimmer has been met (hovered, focused or tapped), its hint stops, for
  *    good, in this browser. When all are found, the room is quiet again.
  *

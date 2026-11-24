@@ -144,6 +144,14 @@ bold or an italic.
     timing never moves). Never while a page is open, the room is paused, the tab is hidden or
     something is pointed at; that turn is skipped. With reduced motion a hint fades where it
     stands.
+  - **Their own cursors.** With a mouse over a glimmer, the cursor is drawn in the room's ink
+    (cream, warm-brown line; `GlimmerCursor`). Over the cat it is a hand that strokes, gliding
+    along its fingers and back, and a click pats. Over the lamp it is a little bulb that flicks
+    on now and then (on, a catch, on), glows a moment with a small moonlight spark and eases
+    off; it stays on while the button is down. The section objects keep the plain pointer. Still
+    with reduced motion; never on touch or for the keyboard.
+  - **Always an answer.** A pet while the cat is still answering the last one doesn't start
+    over, but it never goes unanswered: a purr floats up from its head every time.
   - **Found is for good.** Hovering, focusing or tapping one finds it, remembered in the browser;
     its hint stops (the cat keeps its occasional cream dreams). When all are found the room is
     quiet. A new glimmer needs an entry in `GLIMMERS` and one moonlight hint in its own nature.

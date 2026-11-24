@@ -89,6 +89,10 @@ function makeDream(): Puff[] {
   }))
 }
 
+/** A pet while it is already answering: a purr floats up (at most one every this often), and lasts this long. */
+const PURR_AGAIN_GAP_MS = 120
+const PURR_AGAIN_MS = 2500
+
 /** Its glimmer hint's z's: how long the last one takes to drift away (its delay included). */
 const HINT_MS = 4400
 
@@ -137,8 +141,36 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
   const react = useRef<(() => { name: string; ms: number } | null) | null>(null)
   const [reaction, setReaction] = useState<string>('asleep')
 
+  // A pet while it is already answering one: it doesn't start over (that would stack), but it
+  // never goes unanswered either. A purr floats up from its head, a little different each time.
+  const [purrs, setPurrs] = useState<{ key: number; puff: Puff }[]>([])
+  const purrKey = useRef(0)
+  const lastPurr = useRef(Number.NEGATIVE_INFINITY)
+  const purrTimers = useRef<number[]>([])
+  const purrAgain = useCallback(() => {
+    const now = performance.now()
+    if (now - lastPurr.current < PURR_AGAIN_GAP_MS) return
+    lastPurr.current = now
+    const key = ++purrKey.current
+    const puff: Puff = {
+      text: pick(['purr', 'prrr', 'purrr', 'mrr']),
+      kind: 'purr',
+      dx: between(-1.8, -0.3),
+      dy: between(-2.2, -1.3),
+      rotate: between(-8, 4),
+      delay: 0,
+      size: between(1, 1.2),
+    }
+    setPurrs((current) => [...current, { key, puff }].slice(-4))
+    purrTimers.current.push(window.setTimeout(() => setPurrs((current) => current.filter((p) => p.key !== key)), PURR_AGAIN_MS))
+  }, [])
+  useEffect(() => () => purrTimers.current.forEach((t) => window.clearTimeout(t)), [])
+
   const pet = useCallback(() => {
-    if (!acceptsPet(phaseRef.current)) return
+    if (!acceptsPet(phaseRef.current)) {
+      purrAgain()
+      return
+    }
     phaseRef.current = catReducer(phaseRef.current, 'pet')
     // It stays asleep (a purr and z's), or plays a reaction clip (see the player below).
     const clip = react.current?.() ?? null
@@ -155,7 +187,7 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       },
       ms === null ? STILL_REPLY_MS : ms,
     )
-  }, [])
+  }, [purrAgain])
 
   // The clips: the sleeping loop, and a reaction on request. Each plays from a fresh copy
   // of its file (so it starts at its first frame), decoded before it's put on screen.
@@ -388,6 +420,26 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
                   '--rot': `${puff.rotate}deg`,
                   '--size': puff.size,
                   animationDelay: `${puff.delay}s`,
+                } as CSSProperties
+              }
+            >
+              {puff.text}
+            </span>
+          ))}
+        </span>
+      )}
+      {purrs.length > 0 && (
+        <span className="cat__purr" aria-hidden="true">
+          {purrs.map(({ key, puff }) => (
+            <span
+              key={key}
+              className="cat__puff cat__puff--purr"
+              style={
+                {
+                  '--dx': `${puff.dx}em`,
+                  '--dy': `${puff.dy}em`,
+                  '--rot': `${puff.rotate}deg`,
+                  '--size': puff.size,
                 } as CSSProperties
               }
             >

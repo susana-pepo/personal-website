@@ -329,6 +329,221 @@
   cursor: default;
 }
 
+/* While a mouse is over a glimmer, its own hand (GlimmerCursor) stands in for the cursor. */
+.hotspots[data-hand='pet'] .hotspot[data-object='cat'],
+.hotspots[data-hand='pet'] .hotspot[data-object='cat'] .hotspot__hit,
+.hotspots[data-hand='light'] .hotspot[data-object='lamp'],
+.hotspots[data-hand='light'] .hotspot[data-object='lamp'] .hotspot__hit {
+  cursor: none;
+}
+
+/*
+ * The glimmers' hands, drawn in the room's ink. Over the cat, the hand strokes it: a slow
+ * glide along its fingers and back, pressing in a touch at the middle of the stroke; a click
+ * pats. Over the lamp, a little bulb (nothing like the sections' plain pointer) flicks on now
+ * and then, with a small moonlight spark; a real press keeps it on. Same calm curve as the
+ * room (--ease-sine).
+ */
+.glimmer-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  will-change: transform;
+}
+
+.glimmer-cursor svg {
+  display: block;
+  overflow: visible;
+  filter: drop-shadow(0 1px 1.5px oklch(0.2 0.03 45 / 0.45));
+}
+
+.glimmer-cursor__hand {
+  fill: oklch(0.97 0.02 80);
+  stroke: oklch(0.38 0.05 45);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.glimmer-cursor__seam {
+  fill: none;
+  stroke: oklch(0.38 0.05 45);
+  stroke-width: 1;
+  stroke-linecap: round;
+  opacity: 0.8;
+}
+
+.glimmer-cursor__gesture {
+  animation: glimmer-arrive 220ms var(--ease-out) both;
+}
+
+@keyframes glimmer-arrive {
+  from {
+    opacity: 0;
+    scale: 0.85;
+  }
+}
+
+.glimmer-cursor[data-kind='pet'] svg {
+  transform-origin: 50% 50%;
+  animation: glimmer-pet 1.7s var(--ease-sine) infinite;
+}
+
+@keyframes glimmer-pet {
+  0%,
+  100% {
+    transform: translate(2.5px, -0.5px) rotate(2deg);
+  }
+  50% {
+    transform: translate(-3.5px, 1.5px) rotate(-3deg) scale(0.97, 0.94);
+  }
+}
+
+/* The lamp's bulb: off, then now and then it flicks on (on, a catch, on), glows a moment
+   with a moonlight spark, and eases off again. */
+.glimmer-cursor__glass {
+  fill: oklch(0.96 0.015 85);
+  stroke: oklch(0.38 0.05 45);
+  stroke-width: 1.4;
+}
+
+.glimmer-cursor__glass--on {
+  fill: oklch(0.95 0.08 88);
+}
+
+.glimmer-cursor__filament {
+  fill: none;
+  stroke: oklch(0.55 0.05 55);
+  stroke-width: 1.1;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.glimmer-cursor__filament--on {
+  stroke: oklch(0.72 0.15 62);
+  stroke-width: 1.3;
+}
+
+.glimmer-cursor__base {
+  fill: oklch(0.8 0.11 80);
+  stroke: oklch(0.38 0.05 45);
+  stroke-width: 1.3;
+}
+
+.glimmer-cursor__tip {
+  fill: oklch(0.38 0.05 45);
+}
+
+.glimmer-cursor__glow {
+  fill: oklch(0.93 0.1 88);
+  opacity: 0;
+}
+
+.glimmer-cursor__on,
+.glimmer-cursor__glow {
+  animation: glimmer-bulb 2.4s var(--ease-sine) infinite;
+}
+
+.glimmer-cursor__glow {
+  animation-name: glimmer-bulb-glow;
+}
+
+@keyframes glimmer-bulb {
+  0%,
+  36%,
+  96%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 1;
+  }
+  44% {
+    opacity: 0.45;
+  }
+  49%,
+  78% {
+    opacity: 1;
+  }
+}
+
+@keyframes glimmer-bulb-glow {
+  0%,
+  36%,
+  96%,
+  100% {
+    opacity: 0;
+  }
+  40% {
+    opacity: 0.5;
+  }
+  44% {
+    opacity: 0.2;
+  }
+  49%,
+  78% {
+    opacity: 0.55;
+  }
+}
+
+.glimmer-cursor__spark path {
+  fill: none;
+  stroke: var(--moon);
+  stroke-width: 1.4;
+  stroke-linecap: round;
+}
+
+.glimmer-cursor__spark {
+  transform-origin: 24px 17px; /* the bulb, in the drawing's own units */
+  opacity: 0;
+  animation: glimmer-spark 2.4s var(--ease-out) infinite;
+}
+
+@keyframes glimmer-spark {
+  0%,
+  47% {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  54% {
+    opacity: 1;
+  }
+  74%,
+  100% {
+    opacity: 0;
+    transform: scale(1.15);
+  }
+}
+
+/* A real press: the cat's hand pats down; the lamp's bulb comes on and stays on while the
+   button is down. */
+.glimmer-cursor[data-kind='pet'][data-pressed] svg {
+  animation: none;
+  transform: translate(-1px, 2px) scale(0.96, 0.9);
+  transition: transform 90ms var(--ease-out);
+}
+
+.glimmer-cursor[data-kind='light'][data-pressed] .glimmer-cursor__on {
+  animation: none;
+  opacity: 1;
+}
+
+.glimmer-cursor[data-kind='light'][data-pressed] .glimmer-cursor__glow {
+  animation: none;
+  opacity: 0.6;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .glimmer-cursor svg,
+  .glimmer-cursor__gesture,
+  .glimmer-cursor__on,
+  .glimmer-cursor__glow,
+  .glimmer-cursor__spark {
+    animation: none;
+  }
+}
+
 /* A pet: a soft "purr" and three z's floating up from its head. */
 .cat__purr {
   position: absolute;

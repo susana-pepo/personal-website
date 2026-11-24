@@ -4,6 +4,7 @@ import { usePrefersReducedMotion } from '../../hooks/useMediaQuery'
 import { dismissDiscoveryHint } from '../../lib/discovery'
 import { hrefFor } from '../../lib/router'
 import { HOTSPOTS, SCENE_HEIGHT, SCENE_WIDTH, pctX, pctY, toPathData, type Hotspot, type HotspotAction } from '../../scene/hotspots'
+import { GlimmerCursor } from './GlimmerCursor'
 import './HotspotSpeech.css'
 
 interface HotspotLayerProps {
@@ -91,9 +92,13 @@ export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusO
 
   // A pointer press on an object is reported up, so the object can sink a touch (HeroScene).
   const pressedId = useRef<string | null>(null)
+  // The glimmer whose own hand stands in for the cursor while a mouse is over it (GlimmerCursor).
+  const [hand, setHand] = useState<HotspotAction | null>(null)
+  const [handPressed, setHandPressed] = useState(false)
   const press = useCallback(
     (id: string) => {
       pressedId.current = id
+      setHandPressed(true)
       onPressChange?.(id)
     },
     [onPressChange],
@@ -102,6 +107,7 @@ export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusO
     (id: string) => {
       if (pressedId.current !== id) return
       pressedId.current = null
+      setHandPressed(false)
       onPressChange?.(null)
     },
     [onPressChange],
@@ -158,6 +164,7 @@ export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusO
         viewBox={`0 0 ${SCENE_WIDTH} ${SCENE_HEIGHT}`}
         preserveAspectRatio="none"
         data-active={active ?? undefined}
+        data-hand={hand ?? undefined}
       >
         <defs>
           <filter id={`${uid}-glow`} x="-25%" y="-25%" width="150%" height="150%">
@@ -193,11 +200,14 @@ export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusO
               onRelease={release}
               onFocusChange={focusChange}
               onAction={act}
+              onHand={setHand}
               state={hotspot.action === 'light' ? lampTone : undefined}
             />
           ))}
         </g>
       </svg>
+
+      <GlimmerCursor kind={hand} pressed={handPressed} />
 
       <div className="hotspot-labels" aria-hidden="true">
         {HOTSPOTS.map((hotspot) => {
@@ -304,6 +314,8 @@ interface InteractiveHotspotProps {
   onRelease: (id: string) => void
   onFocusChange: (id: string | null) => void
   onAction: (action: HotspotAction) => void
+  /** A glimmer reports a mouse arriving (its action) and leaving (null): its own hand is the cursor then. */
+  onHand: (action: HotspotAction | null) => void
   /** Its current state, added to its name (the lamp's light colour). */
   state?: string
 }
@@ -326,6 +338,7 @@ export function InteractiveHotspot({
   onRelease,
   onFocusChange,
   onAction,
+  onHand,
   state,
 }: InteractiveHotspotProps) {
   const d = PATHS.get(hotspot.id)
@@ -337,6 +350,7 @@ export function InteractiveHotspot({
     'aria-label': state ? `${accessibleLabelFor(hotspot)}, now ${state}` : accessibleLabelFor(hotspot),
     onPointerEnter: (event: PointerEvent<Element>) => {
       onEnter(hotspot.id)
+      if (hotspot.action && event.pointerType === 'mouse') onHand(hotspot.action)
       // The cat purrs as soon as a mouse comes near (touch has no hover: a tap does it).
       // The lamp waits for a click.
       if (hotspot.action === 'pet' && event.pointerType === 'mouse') onAction(hotspot.action)
@@ -344,6 +358,7 @@ export function InteractiveHotspot({
     onPointerLeave: () => {
       onRelease(hotspot.id)
       onLeave(hotspot.id)
+      if (hotspot.action) onHand(null)
     },
     ...pressHandlers(hotspot.id, onPress, onRelease),
     onFocus: (event: FocusEvent<Element>) => {
