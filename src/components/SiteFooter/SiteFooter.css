@@ -55,42 +55,27 @@
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   grid-template-rows: auto auto auto;
   grid-template-areas:
-    'art title title button'
-    'art meta clock button'
-    'art bar bar button';
+    'art title title buttons'
+    'art meta clock buttons'
+    'art bar bar buttons';
   align-content: center;
   align-items: center;
   column-gap: 0.75rem;
   row-gap: 0.15rem;
-  width: 18rem;
+  width: 20rem;
   max-width: 100%;
   height: var(--widget-h);
   padding: var(--widget-pad) 0.65rem var(--widget-pad) var(--widget-pad);
   overflow: hidden;
+  /* clip, not just hide: the blurred artwork spills past the edges, and a hidden box can still be
+     scrolled sideways when a button inside it takes focus */
+  overflow: clip;
   border-radius: var(--widget-radius);
   /* The glass: a faint frosted pane over the page, tinted by its own artwork. */
   background: var(--glass-fill);
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   box-shadow: var(--glass-shadow);
-}
-
-/* A still room has no loop to show: title and state only. */
-.player[data-still] {
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    'art title button'
-    'art meta button';
-  align-content: center;
-}
-
-.player[data-still] .player__title {
-  align-self: end;
-}
-
-.player[data-still] .player__meta {
-  align-self: start;
 }
 
 /* The artwork, blurred and spread behind the glass, gives it its colour. */
@@ -153,11 +138,52 @@
 }
 
 .player__art img {
+  display: block;
   width: 100%;
   height: 100%;
   object-fit: cover;
   /* the room in miniature: the desk, the laptop and the lamp */
   object-position: 62% 55%;
+}
+
+/* The miniature is also the room's own pause: a small badge in its corner. */
+button.player__art {
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.player__art-badge {
+  position: absolute;
+  right: 0.2rem;
+  bottom: 0.2rem;
+  display: grid;
+  place-items: center;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 50%;
+  background: oklch(0.15 0.01 45 / 0.55);
+  color: oklch(0.98 0.005 80);
+  opacity: 0.75;
+  transition: opacity 200ms var(--ease-out);
+}
+
+.player__art-badge svg {
+  width: 0.7rem;
+  height: 0.7rem;
+  fill: currentColor;
+}
+
+button.player__art:hover .player__art-badge,
+button.player__art:focus-visible .player__art-badge,
+button.player__art:not([data-moving]) .player__art-badge {
+  opacity: 1;
+}
+
+button.player__art:focus-visible {
+  outline: 2px solid var(--on-sleeve);
+  outline-offset: 2px;
 }
 
 .player__body {
@@ -209,7 +235,7 @@ a.player__title:hover {
   display: contents;
 }
 
-/* The room's loop, as a fine line that fills. */
+/* The track, as a fine line that fills. */
 .player__progress {
   grid-area: bar;
   align-self: center;
@@ -239,8 +265,61 @@ a.player__title:hover {
   color: var(--on-sleeve-3);
 }
 
+.player__buttons {
+  grid-area: buttons;
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+/* Rain and next: quiet icons beside the play button. */
+.player__tool {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--on-sleeve-2);
+  cursor: pointer;
+  transition:
+    color 200ms var(--ease-out),
+    background-color 200ms var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+.player__tool svg {
+  width: 1.05rem;
+  height: 1.05rem;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.player__tool:active {
+  transform: scale(0.94);
+}
+
+.player__tool[aria-pressed='true'] {
+  color: var(--on-sleeve);
+  background: oklch(1 0 0 / 0.1);
+}
+
+.player__tool[aria-pressed='false'] {
+  color: var(--on-sleeve-3);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .player__tool:hover {
+    color: var(--on-sleeve);
+  }
+}
+
 .player__button {
-  grid-area: button;
   display: grid;
   place-items: center;
   width: 2rem;
