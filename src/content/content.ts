@@ -336,7 +336,22 @@ export const content: SiteContent = {
       description: 'Albums and playlists I keep coming back to.',
       // Paste Spotify share links (Share → Copy link). Title and cover load automatically.
       // e.g. { url: 'https://open.spotify.com/album/…', subtitle: 'Artist name', note: 'Why I love it.' }
-      items: [],
+      items: [
+        { url: 'https://open.spotify.com/artist/1hcdI2N1023RvSwLzTtdsp' },
+        {
+          url: 'https://open.spotify.com/album/4SWs218VfFoKTFwbJOHdYK',
+          subtitle: 'Michal Mašek, Czech Chamber Philharmonic Orchestra Pardubice',
+        },
+        { url: 'https://open.spotify.com/playlist/3Vah9wEV94Rq8NB3zp5lGd', subtitle: 'MAREANA' },
+        {
+          // Spotify lists this Brendel release under its Japanese title.
+          url: 'https://open.spotify.com/album/4Y4mgF194WkmMglJwJTueI',
+          title: 'Beethoven: Piano Sonatas Nos. 29, 30, 31 & 32',
+          subtitle: 'Alfred Brendel',
+        },
+        { url: 'https://open.spotify.com/artist/72VywtXEoONiBLNu3ibGI7' },
+        { url: 'https://open.spotify.com/album/5K79FLRUCSysQnVESLcTdb', subtitle: 'Bad Bunny' },
+      ],
     },
     podcasts: {
       heading: 'On my podcast shelf',
