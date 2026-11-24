@@ -1,0 +1,23 @@
+node_modules
+dist
+.DS_Store
+*.log
+.vite
+
+# Local secrets (Spotify keys and token). Never commit.
+.env.local
+.env.*.local
+
+# Raw source artwork and exports (hundreds of MB, some files over GitHub's
+# 100 MB limit). The build scripts in scripts/ read from here; keep it local.
+portfolio-website-assets/
+portfolio-website-assets 2/
+portfolio-website-assets.zip
+
+# Local tooling and generated previews
+.claude/
+docs/screens/
+docs/hotspot-preview.png
+
+# Half-written files from the build scripts
+*.tmp.*

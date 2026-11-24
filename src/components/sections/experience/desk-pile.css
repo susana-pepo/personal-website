@@ -1,0 +1,147 @@
+/*
+ * The books on the desk: the same drawn books as the bookshelf, lying in a pile.
+ * Sizes are book units (--u). Chosen and hovered books slide out to the right.
+ */
+.xp-desk {
+  --u: 1.25px;
+  container-type: inline-size;
+  margin-block: var(--space-sm) var(--space-lg);
+}
+
+@container (max-width: 30rem) {
+  .xp-pile,
+  .xp-desk__board {
+    --u: 0.95px;
+  }
+}
+
+.xp-pile {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 0;
+  padding: 0 0 0 calc(8 * var(--u));
+  list-style: none;
+}
+
+.xp-pile__item {
+  position: relative;
+  display: flex;
+  margin-left: calc(var(--dx, 0) * var(--u));
+}
+
+/* A soft shadow on the book below, falling left, away from the lamp. */
+.xp-pile__item::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 2px;
+  background: oklch(0.22 0.03 45);
+  filter: blur(calc(3 * var(--u)));
+  opacity: 0.22;
+  transform: translate(calc(-4 * var(--u)), calc(2 * var(--u)));
+  transition: transform 320ms var(--ease-out);
+}
+
+.xp-book {
+  position: relative;
+  display: block;
+  width: calc(var(--w) * var(--u));
+  height: calc(var(--h) * var(--u));
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transition: transform 320ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.xp-book__rot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--h) * var(--u));
+  height: calc(var(--w) * var(--u));
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.xp-book__rot > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .xp-book:hover,
+  .xp-book[data-peek] {
+    transform: translateX(calc(8 * var(--u)));
+  }
+}
+
+.xp-book:active {
+  transform: translateX(calc(5 * var(--u)));
+  transition-duration: var(--dur-quick);
+}
+
+.xp-book[aria-pressed='true'] {
+  transform: translateX(calc(18 * var(--u)));
+}
+
+.xp-pile__item:has(> .xp-book[aria-pressed='true'])::before {
+  transform: translate(calc(14 * var(--u)), calc(4 * var(--u)));
+}
+
+.xp-book:focus-visible {
+  outline: 2px solid var(--spot-ink);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+.xp-desk__board {
+  margin-top: calc(-2 * var(--u));
+}
+
+/* The books settle onto the pile when the page opens, bottom one first. */
+.panel__page[data-enter] .xp-pile__item {
+  animation: xp-settle 420ms var(--ease-out) both;
+  animation-delay: calc(160ms + var(--b, 0) * 60ms);
+}
+
+@keyframes xp-settle {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-10 * var(--u)));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .xp-book,
+  .xp-pile__item::before {
+    transition-duration: 140ms;
+  }
+
+  .xp-book:hover,
+  .xp-book[data-peek],
+  .xp-book:active,
+  .xp-book[aria-pressed='true'] {
+    transform: none;
+  }
+
+  .xp-pile__item:has(> .xp-book[aria-pressed='true'])::before {
+    transform: translate(calc(-4 * var(--u)), calc(2 * var(--u)));
+  }
+
+  .panel__page[data-enter] .xp-pile__item {
+    animation: xp-fade 160ms ease both;
+  }
+
+  @keyframes xp-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}

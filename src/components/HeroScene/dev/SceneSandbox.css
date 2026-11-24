@@ -1,0 +1,103 @@
+/* Development-only placement sandbox (?sandbox=1). Deliberately plain: a tool, not part of the design. */
+.sandbox-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.sandbox-handle {
+  position: absolute;
+  pointer-events: auto;
+  cursor: grab;
+  outline: 2px dashed #3ee0ff;
+  outline-offset: 0;
+  background: rgb(62 224 255 / 0.08);
+  touch-action: none;
+}
+
+.sandbox-handle:active {
+  cursor: grabbing;
+}
+
+.sandbox-handle__base {
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #3ee0ff;
+  transform: translateX(-50%);
+}
+
+.sandbox-guide {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed rgb(62 224 255 / 0.7);
+}
+
+.sandbox-panel {
+  position: fixed;
+  right: 12px;
+  top: 12px;
+  z-index: 1000;
+  display: grid;
+  gap: 8px;
+  width: min(360px, calc(100vw - 24px));
+  padding: 12px 14px;
+  font: 12px/1.4 ui-monospace, Menlo, monospace;
+  color: #f2f2f2;
+  background: rgb(10 10 12 / 0.9);
+  border: 1px solid #3ee0ff66;
+  border-radius: 10px;
+}
+
+.sandbox-panel p {
+  margin: 0;
+}
+
+.sandbox-panel__title {
+  font-weight: 700;
+  color: #3ee0ff;
+}
+
+.sandbox-panel__tabs,
+.sandbox-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.sandbox-panel button {
+  padding: 4px 9px;
+  font: inherit;
+  color: inherit;
+  background: #ffffff14;
+  border: 1px solid #ffffff2a;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.sandbox-panel button[aria-pressed='true'] {
+  color: #0a0a0c;
+  background: #3ee0ff;
+  border-color: #3ee0ff;
+}
+
+.sandbox-panel__row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 10px;
+}
+
+.sandbox-panel__numbers b {
+  color: #ffe06b;
+}
+
+.sandbox-panel__help,
+.sandbox-panel__note {
+  color: #a9a9b2;
+}

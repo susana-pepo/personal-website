@@ -1,0 +1,375 @@
+/*
+ * Beneath the room: the player centred on the room's centre line (three
+ * columns, the outer two equal), the copyright small and faint at the right.
+ * The player shares its glass surface with the masthead's scene control (the
+ * same --glass-* tokens; also used by the first-visit cue).
+ */
+.credits {
+  --glass-fill: linear-gradient(150deg, oklch(1 0 0 / 0.11), oklch(1 0 0 / 0.035) 55%, oklch(1 0 0 / 0.06));
+  --glass-blur: blur(22px) saturate(170%);
+  --glass-shadow:
+    inset 0 1px 0.5px oklch(1 0 0 / 0.32),
+    inset 0 -1px 0.5px oklch(1 0 0 / 0.07),
+    0 14px 34px -14px oklch(0.05 0.01 45 / 0.85),
+    0 2px 6px -2px oklch(0.05 0.01 45 / 0.5);
+  --glass-rim: linear-gradient(140deg, oklch(1 0 0 / 0.55), oklch(1 0 0 / 0.08) 38%, oklch(1 0 0 / 0.04) 62%, oklch(1 0 0 / 0.28));
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  grid-template-areas: '. player copy';
+  align-items: center;
+  column-gap: var(--space-lg);
+  min-height: var(--footer-h, 5.75rem);
+  /* above it, the breathing space after the room (--hero-gap, App.css) */
+  padding: var(--hero-gap, 1.25rem) 0 var(--space-sm);
+}
+
+/* secondary: small and faint */
+.credits__copy {
+  grid-area: copy;
+  justify-self: end;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  letter-spacing: 0.02em;
+  color: var(--on-sleeve-3);
+  opacity: 0.8;
+}
+
+/* ── Player: a low, wide control bar in liquid glass ── */
+/* A lighter pane than the shared glass: less tint, a softer rim and shadow, so it sits with the room. */
+.player {
+  --glass-fill: linear-gradient(150deg, oklch(1 0 0 / 0.085), oklch(1 0 0 / 0.025) 55%, oklch(1 0 0 / 0.045));
+  --glass-shadow:
+    inset 0 1px 0.5px oklch(1 0 0 / 0.24),
+    inset 0 -1px 0.5px oklch(1 0 0 / 0.05),
+    0 12px 30px -16px oklch(0.05 0.01 45 / 0.6),
+    0 2px 6px -3px oklch(0.05 0.01 45 / 0.32);
+  --glass-rim: linear-gradient(140deg, oklch(1 0 0 / 0.4), oklch(1 0 0 / 0.06) 38%, oklch(1 0 0 / 0.03) 62%, oklch(1 0 0 / 0.2));
+  --widget-h: 3.875rem;
+  --widget-pad: 0.5rem;
+  --widget-radius: 1.125rem;
+  grid-area: player;
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    'art title title button'
+    'art meta clock button'
+    'art bar bar button';
+  align-content: center;
+  align-items: center;
+  column-gap: 0.75rem;
+  row-gap: 0.15rem;
+  width: 18rem;
+  max-width: 100%;
+  height: var(--widget-h);
+  padding: var(--widget-pad) 0.65rem var(--widget-pad) var(--widget-pad);
+  overflow: hidden;
+  border-radius: var(--widget-radius);
+  /* The glass: a faint frosted pane over the page, tinted by its own artwork. */
+  background: var(--glass-fill);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--glass-shadow);
+}
+
+/* A still room has no loop to show: title and state only. */
+.player[data-still] {
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    'art title button'
+    'art meta button';
+  align-content: center;
+}
+
+.player[data-still] .player__title {
+  align-self: end;
+}
+
+.player[data-still] .player__meta {
+  align-self: start;
+}
+
+/* The artwork, blurred and spread behind the glass, gives it its colour. */
+.player__ambient {
+  position: absolute;
+  inset: -40%;
+  z-index: -2;
+  pointer-events: none;
+}
+
+.player__ambient img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: 62% 55%;
+  filter: blur(26px) saturate(1.25);
+  opacity: 0.26;
+}
+
+/* A liquid rim: brighter where the light catches the top-left edge, fading round the curve. */
+.player::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(--glass-rim);
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* …and a soft specular bloom across the upper half. */
+.player::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(120% 70% at 18% -10%, oklch(1 0 0 / 0.11), transparent 60%),
+    linear-gradient(180deg, transparent 55%, oklch(0.1 0.01 45 / 0.14));
+  pointer-events: none;
+}
+
+.player__art {
+  grid-area: art;
+  position: relative;
+  width: calc(var(--widget-h) - 2 * var(--widget-pad));
+  height: calc(var(--widget-h) - 2 * var(--widget-pad));
+  overflow: hidden;
+  border-radius: calc(var(--widget-radius) - var(--widget-pad));
+  box-shadow:
+    0 6px 14px -6px oklch(0.05 0.01 45 / 0.7),
+    inset 0 0 0 1px oklch(1 0 0 / 0.12);
+}
+
+.player__art img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  /* the room in miniature: the desk, the laptop and the lamp */
+  object-position: 62% 55%;
+}
+
+.player__body {
+  display: contents;
+}
+
+.player__text {
+  display: contents;
+}
+
+.player__title {
+  grid-area: title;
+  align-self: end;
+  padding-top: 0.05em;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 0.9375rem;
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--on-sleeve);
+  text-decoration: none;
+}
+
+a.player__title {
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.2em;
+  transition: text-decoration-color 200ms var(--ease-out);
+}
+
+a.player__title:hover {
+  text-decoration-color: var(--spot);
+}
+
+.player__meta {
+  grid-area: meta;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  color: var(--on-sleeve-2);
+}
+
+.player__controls {
+  display: contents;
+}
+
+/* The room's loop, as a fine line that fills. */
+.player__progress {
+  grid-area: bar;
+  align-self: center;
+  margin-top: 0.3rem;
+  position: relative;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 2px;
+  background: oklch(1 0 0 / 0.16);
+}
+
+.player__progress-fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--on-sleeve);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+}
+
+.player__clock {
+  grid-area: clock;
+  justify-self: end;
+  font-family: var(--font-sans);
+  font-size: 0.6875rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--on-sleeve-3);
+}
+
+.player__button {
+  grid-area: button;
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  margin-left: 0.15rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  /* a smaller drop of glass inside the glass */
+  background: oklch(1 0 0 / 0.14);
+  box-shadow:
+    inset 0 1px 0.5px oklch(1 0 0 / 0.35),
+    0 4px 10px -4px oklch(0.05 0.01 45 / 0.6);
+  color: var(--on-sleeve);
+  cursor: pointer;
+  transition:
+    transform 160ms var(--ease-out),
+    background-color 200ms var(--ease-out);
+}
+
+.player__button:active {
+  transform: scale(0.94);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .player__button:hover {
+    background: oklch(1 0 0 / 0.22);
+  }
+}
+
+/* Play and pause cross-fade, softened with a touch of blur. */
+.player__icon {
+  grid-area: 1 / 1;
+  width: 1rem;
+  height: 1rem;
+  fill: currentColor;
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 200ms var(--ease-out),
+    filter 200ms var(--ease-out);
+}
+
+.player__icon--play,
+.player__button[data-playing] .player__icon--pause {
+  opacity: 1;
+  transform: none;
+  filter: blur(0);
+}
+
+.player__icon--pause,
+.player__button[data-playing] .player__icon--play {
+  opacity: 0;
+  transform: scale(0.7);
+  filter: blur(2px);
+}
+
+/* Without backdrop blur, a slightly denser pane keeps the text readable. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .player {
+    background: oklch(0.24 0.012 50 / 0.92);
+  }
+}
+
+/* ── First arrival: the room settles in, then the row beneath it. ── */
+@keyframes room-in {
+  from {
+    opacity: 0;
+    transform: scale(0.985);
+    filter: blur(6px);
+  }
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.cover {
+  animation: room-in 900ms var(--ease-out) both;
+}
+
+.credits > * {
+  animation: rise-in 600ms var(--ease-out) both;
+}
+
+.credits > :nth-child(1) {
+  animation-delay: 260ms;
+}
+
+.credits > :nth-child(2) {
+  animation-delay: 320ms;
+}
+
+.credits > :nth-child(3) {
+  animation-delay: 380ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  @keyframes room-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @keyframes rise-in {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* ── Phone: the player, then the copyright beneath it ── */
+@media (max-width: 639px) {
+  .credits {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'player'
+      'copy';
+    row-gap: var(--space-md);
+    padding: var(--space-md) var(--gutter) var(--space-lg);
+  }
+
+  .player {
+    justify-self: start;
+  }
+
+  .credits__copy {
+    justify-self: start;
+  }
+}

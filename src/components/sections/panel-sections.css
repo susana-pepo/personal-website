@@ -1,0 +1,405 @@
+/*
+ * The folio's typography and layout for Work, About, Experience and Contact.
+ * Scoped to `.section--folio` so Bookshelf and Music keep their own layouts.
+ * Rhythm tokens (--rhythm-*) are defined on `.panel`.
+ */
+.section--folio {
+  display: grid;
+  gap: var(--rhythm-section);
+}
+
+.section--folio .lede {
+  max-width: 34ch;
+  font-family: var(--font-sans);
+  font-size: var(--text-lg);
+  line-height: 1.45;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.section--folio .lede--large {
+  max-width: 22ch;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-xl);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+}
+
+.section--folio .prose {
+  display: grid;
+  gap: var(--space-sm);
+  max-width: 60ch;
+  font-family: var(--font-sans);
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.folio-group {
+  display: grid;
+  gap: var(--rhythm-block);
+}
+
+.folio-subhead {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+
+.section--folio .topics {
+  gap: 0;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.section--folio .topics li:not(:last-child)::after {
+  margin: 0;
+  padding-inline: 0.5em;
+  color: var(--rule-card-strong);
+}
+
+/* ── Numbered entries (Experience; Work borrows .entry__status) ── */
+.entries {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  row-gap: var(--rhythm-inline);
+  padding: var(--rhythm-block) 0 var(--space-lg);
+  border-top: 1px solid var(--rule-card);
+  scroll-margin-top: var(--rhythm-block);
+}
+
+.entry > * {
+  grid-column: 2;
+}
+
+.entry__n {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+  padding-top: 0.42rem;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  color: var(--spot-ink);
+  transition: color var(--dur-soft) ease;
+}
+
+.entry__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em 1em;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+.entry__status {
+  color: var(--spot-ink);
+}
+
+.entry__status::before {
+  content: '';
+  display: inline-block;
+  width: 5px;
+  height: 5px;
+  margin-right: 0.45em;
+  border-radius: 50%;
+  background: currentColor;
+  vertical-align: 0.15em;
+}
+
+.entry__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.entry__body {
+  max-width: 58ch;
+  margin-top: var(--space-3xs);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+.entry .topics {
+  margin-top: var(--space-3xs);
+}
+
+/* Experience: quiet numerals that ink in when their book is chosen. */
+.entries--desk .entry__n {
+  color: var(--ink-3);
+}
+
+.entry::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: -1px;
+  height: 2px;
+  background: var(--spot-ink);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 520ms var(--ease-out);
+  pointer-events: none;
+}
+
+.entry[data-current]::before {
+  transform: scaleX(1);
+}
+
+.entries--desk .entry[data-current] .entry__n {
+  color: var(--spot-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entry::before {
+    transform: none;
+    opacity: 0;
+    transition: opacity 160ms ease;
+  }
+
+  .entry[data-current]::before {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.folio-education {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.folio-education li {
+  display: grid;
+  gap: var(--space-3xs);
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--rule-card);
+}
+
+.folio-education__qualification {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.folio-education__institution {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ── About: the sentence it all hangs on (the greeting is the panel heading), then a quiet closing ── */
+.section--folio .about-intro {
+  max-width: 30ch;
+}
+
+.about-closing {
+  max-width: 60ch;
+  padding-top: var(--rhythm-block);
+  border-top: 1px solid var(--rule-card);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--ink-3);
+  text-wrap: pretty;
+}
+
+/* ── Contact: the address set large ── */
+.reach {
+  display: grid;
+  gap: var(--rhythm-block);
+  padding-top: var(--rhythm-block);
+  border-top: 1px solid var(--rule-card);
+}
+
+.reach__email {
+  display: grid;
+  gap: var(--space-xs);
+}
+
+.reach__label {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+.reach__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2xs) var(--space-md);
+}
+
+.reach__address {
+  min-width: 0;
+  font-family: var(--font-display);
+  font-weight: 450;
+  font-size: var(--text-xl);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--rule-card-strong);
+  text-underline-offset: 0.18em;
+  overflow-wrap: anywhere;
+  transition: text-decoration-color var(--dur-quick) ease;
+}
+
+.reach__address:hover {
+  text-decoration-color: var(--spot-ink);
+}
+
+/* "Copy address" swaps to "Copied" in place: a 6px vertical cross-fade. */
+.copy-button {
+  display: inline-grid;
+  align-items: center;
+  min-height: 44px;
+  padding: 0;
+  background: none;
+  border: 0;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: transform 160ms var(--ease-out);
+}
+
+.copy-button:active {
+  transform: scale(0.96);
+}
+
+.copy-button > span {
+  display: inline-flex;
+  grid-area: 1 / 1;
+  align-items: center;
+  gap: 0.4em;
+  transition:
+    opacity 180ms ease,
+    transform var(--dur-soft) var(--ease-out);
+}
+
+.copy-button__idle {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--spot-ink);
+  text-underline-offset: 0.25em;
+}
+
+.copy-button__done {
+  opacity: 0;
+  transform: translateY(6px);
+  color: var(--spot-ink);
+}
+
+.copy-button[data-done] .copy-button__idle {
+  opacity: 0;
+  transform: translateY(-6px);
+}
+
+.copy-button[data-done] .copy-button__done {
+  opacity: 1;
+  transform: none;
+}
+
+.copy-button svg {
+  width: 0.95em;
+  height: 0.95em;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .copy-button > span,
+  .copy-button[data-done] .copy-button__idle {
+    transform: none;
+  }
+}
+
+.reach__links {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reach__links a {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3xs) var(--space-sm);
+  padding: var(--space-sm) 0;
+  border-top: 1px solid var(--rule-card);
+  text-decoration: none;
+  color: var(--ink);
+}
+
+.reach__links li:first-child a {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.reach__link-label {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.15rem;
+  letter-spacing: -0.01em;
+}
+
+.reach__link-display {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  transition: color var(--dur-quick) ease;
+}
+
+.reach__links a:hover .reach__link-display {
+  color: var(--spot-ink);
+}
+
+.reach__pending {
+  max-width: 44ch;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.reach__location {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ── Phones ── */
+@media (max-width: 639px) {
+  .entry {
+    grid-template-columns: 2rem minmax(0, 1fr);
+  }
+}

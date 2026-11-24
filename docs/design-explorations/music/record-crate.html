@@ -1,0 +1,1184 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Music: the record crate (prototype)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&family=Funnel+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style>
+/* ── Tokens (copied from src/styles/tokens.css) ── */
+:root {
+  --sleeve: oklch(0.165 0.008 45);
+  --sleeve-raised: oklch(0.205 0.009 45);
+  --on-sleeve: oklch(0.935 0.008 80);
+  --on-sleeve-2: oklch(0.79 0.01 70);
+  --on-sleeve-3: oklch(0.64 0.012 60);
+  --rule-sleeve: oklch(0.935 0.008 80 / 0.14);
+  --card: oklch(0.945 0.006 85);
+  --card-shade: oklch(0.905 0.008 80);
+  --ink: oklch(0.205 0.01 45);
+  --ink-2: oklch(0.37 0.012 45);
+  --ink-3: oklch(0.49 0.012 45);
+  --rule-card: oklch(0.205 0.01 45 / 0.16);
+  --rule-card-strong: oklch(0.205 0.01 45 / 0.34);
+  --spot: oklch(0.66 0.165 38);
+  --spot-ink: oklch(0.52 0.165 36);
+
+  /* Room colours, as used by the Bookshelf */
+  --walnut: oklch(0.42 0.07 50);
+  --walnut-dark: oklch(0.34 0.06 48);
+  --terracotta: oklch(0.55 0.13 40);
+  --rose: oklch(0.72 0.065 28);
+  --teal: oklch(0.36 0.045 185);
+  --slate: oklch(0.46 0.05 262);
+  --ochre: oklch(0.76 0.095 78);
+  --vinyl: oklch(0.17 0.006 45);
+
+  --font-display: 'Funnel Display', 'Helvetica Neue', Arial, sans-serif;
+  --font-sans: 'Funnel Sans', 'Helvetica Neue', Arial, sans-serif;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1.125rem;
+  --text-lg: clamp(1.3rem, 1.15rem + 0.55vw, 1.55rem);
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --dur-quick: 160ms;
+  --dur-soft: 240ms;
+  --dur-flip: 340ms;
+  --dur-panel: 420ms;
+}
+/* Reduced motion: JS mirrors the media query onto html.rm (and the prototype toggle can force it). */
+html.rm {
+  --dur-quick: 1ms;
+  --dur-soft: 120ms;
+  --dur-flip: 1ms;
+  --dur-panel: 160ms;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  min-height: 100svh;
+  background: var(--sleeve);
+  color: var(--on-sleeve);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  font-optical-sizing: auto;
+}
+h1, h2, h3, h4, p, dl, dd, ul { margin: 0; }
+button { font: inherit; color: inherit; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ── The room behind (a screenshot from docs/screens, dimmed like the real backdrop) ── */
+.room {
+  position: fixed;
+  inset: clamp(1rem, 2vw, 2rem);
+  border-radius: 22px;
+  background: var(--sleeve-raised) url('../../screens/13-static-room.png') 28% 50% / cover no-repeat;
+  box-shadow: 0 0 0 1px var(--rule-sleeve);
+}
+.room::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: oklch(0.12 0.008 45 / 0.5);
+}
+
+/* ── Prototype controls: quiet text on the sleeve, bottom-left ── */
+.proto {
+  position: fixed;
+  left: clamp(1.5rem, 3vw, 3rem);
+  bottom: clamp(1.5rem, 3vw, 3rem);
+  z-index: 2;
+  display: grid;
+  gap: 0.6rem;
+  max-width: 21rem;
+  padding: 1rem 1.15rem 1.05rem;
+  border-radius: 14px;
+  background: oklch(0.165 0.008 45 / 0.86);
+  backdrop-filter: blur(10px);
+  box-shadow: 0 0 0 1px var(--rule-sleeve);
+  font-size: var(--text-xs);
+  color: var(--on-sleeve-3);
+}
+.proto__title { font-size: var(--text-sm); color: var(--on-sleeve); font-weight: 500; }
+.proto__row { display: flex; gap: 0.75rem; align-items: baseline; flex-wrap: wrap; }
+.proto__row > span:first-child { width: 6.2rem; }
+.proto button {
+  padding: 0.2rem 0;
+  background: none;
+  border: 0;
+  color: var(--on-sleeve-2);
+  cursor: pointer;
+  text-decoration: none;
+  border-bottom: 1px solid transparent;
+}
+.proto button:hover { color: var(--on-sleeve); }
+.proto button[aria-pressed='true'] { color: var(--on-sleeve); border-bottom-color: var(--spot); }
+.proto button:focus-visible { outline: 2px solid var(--spot); outline-offset: 3px; }
+
+/* ── The panel (mirrors src/components/SectionPanel) ── */
+.panel {
+  --sheet-gap: clamp(0.5rem, 0.2rem + 0.6vw, 0.875rem);
+  position: fixed;
+  z-index: 3;
+  inset: var(--sheet-gap) var(--sheet-gap) var(--sheet-gap) auto;
+  width: min(42rem, 54vw);
+  color: var(--ink);
+}
+.panel__sheet {
+  height: 100%;
+  padding: 6px;
+  border-radius: 28px;
+  background: oklch(0.935 0.008 80 / 0.14);
+  box-shadow: 0 0 0 1px oklch(0.935 0.008 80 / 0.16), 0 40px 90px -30px oklch(0.06 0.01 45 / 0.75);
+}
+.panel__core {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 22px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+    var(--card);
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.7), 0 1px 2px oklch(0.06 0.01 45 / 0.25);
+}
+.panel__bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0 1rem 0 2rem;
+  border-bottom: 1px solid var(--rule-card-strong);
+}
+.panel__nav { display: flex; gap: 1rem; overflow-x: auto; scrollbar-width: none; white-space: nowrap; }
+.panel__nav span {
+  display: inline-flex;
+  min-height: 44px;
+  padding-top: 0.85rem;
+  font-size: 0.875rem;
+  font-weight: 430;
+  color: var(--ink-3);
+  border-bottom: 2px solid transparent;
+}
+.panel__nav span[aria-current] { color: var(--ink); border-bottom-color: var(--spot-ink); }
+.panel__close { display: inline-flex; align-items: center; gap: 0.5rem; min-height: 44px; font-size: 0.875rem; color: var(--ink-2); }
+.panel__close svg { width: 0.9rem; height: 0.9rem; }
+.panel__body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3rem 2rem 4rem;
+}
+.panel__article { position: relative; max-width: 36rem; }
+.panel__article h2 {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(1.9rem, 1.5rem + 1.6vw, 2.6rem);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
+.panel__summary { margin-top: 0.4rem; font-size: var(--text-sm); color: var(--ink-3); }
+.section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 3rem; margin-top: 2rem; }
+.lede { max-width: 34ch; font-size: var(--text-lg); line-height: 1.45; }
+.sample-flag {
+  display: inline-block;
+  margin-left: 0.35em;
+  padding: 0 0.4em;
+  border-radius: 4px;
+  background: var(--card-shade);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  color: var(--ink-3);
+  vertical-align: 0.1em;
+}
+.sec-head { display: flex; align-items: baseline; justify-content: space-between; gap: 1rem; }
+.sec-head h3 { font-weight: 500; font-size: var(--text-lg); }
+.sec-head p { font-size: var(--text-xs); color: var(--ink-3); text-align: right; }
+
+.text-link {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--spot-ink);
+  text-underline-offset: 0.25em;
+  transition: color var(--dur-quick) var(--ease-out);
+}
+.text-link:hover { color: var(--spot-ink); }
+.text-button { padding: 0; border: 0; background: none; cursor: pointer; font-size: inherit; }
+:focus-visible { outline: 2px solid var(--spot-ink); outline-offset: 3px; border-radius: 2px; }
+
+/* ════════════════════════════════════════════════════════════════════
+   1. The deck: "What I'm listening to", drawn as the room's record player
+   ════════════════════════════════════════════════════════════════════ */
+.deck { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.1rem; }
+.deck__track {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: 1.5rem;
+  color: var(--ink);
+  text-decoration: none;
+}
+.deck__loading { height: 7.25rem; border-radius: 10px; background: var(--card-shade); }
+.deck[data-state='loading'] .deck__track { display: none; }
+.deck:not([data-state='loading']) .deck__loading { display: none; }
+
+/* The plinth: the same honey walnut as the painting, with a lit top edge. */
+.tt {
+  position: relative;
+  width: 9.5rem;
+  height: 7.25rem;
+  border-radius: 9px;
+  background:
+    repeating-linear-gradient(92deg, oklch(1 0 0 / 0) 0 7px, oklch(1 0 0 / 0.035) 7px 8px, oklch(0 0 0 / 0) 8px 15px, oklch(0 0 0 / 0.04) 15px 16px),
+    linear-gradient(165deg, oklch(0.6 0.11 58), oklch(0.5 0.1 50) 60%, oklch(0.45 0.09 48));
+  box-shadow:
+    inset 0 1px 0 oklch(0.85 0.08 70 / 0.55),
+    inset 0 -2px 0 oklch(0.3 0.05 45 / 0.35),
+    0 1px 2px oklch(0.2 0.01 45 / 0.25),
+    0 14px 26px -14px oklch(0.2 0.03 45 / 0.6);
+}
+.tt__platter {
+  position: absolute;
+  left: 0.45rem;
+  top: 0.475rem;
+  width: 6.3rem;
+  height: 6.3rem;
+  border-radius: 50%;
+  background: oklch(0.32 0.01 60);
+  box-shadow: inset 0 0 0 1px oklch(0.6 0.01 70 / 0.5), 0 2px 5px oklch(0.2 0.03 45 / 0.45);
+}
+.tt__record {
+  position: absolute;
+  inset: 0.15rem;
+  border-radius: 50%;
+  animation: spin 1.8s linear infinite; /* 33⅓ rpm */
+  animation-play-state: paused;
+}
+.deck[data-state='live'] .tt__record { animation-play-state: running; }
+html.rm .tt__record { animation: none; }
+
+.vinyl-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle, oklch(0.19 0.006 45) 0 1px, oklch(0.15 0.006 45) 1px 2.2px),
+    var(--vinyl);
+}
+.vinyl-face::before { /* the lead-out band and the run-in edge */
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(circle, transparent 0 37%, oklch(0.13 0.006 45) 37% 40%, transparent 40% 94%, oklch(0.12 0.006 45) 94%);
+}
+.vinyl-label {
+  position: absolute;
+  inset: 32%;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--spot);
+}
+.vinyl-label svg { display: block; width: 100%; height: 100%; }
+.vinyl-label::after { /* spindle hole */
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7%;
+  height: 7%;
+  min-width: 3px;
+  min-height: 3px;
+  border-radius: 50%;
+  background: oklch(0.85 0.01 80);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px oklch(0.3 0.01 45 / 0.5);
+}
+/* Light falls on the record from the lamp and stays put while it turns. */
+.sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(from 200deg, transparent 0deg, oklch(1 0 0 / 0.1) 25deg, transparent 55deg, transparent 180deg, oklch(1 0 0 / 0.07) 205deg, transparent 235deg);
+  mix-blend-mode: screen;
+}
+.tt__arm {
+  position: absolute;
+  left: calc(8.25rem - 8px);
+  top: calc(1.25rem - 8px);
+  width: 16px;
+  height: 84px;
+  overflow: visible;
+  transform-origin: 8px 8px;
+  rotate: 2deg;
+  transition: rotate 900ms var(--ease-in-out);
+  filter: drop-shadow(0 2px 1.5px oklch(0.2 0.03 45 / 0.45));
+}
+.deck[data-state='live'] .tt__arm { rotate: 33deg; }
+.tt__knob {
+  position: absolute;
+  bottom: 0.55rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, oklch(0.96 0.005 80), oklch(0.72 0.01 70));
+  box-shadow: 0 1px 1.5px oklch(0.2 0.03 45 / 0.5);
+}
+
+.deck__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+.deck[data-state='live'] .deck__status { color: var(--spot-ink); }
+.deck[data-state='live'] .deck__status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+.deck__title {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+.deck__track:hover .deck__title {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--spot-ink);
+  text-underline-offset: 0.2em;
+}
+.deck__artist { display: block; margin-top: 0.2rem; color: var(--ink-2); line-height: 1.4; }
+.deck__open { display: block; margin-top: 0.55rem; font-size: var(--text-xs); color: var(--ink-3); }
+
+/* ════════════════════════════════════════════════════════════════════
+   2. The crate: sleeves standing on a walnut board, flipped through
+   ════════════════════════════════════════════════════════════════════ */
+.crate-section { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.25rem; container-type: inline-size; }
+.crate {
+  --s: 8.25rem;             /* sleeve size */
+  position: relative;
+  height: calc(var(--s) * 1.34);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  touch-action: pan-y;
+}
+@container (max-width: 30rem) { .crate { --s: 6.5rem; } }
+/* The board, as on the Bookshelf: 6px of walnut with a soft contact shadow. */
+.crate::after {
+  content: '';
+  position: absolute;
+  left: -0.5rem;
+  right: -0.5rem;
+  bottom: -6px;
+  height: 6px;
+  border-radius: 1px;
+  background: linear-gradient(oklch(0.5 0.075 52), #68432f 40%, oklch(0.34 0.06 48));
+  box-shadow: 0 6px 12px -6px oklch(0.2 0.03 45 / 0.55);
+}
+.crate > li {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--s);
+  height: calc(var(--s) * 1.34);
+  transform: translateX(var(--x, 0px));
+  transition: transform var(--dur-flip) var(--ease-out);
+}
+.sleeve {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sleeve:focus-visible { outline: none; }
+.sleeve__face,
+.sleeve__disc {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--s);
+  height: var(--s);
+}
+.sleeve__face {
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--card-shade);
+  /* Each sleeve throws a little shadow on the one behind it. */
+  box-shadow:
+    -7px 0 10px -7px oklch(0.15 0.02 45 / 0.55),
+    inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.25),
+    0 1px 1px oklch(0.2 0.01 45 / 0.2);
+  transition:
+    transform var(--dur-flip) var(--ease-out),
+    opacity var(--dur-soft) var(--ease-out),
+    box-shadow var(--dur-flip) var(--ease-out);
+}
+.sleeve__face svg { display: block; width: 100%; height: 100%; }
+/* Printed on uncoated board: a little tooth, and the faint ring a record leaves on its sleeve. */
+.sleeve__face::after,
+.desk__sleeve::after,
+.flight::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 44%, oklch(1 0 0 / 0.07) 45.5%, transparent 47.5%),
+    linear-gradient(180deg, oklch(1 0 0 / 0.12), transparent 22%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .9 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+.sleeve__disc {
+  border-radius: 50%;
+  scale: 0.94;
+  transition: transform var(--dur-flip) var(--ease-out);
+}
+/* Hover or focus: the sleeve rises a little and its record peeks out of the top. */
+.crate > li[data-active] .sleeve__face {
+  transform: translateY(-0.5rem);
+  box-shadow:
+    -9px 0 14px -8px oklch(0.15 0.02 45 / 0.6),
+    inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.25),
+    0 14px 22px -14px oklch(0.2 0.01 45 / 0.6);
+}
+.crate > li[data-active] .sleeve__disc { transform: translateY(calc(var(--s) * -0.3)); }
+.sleeve:focus-visible .sleeve__face { outline: 2px solid var(--spot-ink); outline-offset: 3px; }
+.sleeve:active .sleeve__face { transform: translateY(-0.5rem) scale(0.98); }
+/* The one on the desk leaves its slot almost empty. */
+.crate > li[data-out] .sleeve__face { background: var(--card-shade); transform: translateY(0.35rem); box-shadow: -7px 0 10px -7px oklch(0.15 0.02 45 / 0.3), inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.18); }
+.crate > li[data-out] .sleeve__face svg { opacity: 0; transition: opacity var(--dur-soft) var(--ease-out); }
+.crate > li[data-out] .sleeve__disc { opacity: 0; }
+
+.crate__caption {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+  margin-top: 0.4rem;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crate__caption b { font-weight: 500; color: var(--ink); overflow: hidden; text-overflow: ellipsis; }
+
+/* ════════════════════════════════════════════════════════════════════
+   3. The desk: the record pulled out, with its liner notes
+   ════════════════════════════════════════════════════════════════════ */
+.desk-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-panel) var(--ease-drawer);
+}
+.desk-wrap[data-open] { grid-template-rows: 1fr; }
+.desk { min-height: 0; overflow: hidden; }
+.desk-wrap[data-settled] .desk { overflow: visible; }
+.desk__inner {
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr);
+  gap: 1.25rem 1.75rem;
+  align-items: start;
+  padding: 1.75rem 0 0.25rem;
+  border-top: 1px solid var(--rule-card);
+}
+@container (max-width: 33rem) {
+  .desk__inner { grid-template-columns: 1fr; }
+}
+.desk__object { position: relative; width: 16rem; height: 11rem; }
+@container (max-width: 33rem) {
+  .desk__object { width: 14.5rem; height: 10rem; }
+}
+.desk__vinyl {
+  position: absolute;
+  left: 0.25rem;
+  top: 0.25rem;
+  width: calc(100% - 5.5rem);
+  aspect-ratio: 1;
+  transition: transform 760ms var(--ease-out);
+}
+.desk__object { --sleeve-w: 11rem; }
+@container (max-width: 33rem) { .desk__object { --sleeve-w: 10rem; } .desk__vinyl { width: 9.5rem; } }
+.desk__vinyl { width: calc(var(--sleeve-w) - 0.5rem); }
+.desk__disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 8px 18px -10px oklch(0.1 0.01 45 / 0.7);
+  rotate: 0deg;
+  transition: rotate 760ms var(--ease-out);
+}
+/* It rolls as it slides: 44% of its width ≈ 48° of turn. */
+.desk[data-out] .desk__vinyl { transform: translateX(44%); }
+.desk[data-out] .desk__disc { rotate: 48deg; }
+.desk[data-playing] .desk__disc { animation: spin-from 1.8s linear infinite; }
+html.rm .desk[data-playing] .desk__disc { animation: none; }
+html.rm .desk__vinyl, html.rm .desk__disc, html.rm .tt__arm { transition: none; }
+html.rm .desk__notes > * { translate: none; }
+.desk__sleeve {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--sleeve-w);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 3px;
+  box-shadow:
+    inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.25),
+    0 2px 3px oklch(0.2 0.01 45 / 0.2),
+    0 22px 34px -20px oklch(0.2 0.01 45 / 0.65);
+}
+.desk__sleeve svg, .flight svg { display: block; width: 100%; height: 100%; }
+.desk__sleeve[data-hidden] { visibility: hidden; }
+
+/* Liner notes settle in one after another once the record lands. */
+.desk__notes > * {
+  opacity: 0;
+  translate: 0 6px;
+  transition: opacity var(--dur-soft) var(--ease-out), translate var(--dur-soft) var(--ease-out);
+}
+.desk[data-out] .desk__notes > * { opacity: 1; translate: 0 0; }
+.desk[data-out] .desk__notes > :nth-child(2) { transition-delay: 40ms; }
+.desk[data-out] .desk__notes > :nth-child(3) { transition-delay: 80ms; }
+.desk[data-out] .desk__notes > :nth-child(4) { transition-delay: 120ms; }
+.desk[data-out] .desk__notes > :nth-child(5) { transition-delay: 160ms; }
+.desk[data-out] .desk__notes > :nth-child(6) { transition-delay: 200ms; }
+.desk__notes { display: grid; gap: 0; }
+.desk__kind { font-size: var(--text-xs); color: var(--ink-3); }
+.desk__title {
+  margin-top: 0.3rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.6rem;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+.desk__artist { margin-top: 0.25rem; color: var(--ink-2); }
+.desk__note { margin-top: 0.9rem; max-width: 34ch; line-height: 1.5; }
+.desk__facts {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.3rem 1rem;
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule-card);
+  font-size: var(--text-sm);
+}
+.desk__facts dt { color: var(--ink-3); }
+.desk__facts dd { color: var(--ink); }
+.num { font-variant-numeric: tabular-nums; color: var(--spot-ink); margin-right: 0.35em; }
+.desk__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.25rem;
+  margin-top: 1.25rem;
+  font-size: var(--text-sm);
+}
+.play {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  color: var(--ink);
+  font-weight: 500;
+}
+.play__disc {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--spot-ink);
+  color: var(--card);
+  box-shadow: 0 4px 12px -2px oklch(0.4 0.12 36 / 0.45);
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+.play:active .play__disc { transform: scale(0.94); }
+.play__disc svg { width: 0.95rem; height: 0.95rem; }
+.desk__consent { margin-top: 0.4rem; font-size: var(--text-xs); color: var(--ink-3); }
+
+/* Spotify's player: loaded only on request. Mocked here. */
+.player-wrap {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-panel) var(--ease-drawer);
+}
+.player-wrap[data-open] { grid-template-rows: 1fr; }
+.player-wrap > div { min-height: 0; overflow: hidden; }
+.player {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 1rem;
+  align-items: center;
+  height: 152px;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  border-radius: 12px;
+  background: var(--player-bg, oklch(0.3 0.03 45));
+  color: oklch(0.97 0.005 80);
+}
+.player__art { width: 7rem; height: 7rem; overflow: hidden; border-radius: 6px; }
+.player__art svg { display: block; width: 100%; height: 100%; }
+.player__t { font-weight: 600; }
+.player__a { font-size: var(--text-sm); opacity: 0.75; }
+.player__bar { height: 3px; margin-top: 1rem; border-radius: 2px; background: oklch(1 0 0 / 0.25); overflow: hidden; }
+.player__bar i { display: block; width: 28%; height: 100%; background: oklch(1 0 0 / 0.85); }
+.player__mock { margin-top: 0.75rem; font-size: 0.6875rem; opacity: 0.7; }
+
+/* The flying sleeve between crate and desk. */
+.flight {
+  position: absolute;
+  z-index: 5;
+  overflow: hidden;
+  border-radius: 3px;
+  pointer-events: none;
+  transform-origin: 0 0;
+  box-shadow: inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.25), 0 24px 40px -18px oklch(0.2 0.01 45 / 0.6);
+}
+
+@keyframes spin { to { rotate: 360deg; } }
+@keyframes spin-from { from { rotate: 48deg; } to { rotate: 408deg; } }
+
+/* ── Small screens: the panel becomes a full sheet, controls sit above it ── */
+@media (max-width: 760px) {
+  .room { display: none; }
+  .proto { position: static; margin: 1rem; max-width: none; }
+  .panel { position: static; width: auto; padding: 0 0.5rem 0.5rem; }
+  .panel__core { height: auto; }
+  .panel__sheet { height: auto; }
+  .panel__body { padding: 2rem 1.25rem 3rem; overflow: visible; }
+  .panel__bar { padding-left: 1.25rem; }
+  .deck__track { grid-template-columns: 8rem minmax(0, 1fr); gap: 1rem; }
+  .tt { transform: scale(0.84); transform-origin: 0 50%; }
+  .sec-head { flex-direction: column; gap: 0.2rem; }
+  .sec-head p { text-align: left; }
+}
+.crate[data-instant] > li, .crate[data-instant] .sleeve__face { transition: none; }
+</style>
+</head>
+<body>
+
+<div class="room" aria-hidden="true"></div>
+
+<aside class="proto" aria-label="Prototype controls">
+  <p class="proto__title">Music · design prototype</p>
+  <p>Every record, track and note here is sample content.</p>
+  <div class="proto__row" role="group" aria-label="Now playing state">
+    <span>Now playing</span>
+    <button type="button" data-np="live" aria-pressed="true">Live</button>
+    <button type="button" data-np="recent" aria-pressed="false">Last played</button>
+    <button type="button" data-np="loading" aria-pressed="false">Loading</button>
+  </div>
+  <div class="proto__row" role="group" aria-label="Number of records">
+    <span>Records</span>
+    <button type="button" data-n="5" aria-pressed="false">5</button>
+    <button type="button" data-n="9" aria-pressed="true">9</button>
+    <button type="button" data-n="14" aria-pressed="false">14</button>
+  </div>
+  <div class="proto__row" role="group" aria-label="Motion">
+    <span>Motion</span>
+    <button type="button" data-motion="full" aria-pressed="true">Full</button>
+    <button type="button" data-motion="reduced" aria-pressed="false">Reduced</button>
+  </div>
+</aside>
+
+<div class="panel" role="dialog" aria-modal="false" aria-labelledby="panel-title">
+  <div class="panel__sheet">
+    <div class="panel__core">
+      <div class="panel__bar">
+        <nav class="panel__nav" aria-label="Sections (static in this prototype)">
+          <span>Work</span><span>About</span><span>Experience</span><span>Bookshelf</span><span aria-current="page">Music</span><span>Say hello</span>
+        </nav>
+        <span class="panel__close" aria-hidden="true">Close
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 3l10 10M13 3L3 13"/></svg>
+        </span>
+      </div>
+      <div class="panel__body" id="body">
+        <article class="panel__article" id="article">
+          <h2 id="panel-title">Music</h2>
+          <p class="panel__summary">Playing, listening and learning.</p>
+
+          <div class="section">
+            <p class="lede">Music is the part of my life that everything else grows around. This corner of the room is for that relationship: playing, listening, and wondering how other people come to love it too.</p>
+
+            <!-- 1. The deck -->
+            <section class="deck" id="deck" data-state="recent" aria-labelledby="deck-h">
+              <div class="sec-head">
+                <h3 id="deck-h">What I’m listening to</h3>
+                <p>Straight from my Spotify, updated as I listen.</p>
+              </div>
+              <div class="deck__loading" aria-label="Loading"></div>
+              <a class="deck__track" href="#" id="deck-link">
+                <span class="tt" aria-hidden="true">
+                  <span class="tt__platter">
+                    <span class="tt__record">
+                      <span class="vinyl-face"></span>
+                      <span class="vinyl-label" id="deck-label"></span>
+                    </span>
+                    <span class="sheen"></span>
+                  </span>
+                  <svg class="tt__arm" viewBox="0 0 16 84">
+                    <rect x="4.5" y="-7" width="7" height="8" rx="1.5" fill="oklch(0.5 0.01 60)"/>
+                    <circle cx="8" cy="8" r="6.5" fill="oklch(0.86 0.008 80)"/>
+                    <circle cx="8" cy="8" r="3" fill="oklch(0.62 0.01 70)"/>
+                    <path d="M8 10 L8 66 Q8 70 6 72" stroke="oklch(0.9 0.006 80)" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+                    <rect x="1.5" y="70" width="7" height="10" rx="1.4" transform="rotate(14 5 75)" fill="oklch(0.28 0.01 45)"/>
+                  </svg>
+                  <span class="tt__knob" style="right: 1.55rem"></span>
+                  <span class="tt__knob" style="right: 0.7rem"></span>
+                </span>
+                <span>
+                  <span class="deck__status" id="deck-status">Last played</span>
+                  <span class="deck__title">Sample track title</span>
+                  <span class="deck__artist">Placeholder Trio, Night Bus Études <span class="sample-flag">sample</span></span>
+                  <span class="deck__open">Open in Spotify<span class="vh"> (new tab)</span></span>
+                </span>
+              </a>
+            </section>
+
+            <!-- 2. The crate, 3. the desk -->
+            <section class="crate-section" aria-labelledby="crate-h">
+              <div class="sec-head">
+                <h3 id="crate-h">On my shelf of records</h3>
+                <p>Albums and playlists I keep coming back to.</p>
+              </div>
+              <div>
+                <p class="vh" id="crate-hint">Use the arrow keys to flip through, Enter to take a record out.</p>
+                <ul class="crate" id="crate" role="list" aria-describedby="crate-hint"></ul>
+                <p class="crate__caption" id="caption" aria-hidden="true"></p>
+              </div>
+              <div class="desk-wrap" id="desk-wrap">
+                <div class="desk" id="desk" role="region" aria-label="Record on the desk"></div>
+              </div>
+            </section>
+          </div>
+        </article>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ───────────── Sample records (none of this is Susana's) ───────────── */
+const C = {
+  walnut: 'oklch(0.42 0.07 50)', terracotta: 'oklch(0.55 0.13 40)', rose: 'oklch(0.72 0.065 28)',
+  teal: 'oklch(0.36 0.045 185)', slate: 'oklch(0.46 0.05 262)', ochre: 'oklch(0.76 0.095 78)',
+  card: 'oklch(0.945 0.006 85)', ink: 'oklch(0.205 0.01 45)', spot: 'oklch(0.66 0.165 38)',
+  sage: 'oklch(0.6 0.04 150)', plum: 'oklch(0.36 0.05 340)', sand: 'oklch(0.86 0.03 80)',
+};
+const NOTE = 'Sample liner note. A line or two in Susana’s own words: where she found it, when it gets played, why it stays in the crate.';
+const RECORDS = [
+  { t: 'Night Bus Études', a: 'Placeholder Trio', k: 'Album', y: 2019, n: '9 tracks, 41 min', s: ['04', 'Sample track title'], art: ['window', C.walnut, C.ochre, C.card] },
+  { t: 'Sunday piano', a: 'A sample playlist', k: 'Playlist', y: null, n: '38 songs, 2 h 10 min', s: ['01', 'Sample opening song'], art: ['keys', C.card, C.ink, C.spot] },
+  { t: 'Rain on Glass', a: 'The Sample Quartet', k: 'Album', y: 2008, n: '11 tracks, 47 min', s: ['07', 'Sample track title'], art: ['stripes', C.teal, C.card, C.ochre] },
+  { t: 'Low Lamp Sessions', a: 'Example Ensemble', k: 'Album', y: 1996, n: '8 tracks, 52 min', s: ['02', 'Sample track title'], art: ['arcs', C.slate, C.sand, C.spot] },
+  { t: 'Fourteen Small Rooms', a: 'Lorem Collective', k: 'Album', y: 2021, n: '14 tracks, 39 min', s: ['11', 'Sample track title'], art: ['type', C.ink, C.card, C.spot] },
+  { t: 'Orchid Hours', a: 'Demo Orchestra', k: 'Album', y: 1974, n: '6 tracks, 44 min', s: ['03', 'Sample track title'], art: ['split', C.rose, C.terracotta, C.card] },
+  { t: 'Practice room', a: 'A sample playlist', k: 'Playlist', y: null, n: '52 songs, 3 h 4 min', s: ['01', 'Sample opening song'], art: ['grid', C.sand, C.ink, C.spot] },
+  { t: 'Slow Ochre', a: 'Ipsum Duo', k: 'Album', y: 2013, n: '10 tracks, 36 min', s: ['05', 'Sample track title'], art: ['sun', C.ochre, C.terracotta, C.ink] },
+  { t: 'Late, low and slow', a: 'A sample playlist', k: 'Playlist', y: null, n: '41 songs, 2 h 38 min', s: ['01', 'Sample opening song'], art: ['moon', C.plum, C.sand, C.rose] },
+  { t: 'Paper Weather', a: 'Sample Strings', k: 'Album', y: 2002, n: '12 tracks, 58 min', s: ['09', 'Sample track title'], art: ['rings', C.sage, C.card, C.ink] },
+  { t: 'Songs to learn', a: 'A sample playlist', k: 'Playlist', y: null, n: '23 songs, 1 h 21 min', s: ['01', 'Sample opening song'], art: ['dots', C.terracotta, C.sand, C.ink] },
+  { t: 'Felt and Hammers', a: 'Placeholder Trio', k: 'Album', y: 2016, n: '7 tracks, 33 min', s: ['06', 'Sample track title'], art: ['frame', C.card, C.walnut, C.spot] },
+  { t: 'First listens', a: 'A sample playlist', k: 'Playlist', y: null, n: '19 songs, 1 h 2 min', s: ['01', 'Sample opening song'], art: ['bars', C.ink, C.ochre, C.rose] },
+  { t: 'Blue Hour Radio', a: 'Example Ensemble', k: 'Album', y: 1989, n: '10 tracks, 45 min', s: ['08', 'Sample track title'], art: ['horizon', C.slate, C.rose, C.ochre] },
+];
+
+/* ───────────── Cover art: small printed designs in the room's colours ───────────── */
+const esc = (s) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;');
+function cover(r) {
+  const [m, bg, fg, ac] = r.art;
+  const T = (x, y, size, fill, text, w = 500, anchor = 'start') =>
+    `<text x="${x}" y="${y}" font-family="Funnel Display, sans-serif" font-weight="${w}" font-size="${size}" fill="${fill}" text-anchor="${anchor}" letter-spacing="-0.2">${esc(text)}</text>`;
+  const small = (fill, x = 7, y = 11) => T(x, y, 5.2, fill, r.t, 500);
+  let g = '';
+  switch (m) {
+    case 'window':
+      g = `<rect x="22" y="16" width="56" height="62" rx="1" fill="${fg}" opacity=".92"/>
+        ${Array.from({ length: 13 }, (_, i) => `<line x1="${25 + i * 4.2}" y1="${18 + (i % 3) * 5}" x2="${23 + i * 4.2}" y2="${40 + (i % 4) * 8}" stroke="${bg}" stroke-width=".7" opacity=".45"/>`).join('')}
+        <line x1="50" y1="16" x2="50" y2="78" stroke="${bg}" stroke-width="2.2"/><line x1="22" y1="47" x2="78" y2="47" stroke="${bg}" stroke-width="2.2"/>
+        ${T(7, 92, 6.4, ac, r.t)}${T(93, 92, 4.4, fg, r.a, 400, 'end')}`; break;
+    case 'keys':
+      g = `${Array.from({ length: 10 }, (_, i) => `<rect x="${i * 10}" y="44" width="9.4" height="56" fill="${i === 6 ? ac : '#fff'}" opacity="${i === 6 ? 1 : 0.65}"/>`).join('')}
+        ${[0, 1, 3, 4, 5, 7, 8].map((i) => `<rect x="${i * 10 + 6.5}" y="44" width="6" height="33" fill="${fg}"/>`).join('')}
+        ${T(7, 24, 11, fg, r.t, 600)}${T(7, 33, 4.6, fg, 'playlist', 400)}`; break;
+    case 'stripes':
+      g = `${Array.from({ length: 22 }, (_, i) => `<line x1="0" y1="${8 + i * 4}" x2="100" y2="${8 + i * 4}" stroke="${fg}" stroke-width="${0.3 + (i % 5) * 0.12}" opacity=".5"/>`).join('')}
+        <circle cx="70" cy="34" r="12" fill="${ac}"/>${T(7, 88, 9, fg, r.t, 600)}${T(7, 95, 4.4, fg, r.a, 400)}`; break;
+    case 'arcs':
+      g = `${Array.from({ length: 9 }, (_, i) => `<circle cx="50" cy="108" r="${18 + i * 9}" fill="none" stroke="${fg}" stroke-width="${i === 3 ? 2.2 : 0.7}" stroke-opacity="${i === 3 ? 1 : 0.55}" ${i === 3 ? `stroke="${ac}"` : ''}/>`).join('')}
+        ${T(7, 14, 7, fg, r.t, 500)}${T(7, 21, 4.4, fg, r.a, 400)}`; break;
+    case 'type':
+      g = `${T(5, 34, 21, fg, 'Fourteen', 600)}${T(5, 55, 21, fg, 'Small', 600)}${T(5, 76, 21, ac, 'Rooms', 600)}${T(6, 93, 4.6, fg, r.a, 400)}`; break;
+    case 'split':
+      g = `<rect x="0" y="0" width="100" height="56" fill="${fg}"/><circle cx="50" cy="56" r="22" fill="${ac}"/>
+        <rect x="0" y="56" width="100" height="44" fill="${bg}"/><path d="M28 56 A22 22 0 0 0 72 56 Z" fill="${fg}" opacity=".35"/>
+        ${T(50, 90, 7, C.ink, r.t, 500, 'middle')}`; break;
+    case 'grid':
+      g = `${Array.from({ length: 25 }, (_, i) => `<circle cx="${22 + (i % 5) * 14}" cy="${26 + Math.floor(i / 5) * 12}" r="${i === 17 ? 4.5 : 2.4}" fill="${i === 17 ? ac : fg}"/>`).join('')}
+        ${T(7, 13, 6, fg, r.t, 600)}${T(93, 94, 4.4, fg, 'playlist', 400, 'end')}`; break;
+    case 'sun':
+      g = `<circle cx="50" cy="74" r="34" fill="${fg}"/><rect x="0" y="74" width="100" height="26" fill="${ac}"/>
+        ${Array.from({ length: 4 }, (_, i) => `<line x1="0" y1="${80 + i * 5}" x2="100" y2="${80 + i * 5}" stroke="${bg}" stroke-width=".6" opacity=".55"/>`).join('')}
+        ${T(7, 15, 9, ac, r.t, 600)}${T(7, 22, 4.4, ac, r.a, 400)}`; break;
+    case 'moon':
+      g = `<circle cx="64" cy="38" r="19" fill="${fg}"/><circle cx="72" cy="33" r="17" fill="${bg}"/>
+        ${T(7, 82, 8, fg, 'Late, low', 500)}${T(7, 91, 8, ac, 'and slow', 500)}`; break;
+    case 'rings':
+      g = `${Array.from({ length: 6 }, (_, i) => `<circle cx="${34 + i * 6}" cy="46" r="${26 - i * 2}" fill="none" stroke="${i === 5 ? ac : fg}" stroke-width=".9"/>`).join('')}
+        ${T(7, 90, 8, fg, r.t, 500)}${T(93, 12, 4.4, fg, r.a, 400, 'end')}`; break;
+    case 'dots':
+      g = `${Array.from({ length: 7 }, (_, i) => `<circle cx="${14 + i * 12}" cy="${82 - i * 10}" r="${3 + i * 0.9}" fill="${i === 6 ? ac : fg}"/>`).join('')}
+        ${T(7, 13, 7, fg, r.t, 600)}${T(7, 94, 4.4, fg, 'playlist', 400)}`; break;
+    case 'frame':
+      g = `<rect x="9" y="9" width="82" height="82" fill="none" stroke="${fg}" stroke-width="1"/>
+        <rect x="16" y="16" width="68" height="46" fill="${fg}"/>
+        ${Array.from({ length: 8 }, (_, i) => `<rect x="${22 + i * 7.5}" y="${24 + (i % 3) * 4}" width="2" height="${30 - (i % 3) * 4}" rx="1" fill="${bg}" opacity=".85"/>`).join('')}
+        <circle cx="76" cy="24" r="3" fill="${ac}"/>${T(16, 76, 8, fg, 'Felt and', 600)}${T(16, 85, 8, fg, 'Hammers', 600)}`; break;
+    case 'bars':
+      g = `${Array.from({ length: 9 }, (_, i) => `<rect x="${10 + i * 9}" y="${70 - [12, 28, 20, 40, 34, 52, 26, 18, 10][i]}" width="5" height="${[12, 28, 20, 40, 34, 52, 26, 18, 10][i]}" fill="${i === 5 ? ac : fg}"/>`).join('')}
+        <line x1="8" y1="70.5" x2="92" y2="70.5" stroke="${fg}" stroke-width=".6"/>${T(8, 86, 8, fg, r.t, 500)}${T(8, 94, 4.4, fg, 'playlist', 400)}`; break;
+    case 'horizon':
+      g = `<rect x="0" y="58" width="100" height="42" fill="${fg}" opacity=".9"/><circle cx="30" cy="58" r="13" fill="${ac}"/><rect x="0" y="58" width="100" height="42" fill="${fg}"/>
+        ${Array.from({ length: 5 }, (_, i) => `<line x1="${8 + i * 3}" y1="${64 + i * 6}" x2="${92 - i * 3}" y2="${64 + i * 6}" stroke="${bg}" stroke-width=".6" opacity=".5"/>`).join('')}
+        ${T(7, 15, 8, C.card, r.t, 500)}${T(7, 22, 4.4, C.card, r.a, 400)}`; break;
+  }
+  return `<svg viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false"><rect width="100" height="100" fill="${bg}"/>${g}</svg>`;
+}
+const vinyl = (r) => `<span class="vinyl-face"></span><span class="vinyl-label">${cover(r)}</span>`;
+
+/* ───────────── State ───────────── */
+const $ = (s) => document.querySelector(s);
+const crate = $('#crate'), caption = $('#caption'), desk = $('#desk'), wrap = $('#desk-wrap');
+const article = $('#article'), body = $('#body');
+const mq = matchMedia('(prefers-reduced-motion: reduce)');
+let forceReduced = null;
+const reduced = () => (forceReduced ?? mq.matches);
+const syncMotion = () => document.documentElement.classList.toggle('rm', reduced());
+syncMotion();
+mq.addEventListener('change', syncMotion);
+if (mq.matches) document.querySelectorAll('[data-motion]').forEach((x) => x.setAttribute('aria-pressed', x.dataset.motion === 'reduced'));
+
+let count = 9;
+let active = null;   // hovered / focused (flip position)
+let focusIdx = 0;    // roving tabindex
+let out = null;      // record on the desk
+let busy = false;
+const records = () => RECORDS.slice(0, count);
+
+/* ───────────── The deck ───────────── */
+$('#deck-label').innerHTML = cover(RECORDS[0]);
+function setDeck(state) {
+  $('#deck').dataset.state = state;
+  $('#deck-status').textContent = state === 'live' ? 'Listening now' : 'Last played · 2 hours ago';
+  document.querySelectorAll('[data-np]').forEach((b) => b.setAttribute('aria-pressed', b.dataset.np === state));
+}
+$('#deck-link').addEventListener('click', (e) => e.preventDefault());
+
+/* ───────────── The crate ───────────── */
+function buildCrate() {
+  crate.innerHTML = records().map((r, i) => `
+    <li style="z-index:${i + 1}">
+      <button type="button" class="sleeve" data-i="${i}" tabindex="${i === focusIdx ? 0 : -1}"
+        aria-label="${esc(r.t)}, ${esc(r.a)}, ${r.k.toLowerCase()} (sample)" aria-expanded="false" aria-controls="desk">
+        <span class="sleeve__disc">${vinyl(r)}</span>
+        <span class="sleeve__face">${cover(r)}</span>
+      </button>
+    </li>`).join('');
+  crate.setAttribute('data-instant', '');
+  layout();
+  requestAnimationFrame(() => requestAnimationFrame(() => crate.removeAttribute('data-instant')));
+}
+
+function layout() {
+  const items = [...crate.children];
+  const n = items.length;
+  const W = crate.clientWidth;
+  const s = items[0].offsetWidth;
+  const full = s + 12;
+  const natural = n > 1 ? (W - s) / (n - 1) : 0;
+  let xs = [];
+  if (natural >= full) {
+    xs = items.map((_, i) => i * full);
+  } else {
+    const a = active ?? out;
+    const reveal = a == null || a === n - 1 ? natural : Math.min(full, W - s - (n - 2) * 8);
+    const rest = a == null || a === n - 1 ? natural : (W - s - reveal) / (n - 2);
+    let x = 0;
+    items.forEach((_, i) => { xs[i] = x; x += i === a ? reveal : rest; });
+  }
+  items.forEach((li, i) => {
+    li.style.setProperty('--x', `${Math.round(xs[i])}px`);
+    li.toggleAttribute('data-active', i === active && i !== out);
+    li.toggleAttribute('data-out', i === out);
+    li.querySelector('.sleeve').setAttribute('aria-expanded', i === out);
+  });
+  const r = records()[active ?? out ?? -1];
+  caption.innerHTML = r
+    ? `<b>${esc(r.t)}</b><span>${esc(r.a)} · ${r.k}</span><span class="sample-flag">sample</span>`
+    : `<span>${n} records</span>`;
+}
+
+function setActive(i) {
+  if (i === active) return;
+  active = i;
+  layout();
+}
+
+/* Which sleeve is under the pointer: the front-most one whose left edge is to the left of it. */
+function indexAt(clientX) {
+  const items = [...crate.children];
+  const left = crate.getBoundingClientRect().left;
+  const x = clientX - left;
+  let hit = 0;
+  items.forEach((li, i) => { if (parseFloat(li.style.getPropertyValue('--x')) <= x) hit = i; });
+  return hit;
+}
+
+let drag = null;
+crate.addEventListener('pointermove', (e) => {
+  if (e.pointerType === 'mouse' || drag) setActive(indexAt(e.clientX));
+  if (drag && Math.abs(e.clientX - drag.x) > 8) drag.moved = true;
+});
+crate.addEventListener('pointerdown', (e) => {
+  if (e.pointerType !== 'mouse') { drag = { x: e.clientX, moved: false }; setActive(indexAt(e.clientX)); }
+});
+addEventListener('pointerup', () => { setTimeout(() => (drag = null), 0); });
+crate.addEventListener('pointerleave', (e) => {
+  if (e.pointerType === 'mouse') setActive(crate.contains(document.activeElement) ? focusIdx : null);
+});
+crate.addEventListener('click', (e) => {
+  const b = e.target.closest('.sleeve');
+  if (!b) return;
+  if (drag && drag.moved) return;   // a swipe flips; a tap takes the record out
+  const i = drag ? active : +b.dataset.i;
+  i === out ? putBack() : takeOut(i);
+}, true);
+crate.addEventListener('focusin', (e) => {
+  const b = e.target.closest('.sleeve');
+  if (b) { focusIdx = +b.dataset.i; setActive(focusIdx); }
+});
+crate.addEventListener('focusout', (e) => {
+  if (!crate.contains(e.relatedTarget)) setActive(null);
+});
+crate.addEventListener('keydown', (e) => {
+  const n = records().length;
+  const map = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 };
+  let next = null;
+  if (e.key in map) next = Math.min(n - 1, Math.max(0, focusIdx + map[e.key]));
+  if (e.key === 'Home') next = 0;
+  if (e.key === 'End') next = n - 1;
+  if (next == null) return;
+  e.preventDefault();
+  focusSleeve(next);
+});
+function focusSleeve(i) {
+  crate.querySelectorAll('.sleeve').forEach((b, j) => (b.tabIndex = j === i ? 0 : -1));
+  focusIdx = i;
+  crate.querySelectorAll('.sleeve')[i].focus();
+}
+
+/* ───────────── The desk ───────────── */
+const PLAY = '<svg viewBox="0 0 20 20"><path d="M7.2 4.8v10.4l8.4-5.2z" fill="currentColor"/></svg>';
+function renderDesk(i) {
+  const r = records()[i];
+  desk.style.setProperty('--player-bg', `color-mix(in oklch, ${r.art[1]} 55%, oklch(0.2 0.01 45))`);
+  desk.innerHTML = `
+    <div class="desk__inner">
+      <div class="desk__object" aria-hidden="true">
+        <div class="desk__vinyl"><div class="desk__disc">${vinyl(r)}<span class="sheen"></span></div></div>
+        <div class="desk__sleeve" data-hidden>${cover(r)}</div>
+      </div>
+      <div class="desk__notes">
+        <p class="desk__kind">${r.k}${r.y ? ` · ${r.y}` : ''} <span class="sample-flag">sample</span></p>
+        <h4 class="desk__title" tabindex="-1">${esc(r.t)}</h4>
+        <p class="desk__artist">${esc(r.a)}</p>
+        <p class="desk__note">${NOTE}</p>
+        <dl class="desk__facts">
+          <dt>Start with</dt><dd><span class="num">${r.s[0]}</span>${esc(r.s[1])}</dd>
+          <dt>Length</dt><dd>${r.n}</dd>
+        </dl>
+        <div>
+          <div class="desk__actions">
+            <button type="button" class="play" data-play><span class="play__disc">${PLAY}</span><span data-play-label>Play here</span></button>
+            <a class="text-link" href="#" data-open-spotify>Open in Spotify<span class="vh"> (new tab)</span></a>
+            <button type="button" class="text-button text-link" data-back>Put it back</button>
+          </div>
+          <p class="desk__consent" data-consent>Loads Spotify’s player, which sets its own cookies.</p>
+        </div>
+      </div>
+      <div class="player-wrap" data-player-wrap><div>
+        <div class="player">
+          <div class="player__art">${cover(r)}</div>
+          <div>
+            <p class="player__t">${esc(r.t)}</p>
+            <p class="player__a">${esc(r.a)}</p>
+            <div class="player__bar"><i></i></div>
+            <p class="player__mock">Stand-in for Spotify’s embed. In the prototype nothing is loaded.</p>
+          </div>
+        </div>
+      </div></div>
+    </div>`;
+}
+
+desk.addEventListener('click', (e) => {
+  if (e.target.closest('[data-back]')) putBack();
+  if (e.target.closest('[data-open-spotify]')) e.preventDefault();
+  if (e.target.closest('[data-play]')) togglePlayer();
+});
+desk.addEventListener('keydown', (e) => { if (e.key === 'Escape') { e.stopPropagation(); putBack(); } });
+
+function togglePlayer() {
+  const pw = desk.querySelector('[data-player-wrap]');
+  const on = !pw.hasAttribute('data-open');
+  pw.toggleAttribute('data-open', on);
+  desk.toggleAttribute('data-playing', on);
+  desk.querySelector('[data-play-label]').textContent = on ? 'Close player' : 'Play here';
+  desk.querySelector('.play__disc').innerHTML = on
+    ? '<svg viewBox="0 0 20 20"><g fill="currentColor"><rect x="6" y="5" width="2.6" height="10" rx=".5"/><rect x="11.4" y="5" width="2.6" height="10" rx=".5"/></g></svg>'
+    : PLAY;
+  desk.querySelector('[data-consent]').textContent = on ? 'Playing in Spotify’s player below.' : 'Loads Spotify’s player, which sets its own cookies.';
+  if (on) setTimeout(() => reveal(desk), 80);
+}
+
+/* Rect of an element relative to the article (which scrolls with the panel body). */
+function rel(el) {
+  const a = article.getBoundingClientRect(), r = el.getBoundingClientRect();
+  return { x: r.left - a.left, y: r.top - a.top, w: r.width, h: r.height };
+}
+function fly(r, from, to, duration) {
+  const f = document.createElement('div');
+  f.className = 'flight';
+  f.innerHTML = cover(r);
+  Object.assign(f.style, { left: `${to.x}px`, top: `${to.y}px`, width: `${to.w}px`, height: `${to.h}px` });
+  article.appendChild(f);
+  const k = from.w / to.w;
+  const anim = f.animate(
+    [{ transform: `translate(${from.x - to.x}px, ${from.y - to.y}px) scale(${k})` }, { transform: 'none' }],
+    { duration, easing: 'cubic-bezier(0.32, 0.72, 0, 1)' },
+  );
+  return anim.finished.then(() => f.remove());
+}
+function reveal(el) {
+  // The panel body scrolls on desktop; on small screens the page itself does.
+  const inPanel = getComputedStyle(body).overflowY !== 'visible';
+  const scroller = inPanel ? body : window;
+  const limit = inPanel ? body.getBoundingClientRect().bottom : innerHeight;
+  const r = el.getBoundingClientRect();
+  if (r.bottom > limit - 24) scroller.scrollBy({ top: r.bottom - limit + 48, behavior: reduced() ? 'auto' : 'smooth' });
+}
+const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+
+async function takeOut(i) {
+  if (busy) return;
+  busy = true;
+  if (out != null) await stow(false);       // swap: the old one goes back first
+  const r = records()[i];
+  const face = crate.children[i].querySelector('.sleeve__face');
+  const from = rel(face);
+  renderDesk(i);
+  out = i;
+  layout();
+  wrap.setAttribute('data-open', '');
+  const sleeve = desk.querySelector('.desk__sleeve');
+  if (reduced()) {
+    sleeve.removeAttribute('data-hidden');
+    desk.setAttribute('data-out', '');
+    wrap.setAttribute('data-settled', '');
+  } else {
+    const to = rel(sleeve);
+    requestAnimationFrame(() => reveal(wrap));
+    await fly(r, from, to, 620);
+    sleeve.removeAttribute('data-hidden');
+    wrap.setAttribute('data-settled', '');
+    desk.setAttribute('data-out', '');      // the record slides (and rolls) out; notes settle in
+  }
+  if (!reduced()) await wait(120);
+  reveal(wrap);
+  busy = false;
+}
+
+/* Put the record back in its slot. collapse=false keeps the desk open for a swap. */
+async function stow(collapse = true) {
+  const i = out, r = records()[i];
+  const sleeve = desk.querySelector('.desk__sleeve');
+  desk.removeAttribute('data-playing');
+  desk.removeAttribute('data-out');
+  if (!reduced()) {
+    await wait(380);                         // the record slides back into its sleeve
+    const from = rel(sleeve);
+    const li = crate.children[i];
+    li.removeAttribute('data-out');
+    const to = rel(li.querySelector('.sleeve__face'));
+    li.setAttribute('data-out', '');
+    sleeve.setAttribute('data-hidden', '');
+    if (collapse) { wrap.removeAttribute('data-settled'); wrap.removeAttribute('data-open'); }
+    await fly(r, from, to, collapse ? 520 : 420);
+  } else if (collapse) {
+    wrap.removeAttribute('data-settled');
+    wrap.removeAttribute('data-open');
+  }
+  out = null;
+  layout();
+}
+async function putBack() {
+  if (busy || out == null) return;
+  busy = true;
+  const i = out;
+  await stow(true);
+  focusSleeve(i);
+  busy = false;
+}
+
+/* ───────────── Prototype controls ───────────── */
+document.querySelectorAll('[data-np]').forEach((b) => b.addEventListener('click', () => setDeck(b.dataset.np)));
+document.querySelectorAll('[data-n]').forEach((b) => b.addEventListener('click', () => {
+  count = +b.dataset.n;
+  out = null; active = null; focusIdx = 0;
+  wrap.removeAttribute('data-open'); wrap.removeAttribute('data-settled');
+  desk.removeAttribute('data-out'); desk.removeAttribute('data-playing');
+  document.querySelectorAll('[data-n]').forEach((x) => x.setAttribute('aria-pressed', x === b));
+  buildCrate();
+}));
+document.querySelectorAll('[data-motion]').forEach((b) => b.addEventListener('click', () => {
+  forceReduced = b.dataset.motion === 'reduced';
+  syncMotion();
+  document.querySelectorAll('[data-motion]').forEach((x) => x.setAttribute('aria-pressed', x === b));
+}));
+new ResizeObserver(() => layout()).observe(crate);
+
+buildCrate();
+/* On arrival the arm swings across and the record starts to turn. */
+setTimeout(() => setDeck('live'), reduced() ? 0 : 500);
+</script>
+</body>
+</html>

@@ -1,0 +1,641 @@
+/*
+ * Bookshelf: books drawn from data, standing in the lamplight of the painting.
+ * Every book dimension is a plain number multiplied by --u, one "book unit".
+ * The lamp stands to the right of the bookcase, so light comes from the upper
+ * right: spines catch it on their right shoulder and shadows fall to the left.
+ * Motion uses transform and opacity only; the blur() on wall shadows is static.
+ */
+.bookshelf {
+  --u: 1px;
+}
+
+.bs-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.bs-shelves {
+  display: grid;
+  gap: var(--space-xl);
+  container-type: inline-size;
+}
+
+.bs-shelf__title {
+  margin-bottom: var(--space-xs);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  letter-spacing: -0.015em;
+}
+
+.bs-empty {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* The bay: books, the lamp's light, and the board they stand on. */
+.bs-bay {
+  position: relative;
+  isolation: isolate;
+}
+
+.bs-row {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  gap: calc(1 * var(--u));
+  margin: 0;
+  /* Room above for lifting, and to the right for shadows. */
+  padding: calc(30 * var(--u)) calc(18 * var(--u)) 0 calc(10 * var(--u));
+  list-style: none;
+  /* A long shelf scrolls sideways inside itself, never the page. */
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--rule-card-strong) transparent;
+}
+
+.bs-lamp {
+  position: absolute;
+  z-index: 0;
+  top: -18%;
+  right: -12%;
+  width: 78%;
+  height: 120%;
+  pointer-events: none;
+  background: radial-gradient(closest-side, oklch(0.9 0.075 78 / 0.22), oklch(0.9 0.075 78 / 0.08) 55%, transparent);
+}
+
+.bs-board {
+  position: relative;
+  z-index: 0;
+  display: block;
+  width: 100%;
+  height: calc(18 * var(--u));
+  margin-top: calc(-4 * var(--u));
+  border-radius: 1.5px;
+  filter: drop-shadow(0 calc(9 * var(--u)) calc(8 * var(--u)) oklch(0.25 0.03 45 / 0.22));
+}
+
+/* A slot holds one book (or a pile, or an object) and its shadows. */
+.bs-slot {
+  position: relative;
+  flex: none;
+  display: flex;
+  align-items: flex-end;
+}
+
+/* Cast shadow on the wall, falling left, away from the lamp. */
+.bs-slot::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  left: 0;
+  bottom: 0;
+  width: calc(var(--w) * var(--u));
+  height: calc(var(--h) * var(--u));
+  border-radius: 3px;
+  background: oklch(0.22 0.03 45);
+  filter: blur(calc(4 * var(--u)));
+  opacity: 0.26;
+  transform: translate(calc(-5 * var(--u)), calc(-1 * var(--u)));
+  transition:
+    transform var(--dur-soft) var(--ease-out),
+    opacity var(--dur-soft) ease;
+}
+
+/* Contact shadow where the book meets the board. */
+.bs-slot::after {
+  content: '';
+  position: absolute;
+  z-index: 2;
+  left: -6%;
+  right: -2%;
+  bottom: calc(-3 * var(--u));
+  height: calc(6 * var(--u));
+  border-radius: 50%;
+  background: radial-gradient(closest-side, oklch(0.2 0.03 45 / 0.45), transparent);
+  pointer-events: none;
+  transition:
+    opacity var(--dur-soft) ease,
+    transform var(--dur-soft) var(--ease-out);
+}
+
+/* ── A book ── */
+.bs-book {
+  position: relative;
+  display: block;
+  flex: none;
+  width: calc(var(--w) * var(--u));
+  height: calc(var(--h) * var(--u));
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transform-origin: 50% 100%;
+  transition: transform 280ms var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bs-book > svg,
+.bs-book__tilt > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.bs-book:focus-visible {
+  outline: 2px solid var(--spot-ink);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* Books further from the lamp sit a little darker (set per slot from its position). */
+.bs-shade {
+  opacity: var(--shade, 0);
+}
+
+.bs-t-d {
+  font-family: var(--font-display);
+  font-weight: 500;
+}
+
+.bs-t-s {
+  font-family: var(--font-sans);
+  font-weight: 450;
+}
+
+/* The slip of paper between the pages: pale on books being read, vermilion on the chosen one. */
+.bs-slip {
+  position: absolute;
+  z-index: -1;
+  left: calc(var(--x) * 100%);
+  bottom: calc(100% - 2px);
+  width: clamp(4px, 26%, calc(9 * var(--u)));
+  height: calc(11 * var(--u));
+  border-radius: 1px 1px 0 0;
+  background: oklch(0.96 0.01 85);
+  box-shadow: inset -1px 0 0 oklch(0.2 0.02 45 / 0.12);
+  transform: scaleY(0);
+  transform-origin: 50% 100%;
+  transition:
+    transform 320ms var(--ease-out),
+    background-color var(--dur-soft) ease;
+}
+
+.bs-book[data-reading] .bs-slip {
+  transform: scaleY(0.85);
+}
+
+.bs-book[aria-expanded='true'] .bs-slip {
+  transform: scaleY(1.15);
+  background: var(--spot-ink);
+  box-shadow: none;
+}
+
+/* Hover: the book comes a little off the shelf, tips toward the lamp, its shadow loosens. */
+@media (hover: hover) and (pointer: fine) {
+  .bs-book:hover {
+    transform: translateY(calc(-6 * var(--u))) rotate(1deg);
+  }
+
+  .bs-slot:has(> .bs-book:hover)::before {
+    transform: translate(calc(-11 * var(--u)), calc(-4 * var(--u))) scale(1.03);
+    opacity: 0.18;
+  }
+
+  .bs-slot:has(> .bs-book:hover)::after {
+    opacity: 0.35;
+    transform: scaleX(0.9);
+  }
+
+  .bs-book--face:hover {
+    transform: translateY(calc(-5 * var(--u)));
+  }
+
+  .bs-book--face:hover .bs-book__tilt {
+    transform: perspective(700px) rotateX(2deg);
+  }
+
+  .bs-book--flat:hover {
+    transform: translateX(calc(9 * var(--u)));
+  }
+}
+
+.bs-book:focus-visible {
+  transform: translateY(calc(-6 * var(--u))) rotate(1deg);
+}
+
+.bs-book:active {
+  transform: translateY(calc(-5 * var(--u))) scale(0.985);
+  transition-duration: var(--dur-quick);
+}
+
+.bs-book[aria-expanded='true'] {
+  transform: translateY(calc(-12 * var(--u)));
+}
+
+.bs-book--flat:focus-visible {
+  transform: translateX(calc(9 * var(--u)));
+}
+
+.bs-book--flat[aria-expanded='true'] {
+  transform: translateX(calc(14 * var(--u)));
+}
+
+.bs-slot:has(> .bs-book[aria-expanded='true'])::before {
+  transform: translate(calc(-12 * var(--u)), calc(-6 * var(--u)));
+  opacity: 0.16;
+}
+
+.bs-slot:has(> .bs-book[aria-expanded='true'])::after {
+  opacity: 0.25;
+}
+
+/* Face out: leaning back against the wall. */
+.bs-book__tilt {
+  display: block;
+  width: 100%;
+  height: 100%;
+  transform: perspective(700px) rotateX(7deg);
+  transform-origin: 50% 100%;
+  transition: transform 320ms var(--ease-out);
+}
+
+.bs-slot--face::before {
+  transform: translate(calc(-6 * var(--u)), calc(5 * var(--u))) scale(0.96, 0.94);
+  transform-origin: 50% 100%;
+  opacity: 0.2;
+}
+
+/* A book leaning on its neighbour. */
+.bs-slot--lean {
+  transform: rotate(calc(var(--lean) * -1));
+  transform-origin: 0 100%;
+}
+
+.bs-slot--lean::after {
+  left: -10%;
+  right: 30%;
+}
+
+/* Books lying flat in a pile, read top to bottom. */
+.bs-slot--stack {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.bs-slot--stack::before {
+  display: none;
+}
+
+.bs-book--flat {
+  margin-left: calc(var(--dx, 0) * var(--u));
+}
+
+.bs-book--flat::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 2px;
+  background: oklch(0.22 0.03 45);
+  filter: blur(calc(3 * var(--u)));
+  opacity: 0.24;
+  transform: translate(calc(-5 * var(--u)), calc(-2 * var(--u)));
+}
+
+.bs-book__rot {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(var(--rw) * var(--u));
+  height: calc(var(--rh) * var(--u));
+  transform: translate(-50%, -50%) rotate(-90deg);
+}
+
+.bs-book__rot > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Small things that live on the shelf. Decorative, not interactive. */
+.bs-obj {
+  display: block;
+  flex: none;
+  pointer-events: none;
+}
+
+.bs-obj svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.bs-slot--obj {
+  margin-left: calc(10 * var(--u));
+}
+
+.bs-slot--obj::before {
+  display: none;
+}
+
+.bs-slot--bookend {
+  margin-left: 0;
+}
+
+.bs-slot--bookend::after {
+  right: 10%;
+}
+
+/* ── Detail: the book turns face out ── */
+.bs-drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 300ms var(--ease-drawer);
+}
+
+.bs-drawer[data-open] {
+  grid-template-rows: 1fr;
+  transition-duration: var(--dur-panel);
+}
+
+.bs-drawer__inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.bs-detail {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-lg);
+  align-items: start;
+  padding: var(--space-lg) 0 var(--space-xs);
+  opacity: 0;
+  transform: translateY(6px);
+  transition:
+    opacity 220ms ease,
+    transform 300ms var(--ease-out);
+}
+
+/* The detail mounts already open, so it enters with a keyframe; closing uses the transition above. */
+.bs-drawer[data-open] .bs-detail {
+  opacity: 1;
+  transform: none;
+  animation: bs-detail-in 420ms 60ms var(--ease-out) backwards;
+}
+
+@keyframes bs-detail-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+.bs-stage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: calc(var(--cw) + 2rem);
+  height: calc(var(--ch) + 1.5rem);
+  padding-bottom: 0.75rem;
+  perspective: 900px;
+  perspective-origin: 40% 30%;
+}
+
+.bs-stage__shadow {
+  position: absolute;
+  left: 18%;
+  right: 6%;
+  bottom: 0.35rem;
+  height: 0.9rem;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, oklch(0.2 0.03 45 / 0.42), transparent);
+  filter: blur(2px);
+  transform: translateX(6%);
+  transition:
+    transform 900ms var(--ease-out),
+    opacity 900ms ease;
+}
+
+.bs-b3d {
+  position: relative;
+  width: var(--cw);
+  height: var(--ch);
+  transform-style: preserve-3d;
+  transform: rotateX(-5deg) rotateY(26deg);
+  transition: transform 1000ms var(--ease-out);
+}
+
+.bs-b3d--spine-on {
+  transform: rotateX(-3deg) rotateY(86deg) translateZ(10px);
+  transition: none;
+}
+
+.bs-b3d--spine-on + .bs-stage__shadow {
+  transform: translateX(-12%) scaleX(0.45);
+  opacity: 0.6;
+  transition: none;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bs-stage:hover .bs-b3d {
+    transform: rotateX(-6deg) rotateY(38deg);
+    transition-duration: 700ms;
+  }
+}
+
+.bs-f {
+  position: absolute;
+  top: 0;
+  left: 0;
+  backface-visibility: hidden;
+}
+
+.bs-f > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.bs-f--front,
+.bs-f--back {
+  width: var(--cw);
+  height: var(--ch);
+}
+
+.bs-f--front {
+  transform: translateZ(calc(var(--t) / 2));
+}
+
+.bs-f--back {
+  transform: rotateY(180deg) translateZ(calc(var(--t) / 2));
+  background: var(--bc);
+  border-radius: 2px;
+}
+
+.bs-f--spine {
+  left: calc((var(--cw) - var(--t)) / 2);
+  width: var(--t);
+  height: var(--ch);
+  transform: rotateY(-90deg) translateZ(calc(var(--cw) / 2));
+}
+
+.bs-f--pages,
+.bs-f--top {
+  background:
+    repeating-linear-gradient(90deg, oklch(0.9 0.012 82) 0 1px, oklch(0.95 0.01 85) 1px 2px),
+    oklch(0.94 0.01 85);
+}
+
+.bs-f--pages {
+  top: 3px;
+  left: calc((var(--cw) - var(--t)) / 2);
+  width: var(--t);
+  height: calc(var(--ch) - 6px);
+  transform: rotateY(90deg) translateZ(calc(var(--cw) / 2 - 3px));
+  box-shadow: inset 0 0 0 100vmax oklch(0.25 0.02 45 / 0.16);
+}
+
+.bs-f--top {
+  top: calc((var(--ch) - var(--t)) / 2);
+  width: calc(var(--cw) - 3px);
+  height: var(--t);
+  transform: rotateX(90deg) translateZ(calc(var(--ch) / 2 - 3px));
+  background: repeating-linear-gradient(0deg, oklch(0.9 0.012 82) 0 1px, oklch(0.96 0.01 85) 1px 2px);
+}
+
+.bs-detail__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.bs-detail__author {
+  margin-top: 0.3rem;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  color: var(--ink-3);
+}
+
+.bs-detail__note {
+  max-width: 40ch;
+  margin-top: var(--space-sm);
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.bs-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-md);
+  margin-top: var(--space-xs);
+}
+
+.bs-detail__actions .text-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  transition: color var(--dur-quick) ease;
+}
+
+.bs-put-back {
+  color: var(--ink-3);
+  text-decoration-color: var(--rule-card-strong);
+}
+
+/* ── Sizes: the book unit follows the width of the panel ── */
+@container (min-width: 34rem) {
+  .bs-bay {
+    --u: 1.1px;
+  }
+}
+
+@container (max-width: 30rem) {
+  .bs-bay {
+    --u: 0.84px;
+  }
+}
+
+@media (max-width: 639px) {
+  .bs-detail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .bs-stage {
+    justify-self: start;
+  }
+}
+
+/* ── Reduced motion: no lift, tilt or turn; every change is a short fade ── */
+@media (prefers-reduced-motion: reduce) {
+  .bs-book,
+  .bs-book__tilt,
+  .bs-slot::before,
+  .bs-slot::after,
+  .bs-slip,
+  .bs-detail,
+  .bs-b3d,
+  .bs-stage__shadow {
+    transition-duration: 140ms !important;
+  }
+
+  .bs-book:hover,
+  .bs-book:focus-visible,
+  .bs-book:active,
+  .bs-book[aria-expanded='true'],
+  .bs-stage:hover .bs-b3d {
+    transform: none !important;
+  }
+
+  .bs-book--face:hover .bs-book__tilt {
+    transform: perspective(700px) rotateX(7deg) !important;
+  }
+
+  .bs-slot:has(> .bs-book:hover)::before,
+  .bs-slot:has(> .bs-book[aria-expanded='true'])::before {
+    transform: translate(calc(-5 * var(--u)), calc(-1 * var(--u))) !important;
+  }
+
+  .bs-b3d--spine-on {
+    transform: rotateX(-5deg) rotateY(26deg);
+  }
+
+  .bs-b3d--spine-on + .bs-stage__shadow {
+    transform: translateX(6%);
+    opacity: 1;
+  }
+
+  .bs-detail {
+    transform: none !important;
+  }
+
+  .bs-drawer[data-open] .bs-detail {
+    animation-name: bs-fade;
+  }
+
+  @keyframes bs-fade {
+    from {
+      opacity: 0;
+    }
+  }
+
+  .bs-drawer {
+    transition: none;
+  }
+}

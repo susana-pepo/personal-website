@@ -1,0 +1,258 @@
+{
+  "$comment": "glow: opacity of the precomputed amber halo at rest (always softly lit, so the objects read as interactive), how much it swells in an optional breathing pulse before the first interaction (0 = off), and on hover/focus (when the object also grows slightly), and lift = brightness of the artwork on hover (1 = none; the cat is a video and is never filtered). shadow (optional): a soft contact shadow under the object, as fractions of its box, so it sits on its surface. One 1920x1080 canvas shared by the room video and every overlay. x/y/width are the overlay's top-left corner and width in canvas pixels; height always follows the PNG's own aspect ratio (intrinsic). Layer order: room 1, camera 3, shelf books 4, record player 5, desk books 6, laptop 7, woman 8, cat 8, coffee 9 (the mug stands in front of the cat). Objects with `glow` are interactive (halo + hover); the others are plain layers to animate later. After moving an overlay, run `npm run scene:trace` so its clickable outline follows. Tune with ?debug=1 in development.",
+  "canvas": {
+    "width": 1920,
+    "height": 1080
+  },
+  "media": {
+    "$comment": "A static room. `video` is optional: set it to an mp4 to bring back an animated room (it is then drawn in the same `frame`).",
+    "poster": "/media/scene/room.webp",
+    "video": null,
+    "frame": {
+      "x": -32,
+      "y": -18,
+      "width": 1985.3,
+      "height": 1118.9
+    },
+    "playbackRate": 0.9
+  },
+  "overlays": [
+    {
+      "id": "camera",
+      "src": "/media/scene/camera.webp",
+      "intrinsic": [
+        1254,
+        1254
+      ],
+      "x": 375,
+      "y": 438,
+      "width": 131,
+      "z": 3
+    },
+    {
+      "id": "books",
+      "src": "/media/scene/books.png",
+      "intrinsic": [
+        740,
+        355
+      ],
+      "x": 325,
+      "y": 267,
+      "width": 285,
+      "glow": {
+        "rest": 0.6,
+        "invite": 0,
+        "hover": 0.9,
+        "lift": 1.08
+      },
+      "z": 4
+    },
+    {
+      "id": "vinyl",
+      "src": "/media/scene/vinyl/body.webp",
+      "intrinsic": [
+        960,
+        795
+      ],
+      "x": -18,
+      "y": 440,
+      "width": 385,
+      "glow": {
+        "rest": 0.6,
+        "invite": 0,
+        "hover": 0.9,
+        "lift": 1.03
+      },
+      "shadow": {
+        "x": 0.105,
+        "y": 0.83,
+        "w": 0.825,
+        "h": 0.132,
+        "opacity": 0.55
+      },
+      "z": 5,
+      "haloFromY": 425
+    },
+    {
+      "id": "lamp",
+      "src": "/media/scene/lamp.webp",
+      "intrinsic": [
+        274,
+        494
+      ],
+      "x": 889.4,
+      "y": 339.9,
+      "width": 211.0,
+      "z": 5
+    },
+    {
+      "id": "vase",
+      "src": "/media/scene/vase.webp",
+      "intrinsic": [
+        207,
+        317
+      ],
+      "x": 1053.3,
+      "y": 477.8,
+      "width": 163.3,
+      "z": 5
+    },
+    {
+      "id": "deskbooks",
+      "src": "/media/scene/desk-books.webp",
+      "intrinsic": [
+        1536,
+        1024
+      ],
+      "x": 946,
+      "y": 642,
+      "width": 209,
+      "z": 6,
+      "glow": {
+        "rest": 0.6,
+        "invite": 0,
+        "hover": 0.9,
+        "lift": 1.04
+      }
+    },
+    {
+      "id": "laptop",
+      "src": "/media/scene/laptop.png",
+      "intrinsic": [
+        980,
+        686
+      ],
+      "x": 1093,
+      "y": 516,
+      "width": 420,
+      "glow": {
+        "rest": 0.6,
+        "invite": 0,
+        "hover": 0.9,
+        "lift": 1.0
+      },
+      "z": 7
+    },
+    {
+      "id": "woman",
+      "src": "/media/scene/woman/woman-still.webp",
+      "intrinsic": [
+        1024,
+        1035
+      ],
+      "x": 360.9,
+      "y": 208.8,
+      "width": 921.4,
+      "z": 8
+    },
+    {
+      "id": "cat",
+      "src": "/media/scene/cat/cat-still.webp",
+      "intrinsic": [
+        480,
+        311
+      ],
+      "x": 1520,
+      "y": 638,
+      "width": 357,
+      "z": 8
+    },
+    {
+      "id": "coffee",
+      "src": "/media/scene/coffee/coffee-still.webp",
+      "intrinsic": [
+        180,
+        385
+      ],
+      "x": 1423,
+      "y": 684,
+      "width": 117,
+      "z": 9,
+      "glow": {
+        "rest": 0.6,
+        "invite": 0,
+        "hover": 0.9,
+        "lift": 1.03
+      },
+      "haloFromY": 195,
+      "hitFromY": 185
+    }
+  ],
+  "cat": {
+    "$comment": "The cat's clips, each exactly as exported (every frame, 30 fps) from portfolio-website-assets/public/media/cat*.json by scripts/build-cat.py, with one shared crop and a third-of-a-second bridge back to the sleeping pose they all start from: sleep (breathing peacefully, the base, looping), variations played now and then in its place (tail: a slow sweep of the tail), and reactions to a hover (head-turn, stretch). cat-still.webp is the sleeping clip's first frame: shown with reduced motion or a paused room. See CatOverlay and src/scene/catReaction.ts for how they're played.",
+    "sleep": {
+      "name": "sleep",
+      "src": "/media/scene/cat/cat-sleep.webp",
+      "ms": 6333
+    },
+    "variations": [
+      {
+        "name": "tail",
+        "src": "/media/scene/cat/cat-tail.webp",
+        "ms": 6333
+      }
+    ],
+    "reactions": [
+      {
+        "name": "head-turn",
+        "src": "/media/scene/cat/cat-head-turn.webp",
+        "ms": 6333
+      },
+      {
+        "name": "stretch",
+        "src": "/media/scene/cat/cat-stretch.webp",
+        "ms": 6333
+      }
+    ],
+    "still": "/media/scene/cat/cat-still.webp"
+  },
+  "vinyl": {
+    "$comment": "The record player's moving parts, in the body image's own pixels (960x795). The disc is a flat, top-down record (disc.webp) tilted to the platter's perspective (tilt = height / width), always turning at `rpm` (12: one slow, calm turn every 5 s) while motion is allowed; warm light turns with its grooves, and disc-sheen.webp holds the painted reflections, which stay still. The tonearm rests on the record as painted (tonearm-arm + tonearm-base); body.webp has the painted arm removed so the layers stack cleanly.",
+    "body": "/media/scene/vinyl/body.webp",
+    "disc": "/media/scene/vinyl/disc.webp",
+    "discSheen": "/media/scene/vinyl/disc-sheen.webp",
+    "spindle": "/media/scene/vinyl/spindle.webp",
+    "discCenter": [
+      464,
+      482
+    ],
+    "discWidth": 480,
+    "tilt": 0.2354,
+    "edge": 5,
+    "rpm": 12,
+    "tonearmArm": "/media/scene/vinyl/tonearm-arm.webp",
+    "tonearmBase": "/media/scene/vinyl/tonearm-base.webp"
+  },
+  "coffee": {
+    "$comment": "coffee-steam.webp is your coffee.webp (portfolio-website-assets/public/media/coffee-transparent.webp): trimmed to the mug and steam, scaled to 180 px, looped exactly where the export repeats itself (with the seam cross-faded), gently smoothed, and slowed about 2.3x with blended in-between frames (9.9 s loop). The mug opens Contact (tooltip “Let’s chat”); its halo and click area start just above the rim (haloFromY / hitFromY, in the artwork's pixels) so the steam isn't part of them. coffee-still.webp is its first frame, shown with reduced motion or a paused room. Rebuild with: npm run scene:coffee.",
+    "animated": "/media/scene/coffee/coffee-steam.webp",
+    "still": "/media/scene/coffee/coffee-still.webp"
+  },
+  "woman": {
+    "$comment": "Her animation is a set of clips (woman-<name>.webp), each exactly as exported (every frame, at the export's 30 fps) from portfolio-website-assets/public/media/woman-*.json, plus a third-of-a-second bridge back to the pose they all start from; the page plays them in a calm random order with short rests between (src/scene/womanClips.ts). The see-through gaps between her outer strands of hair are filled with the hair's colour. chair.webp (originals/chair.png) is drawn over her, sharing one box. woman-still.webp is the shared first pose with the chair: shown with reduced motion or a paused room, and the source of her hover outline. Rebuild with: npm run scene:woman (it also updates her box and this list).",
+    "clips": [
+      {
+        "name": "writing",
+        "src": "/media/scene/woman/woman-writing.webp",
+        "ms": 6333
+      },
+      {
+        "name": "page",
+        "src": "/media/scene/woman/woman-page.webp",
+        "ms": 6333
+      },
+      {
+        "name": "calm",
+        "src": "/media/scene/woman/woman-calm.webp",
+        "ms": 6333
+      }
+    ],
+    "chair": "/media/scene/woman/chair.webp",
+    "still": "/media/scene/woman/woman-still.webp",
+    "breath": {
+      "name": "breath",
+      "src": "/media/scene/woman/woman-breath.webp",
+      "ms": 4533
+    }
+  }
+}

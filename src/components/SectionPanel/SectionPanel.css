@@ -1,0 +1,546 @@
+/* Lock the page behind an open panel without a layout jump. */
+html {
+  scrollbar-gutter: stable;
+}
+
+html:has(.panel[open]) {
+  overflow: hidden;
+}
+
+/*
+ * The folio: one sheet of uncoated card taken from the room. Its depth comes
+ * from light, not outlines: a soft shadow on the room side and a faint curve
+ * of shade inside the spine edge. Every section is a page in it, with one
+ * header and one rhythm.
+ */
+.panel {
+  /* Motion (panel-local, so the room's timings are untouched) */
+  --folio-open: 460ms;
+  --folio-exit: 240ms;
+  --folio-stagger: 45ms;
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+
+  /* Paper */
+  --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* One 4pt scale, three named rhythms */
+  --rhythm-inline: 0.5rem; /* lines inside a group: meta to title */
+  --rhythm-block: 1.5rem; /* parts of one item */
+  --rhythm-section: 3rem; /* groups on a page */
+  --page-pad: clamp(1.5rem, 1rem + 2vw, 2.75rem);
+  --measure: 36rem;
+
+  --walnut-board: oklch(0.42 0.06 48);
+
+  --sheet-gap: clamp(0.5rem, 0.2rem + 0.6vw, 0.875rem);
+  --sheet-radius: 20px;
+  position: fixed;
+  inset: var(--sheet-gap) var(--sheet-gap) var(--sheet-gap) auto;
+  width: min(43rem, 56vw);
+  max-width: calc(100vw - 2 * var(--sheet-gap));
+  height: calc(100dvh - 2 * var(--sheet-gap));
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  overflow: visible;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    --folio-open: 180ms;
+    --folio-exit: 120ms;
+    --folio-stagger: 0ms;
+  }
+}
+
+.panel::backdrop {
+  background: oklch(0.12 0.008 45 / 0);
+  transition: background-color 460ms ease;
+}
+
+.panel[data-state='open']::backdrop {
+  background: oklch(0.12 0.008 45 / 0.52);
+}
+
+.panel[data-state='closing']::backdrop {
+  transition-duration: 240ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel::backdrop {
+    transition-duration: 180ms;
+  }
+}
+
+/* While a page is out, the room steps back a touch, as if you leaned toward the paper. */
+.cover {
+  transform-origin: 30% 50%;
+  transition: transform 460ms var(--ease-drawer);
+}
+
+html[data-panel='open'] .cover {
+  transform: scale(0.985);
+}
+
+html[data-panel='closing'] .cover {
+  transition-duration: 240ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-panel] .cover {
+    transform: none;
+  }
+}
+
+/* ── The sheet ── */
+.panel__sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--sheet-radius);
+  /* The spine curve: card turning very slightly away from the light at the gutter. */
+  background:
+    linear-gradient(90deg, oklch(0.42 0.03 60 / 0.07), oklch(0.42 0.03 60 / 0) 2.75rem),
+    var(--fibre),
+    var(--card);
+  /* Contact shadow first (tight, on the room side), then the long fall-off. */
+  box-shadow:
+    -1px 0 2px oklch(0.06 0.01 45 / 0.28),
+    -14px 6px 32px -12px oklch(0.06 0.01 45 / 0.45),
+    0 36px 80px -32px oklch(0.06 0.01 45 / 0.7);
+  opacity: 0;
+  transform: translateX(3rem);
+  transition:
+    opacity var(--folio-open) ease,
+    transform var(--folio-open) var(--ease-drawer);
+}
+
+.panel[data-state='open'] .panel__sheet {
+  opacity: 1;
+  transform: none;
+}
+
+/* Leaving is quicker than arriving, and accelerates away. */
+.panel[data-state='closing'] .panel__sheet {
+  transition-duration: var(--folio-exit);
+  transition-timing-function: var(--ease-in);
+  transition-delay: 0ms;
+}
+
+/* Reduced motion: no sliding sheet, only a fade. */
+@media (prefers-reduced-motion: reduce) {
+  .panel__sheet {
+    transform: none;
+  }
+}
+
+.panel :focus-visible {
+  outline-color: var(--spot-ink);
+}
+
+/* ── Bar: tabs, close and reading progress ── */
+.panel__bar {
+  position: relative;
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-sm);
+  padding: 0 var(--space-2xs) 0 var(--page-pad);
+  border-bottom: 1px solid var(--rule-card);
+}
+
+.panel__nav {
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.panel__nav::-webkit-scrollbar {
+  display: none;
+}
+
+.panel__tabs {
+  position: relative;
+  width: max-content;
+}
+
+.panel__tabs ul {
+  display: flex;
+  gap: var(--space-md);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.panel__tabs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+  font-family: var(--font-sans);
+  font-weight: 430;
+  font-size: 0.9375rem;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color var(--dur-quick) var(--ease-out);
+}
+
+.panel__tabs a:hover,
+.panel__tabs a[aria-current='page'] {
+  color: var(--ink);
+}
+
+.panel__tabs a:focus-visible {
+  outline-offset: -6px;
+}
+
+/* One ink mark that travels between the tabs instead of six borders that blink. */
+.panel__ink {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: 100px; /* INK_BASE_WIDTH in folio.ts */
+  height: 2px;
+  background: var(--spot-ink);
+  opacity: 0;
+  transform-origin: 0 50%;
+  transition: transform 380ms var(--ease-out);
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel__ink {
+    transition: none;
+  }
+}
+
+.panel__close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 var(--space-xs);
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  color: var(--ink-2);
+  cursor: pointer;
+  transition:
+    color var(--dur-quick) var(--ease-out),
+    transform 160ms var(--ease-out);
+}
+
+.panel__close:hover {
+  color: var(--ink);
+}
+
+.panel__close:active {
+  transform: scale(0.96);
+}
+
+.panel__close svg {
+  width: 0.85rem;
+  height: 0.85rem;
+  transition: transform var(--dur-soft) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .panel__close:hover svg {
+    transform: rotate(90deg);
+  }
+}
+
+/* Reading progress: a vermilion hairline under the bar, only on pages that scroll. */
+.panel__progress {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 1px;
+  background: var(--spot-ink);
+  opacity: 0;
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: opacity var(--dur-soft) ease;
+  pointer-events: none;
+}
+
+.panel__progress[data-on] {
+  opacity: 1;
+}
+
+/* ── Body and pages ── */
+.panel__body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: var(--rhythm-block);
+}
+
+.panel__pages {
+  display: grid;
+}
+
+.panel__page {
+  grid-area: 1 / 1;
+  min-width: 0;
+  padding: var(--rhythm-section) var(--page-pad);
+}
+
+.panel__page > * {
+  max-width: var(--measure);
+}
+
+/* The page turning away: fades in 180ms and slides 14px against the direction of travel. */
+.panel__page.is-leaving {
+  pointer-events: none;
+  animation:
+    folio-leave-fade 180ms ease forwards,
+    folio-leave-slide 260ms var(--ease-out) forwards;
+}
+
+@keyframes folio-leave-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes folio-leave-slide {
+  to {
+    transform: translateX(calc(var(--dir, 1) * -14px));
+  }
+}
+
+/* The incoming page settles in block by block, 45ms apart: header, then each part
+   of the section. Opening rises; turning moves with the direction
+   of travel, so the two feel different. */
+.panel__page > .panel__header {
+  --i: 0;
+}
+.panel__page > .section > :nth-child(1) {
+  --i: 1;
+}
+.panel__page > .section > :nth-child(2) {
+  --i: 2;
+}
+.panel__page > .section > :nth-child(3) {
+  --i: 3;
+}
+.panel__page > .section > :nth-child(4) {
+  --i: 4;
+}
+.panel__page > .section > :nth-child(5) {
+  --i: 5;
+}
+.panel__page > .section > :nth-child(n + 6) {
+  --i: 6;
+}
+
+.panel__page[data-enter] > .panel__header,
+.panel__page[data-enter] > .section > * {
+  animation-fill-mode: both;
+  animation-timing-function: var(--ease-out);
+}
+
+.panel__page[data-enter='open'] > .panel__header,
+.panel__page[data-enter='open'] > .section > * {
+  animation-name: folio-rise;
+  animation-duration: 440ms;
+  animation-delay: calc(120ms + var(--i, 0) * var(--folio-stagger));
+}
+
+.panel__page[data-enter='turn'] > .panel__header,
+.panel__page[data-enter='turn'] > .section > * {
+  animation-name: folio-turn;
+  animation-duration: 380ms;
+  animation-delay: calc(60ms + var(--i, 0) * var(--folio-stagger));
+}
+
+@keyframes folio-rise {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes folio-turn {
+  from {
+    opacity: 0;
+    transform: translateX(calc(var(--dir, 1) * 18px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel__page.is-leaving {
+    animation: folio-leave-fade 120ms ease forwards;
+  }
+
+  .panel__page[data-enter] > .panel__header,
+  .panel__page[data-enter] > .section > * {
+    animation-name: folio-fade;
+    animation-duration: 160ms;
+    animation-delay: 0ms;
+  }
+
+  @keyframes folio-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+/* ── Header ── */
+.panel__header {
+  display: grid;
+  gap: var(--space-xs);
+  margin-bottom: var(--rhythm-section);
+  padding-bottom: var(--space-lg);
+  border-bottom: 1px solid var(--rule-card-strong);
+}
+
+.panel__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55em;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+/* Only the number is in vermilion, and it rolls like a counter when the page turns. */
+.panel__num {
+  display: inline-grid;
+  overflow: hidden;
+  color: var(--spot-ink);
+  vertical-align: bottom;
+}
+
+.panel__num > span {
+  grid-area: 1 / 1;
+}
+
+.panel__num[data-roll] > .panel__num-from {
+  animation: folio-roll-out 460ms var(--ease-out) 60ms both;
+}
+
+.panel__num[data-roll] > .panel__num-to {
+  animation: folio-roll-in 460ms var(--ease-out) 60ms both;
+}
+
+@keyframes folio-roll-out {
+  to {
+    opacity: 0;
+    transform: translateY(calc(var(--dir, 1) * -100%));
+  }
+}
+
+@keyframes folio-roll-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--dir, 1) * 100%));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel__num[data-roll] > .panel__num-from {
+    display: none;
+  }
+
+  .panel__num[data-roll] > .panel__num-to {
+    animation: none;
+  }
+}
+
+.panel__title {
+  margin-top: var(--rhythm-inline);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-2xl);
+  line-height: 0.98;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  text-wrap: balance;
+  outline: none;
+}
+
+.panel__loading {
+  color: var(--ink-3);
+}
+
+/* ── Smaller screens ── */
+@media (max-width: 1024px) {
+  .panel {
+    width: min(43rem, 88vw);
+  }
+}
+
+/* Phones: the page rises from the bottom, and a strip of the room stays visible above. */
+@media (max-width: 639px) {
+  .panel {
+    --sheet-radius: 18px;
+    inset: auto var(--sheet-gap) var(--sheet-gap) var(--sheet-gap);
+    width: auto;
+    height: calc(100dvh - 3.5rem - var(--sheet-gap));
+  }
+
+  /* No spine on a sheet that rises from below: plain card, shadow cast upward. */
+  .panel__sheet {
+    transform: translateY(105%);
+    background: var(--fibre), var(--card);
+    box-shadow:
+      0 -1px 2px oklch(0.06 0.01 45 / 0.24),
+      0 -16px 40px -18px oklch(0.06 0.01 45 / 0.5);
+  }
+
+  .panel__bar {
+    padding-left: var(--space-sm);
+  }
+
+  .panel__nav {
+    mask-image: linear-gradient(90deg, #000 80%, transparent);
+  }
+
+  .panel__tabs ul {
+    gap: var(--space-sm);
+    padding-inline-end: 2.5rem;
+  }
+
+  /* "Close" becomes just the ×, still named for assistive tech. */
+  .panel__close {
+    justify-content: center;
+    width: 44px;
+    padding: 0;
+  }
+
+  .panel__close-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .panel__page {
+    padding-top: var(--space-lg);
+  }
+}
+
+@media (max-width: 639px) and (prefers-reduced-motion: reduce) {
+  .panel__sheet {
+    transform: none;
+  }
+}

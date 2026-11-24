@@ -1,0 +1,97 @@
+/*
+ * The editorial masthead, the room (a cinematic 1.9:1 frame on the 16:9
+ * canvas: see ROOM_VIEW in scene/layout.ts) and the player beneath it.
+ * On desktop the room is the focal point: about 92% of the window's width,
+ * centred, at most 1440px, and never taller than the first screen allows
+ * once the masthead and the player have their place.
+ */
+.page {
+  /* the room's shape on the page: keep in step with ROOM_VIEW.aspect */
+  --room-aspect: 1.9;
+  --room-max: 1440px;
+  /* the breathing space above and below the room (masthead → room → player) */
+  --hero-gap: clamp(1rem, 0.35rem + 1.1vw, 1.6rem);
+  /* the player and the space above it (SiteFooter) */
+  --footer-h: calc(4.875rem + var(--hero-gap));
+  /* the masthead: name, menu and scene control, and the space below it (Masthead) */
+  --header-h: calc(4.25rem + var(--hero-gap));
+  /* No frame: the room sits straight on the page with softly rounded corners. */
+  --bezel: 0px;
+  --room-radius: clamp(18px, 0.75rem + 1vw, 30px);
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  padding: 0 var(--gutter) 0;
+}
+
+/* On a tall screen the masthead, room and player sit in its middle. */
+@media (min-width: 640px) {
+  .page {
+    min-height: 100svh;
+    align-content: center;
+  }
+}
+
+.page > * {
+  /* About 92% of the window, at most 1440px, and short enough to fit the first screen. */
+  width: min(
+    100%,
+    92vw,
+    var(--room-max),
+    calc((100svh - var(--header-h) - var(--footer-h) - 2 * var(--bezel)) * var(--room-aspect) + 2 * var(--bezel))
+  );
+}
+
+/* On roomy screens, never let the room shrink below 40rem to fit the height. */
+@media (min-height: 560px) {
+  .page > * {
+    width: min(
+      100%,
+      92vw,
+      var(--room-max),
+      max(40rem, calc((100svh - var(--header-h) - var(--footer-h) - 2 * var(--bezel)) * var(--room-aspect) + 2 * var(--bezel)))
+    );
+  }
+}
+
+/* The room itself, frameless: only rounded corners and a soft shadow that lifts it off the page. */
+.cover {
+  position: relative;
+  outline: none;
+  border-radius: var(--room-radius);
+  box-shadow:
+    0 50px 100px -50px oklch(0.06 0.01 45 / 0.9),
+    0 24px 48px -30px oklch(0.06 0.01 45 / 0.7);
+}
+
+/* The painting, clipped to the same rounded corners, in the room's wide frame. */
+.cover .stage {
+  aspect-ratio: var(--room-aspect);
+  border-radius: var(--room-radius);
+  /* keeps the rounded clip crisp over the playing video in Safari */
+  isolation: isolate;
+  transform: translateZ(0);
+}
+
+.cover:focus-visible {
+  outline: 2px solid var(--spot);
+  outline-offset: 4px;
+}
+
+@media (max-width: 639px) {
+  .page {
+    --room-radius: 16px;
+    padding: 0 0.75rem 0;
+  }
+
+  /* a phone's room uses its whole width */
+  .page > * {
+    width: 100%;
+  }
+
+  .page > .credits {
+    margin-inline: -0.75rem;
+    width: calc(100% + 1.5rem);
+  }
+}

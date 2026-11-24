@@ -1,0 +1,1261 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Folio panel prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Funnel+Display:wght@300..800&family=Funnel+Sans:wght@300..800&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────────────────────────────────────────────
+   Tokens: copied from src/styles/tokens.css, plus the few new
+   ones this proposal adds (marked "new").
+   ───────────────────────────────────────────────────────────── */
+:root {
+  --sleeve: oklch(0.165 0.008 45);
+  --sleeve-raised: oklch(0.205 0.009 45);
+  --on-sleeve: oklch(0.935 0.008 80);
+  --on-sleeve-2: oklch(0.79 0.01 70);
+  --on-sleeve-3: oklch(0.64 0.012 60);
+  --rule-sleeve: oklch(0.935 0.008 80 / 0.14);
+
+  --card: oklch(0.945 0.006 85);
+  --card-shade: oklch(0.905 0.008 80);
+  --card-deep: oklch(0.875 0.01 78);          /* new: pages beneath the sheet */
+  --ink: oklch(0.205 0.01 45);
+  --ink-2: oklch(0.37 0.012 45);
+  --ink-3: oklch(0.49 0.012 45);
+  --rule-card: oklch(0.205 0.01 45 / 0.16);
+  --rule-card-strong: oklch(0.205 0.01 45 / 0.34);
+
+  --spot: oklch(0.66 0.165 38);
+  --spot-ink: oklch(0.52 0.165 36);
+  --lamp-wash: oklch(0.88 0.08 75);
+
+  /* Spine colours sampled from the room (new, for the desk stack). All carry card-light text at AA. */
+  --spine-teal: oklch(0.43 0.055 195);
+  --spine-slate: oklch(0.4 0.045 262);
+  --spine-terracotta: oklch(0.46 0.115 38);
+  --spine-walnut: oklch(0.4 0.06 50);
+  --walnut-board: oklch(0.42 0.06 48);
+
+  --font-display: 'Funnel Display', 'Helvetica Neue', Arial, sans-serif;
+  --font-sans: 'Funnel Sans', 'Helvetica Neue', Arial, sans-serif;
+
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1.125rem;
+  --text-lg: clamp(1.3rem, 1.15rem + 0.55vw, 1.55rem);
+  --text-xl: clamp(1.9rem, 1.5rem + 1.6vw, 2.6rem);
+  --text-2xl: clamp(2.8rem, 2rem + 3.4vw, 4.6rem);
+
+  /* Space: one 4pt scale, and three named rhythms (new) */
+  --s-1: 0.25rem; --s-2: 0.5rem; --s-3: 0.75rem; --s-4: 1rem;
+  --s-6: 1.5rem; --s-8: 2rem; --s-12: 3rem; --s-16: 4rem; --s-24: 6rem;
+  --rhythm-inline: var(--s-2);   /* inside a line group: meta to title */
+  --rhythm-block: var(--s-6);    /* between parts of one item */
+  --rhythm-section: var(--s-12); /* between groups on a page */
+  --page-pad: clamp(1.5rem, 1rem + 2vw, 2.75rem);
+  --measure: 36rem;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --dur-press: 160ms;
+  --dur-quick: 180ms;
+  --dur-soft: 240ms;
+  --dur-panel: 460ms;
+  --dur-panel-exit: 240ms;
+  --stagger: 45ms;
+
+  --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-press: 1ms;
+    --dur-quick: 120ms;
+    --dur-soft: 120ms;
+    --dur-panel: 180ms;
+    --dur-panel-exit: 120ms;
+    --stagger: 0ms;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; }
+html { scrollbar-gutter: stable; color-scheme: dark; }
+html:has(.folio[open]) { overflow: hidden; }
+body {
+  min-height: 100svh;
+  background: var(--sleeve);
+  color: var(--on-sleeve);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--spot); outline-offset: 3px; border-radius: 2px; }
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ─────────────────────────────────────────────────────────────
+   The homepage (placeholder room)
+   ───────────────────────────────────────────────────────────── */
+.home {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: var(--s-6);
+  min-height: 100svh;
+  padding: clamp(0.75rem, 0.4rem + 1.4vw, 2rem) clamp(0.75rem, 0.4rem + 1.4vw, 2rem) var(--s-6);
+}
+
+.stage-wrap { display: grid; place-items: center; min-height: 0; }
+
+.stage {
+  position: relative;
+  width: min(100%, calc((100svh - 9rem) * 16 / 9), 118rem);
+  aspect-ratio: 16 / 9;
+  border-radius: clamp(16px, 1rem + 0.6vw, 30px);
+  overflow: hidden;
+  background: var(--sleeve-raised);
+  box-shadow: 0 50px 100px -50px oklch(0.06 0.01 45 / 0.9);
+  transform-origin: 30% 50%;
+  transition: transform var(--dur-panel) var(--ease-drawer), filter var(--dur-panel) ease;
+}
+/* While a page is out, the room steps back a touch, as if you leaned toward the paper. */
+html[data-panel='open'] .stage { transform: scale(0.985); }
+html[data-panel='closing'] .stage { transition-duration: var(--dur-panel-exit); }
+
+.room { display: block; width: 100%; height: 100%; }
+.room .dim { opacity: 0; transition: opacity var(--dur-soft) ease; pointer-events: none; }
+.stage[data-hover] .room .dim { opacity: 0.24; }
+
+.hot { cursor: pointer; outline: none; }
+.hot .halo {
+  filter: drop-shadow(0 0 4px oklch(0.88 0.08 75 / 0.22));
+  transition: filter var(--dur-soft) ease;
+}
+.stage[data-hover] .hot:not([data-lit]) .halo { filter: brightness(0.76); }
+.hot[data-lit] .halo { filter: drop-shadow(0 0 10px oklch(0.88 0.08 75 / 0.6)) brightness(1.08); }
+.hot:focus-visible .halo {
+  filter: drop-shadow(0 0 0.8px var(--spot)) drop-shadow(0 0 0.8px var(--spot)) drop-shadow(0 0 10px oklch(0.88 0.08 75 / 0.5));
+}
+
+.tag {
+  position: absolute;
+  left: 0; top: 0;
+  display: grid;
+  justify-items: center;
+  gap: 0;
+  pointer-events: none;
+  translate: -50% -100%;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity var(--dur-quick) ease, transform var(--dur-soft) var(--ease-out);
+}
+.tag[data-show] { opacity: 1; transform: none; }
+.tag__label {
+  padding: 0.4rem 0.7rem 0.45rem;
+  border-radius: 7px;
+  background: oklch(0.165 0.008 45 / 0.92);
+  color: var(--on-sleeve);
+  font-size: clamp(0.8rem, 0.7rem + 0.3vw, 0.95rem);
+  white-space: nowrap;
+}
+.tag__leader { width: 1px; height: 14px; background: oklch(0.935 0.008 80 / 0.6); }
+.tag__dot { width: 5px; height: 5px; border-radius: 50%; background: var(--spot); }
+
+.placeholder-note {
+  position: absolute;
+  left: 1.1rem; top: 0.9rem;
+  font-size: 0.75rem;
+  color: oklch(0.935 0.008 80 / 0.66);
+  pointer-events: none;
+}
+
+.baseline {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: end;
+  gap: var(--s-4);
+  width: min(100%, calc((100svh - 9rem) * 16 / 9), 118rem);
+  margin-inline: auto;
+}
+.baseline__name { font-family: var(--font-display); font-weight: 500; font-size: clamp(1.6rem, 1.2rem + 1.2vw, 2.3rem); letter-spacing: -0.035em; line-height: 1; }
+.baseline__disciplines { margin-top: 0.35rem; font-family: var(--font-display); color: var(--on-sleeve-2); font-size: 0.95rem; }
+.baseline__hint { justify-self: center; color: var(--on-sleeve-3); font-size: 0.875rem; }
+.baseline__note { justify-self: end; max-width: 22rem; text-align: right; color: var(--on-sleeve-3); font-size: 0.8125rem; line-height: 1.45; }
+@media (max-width: 760px) {
+  .baseline { grid-template-columns: 1fr; }
+  .baseline__hint, .baseline__note { justify-self: start; text-align: left; }
+}
+
+/* ─────────────────────────────────────────────────────────────
+   The folio: a paper sheet over a stack of pages
+   ───────────────────────────────────────────────────────────── */
+.folio {
+  --gap: clamp(0.5rem, 0.2rem + 0.6vw, 0.875rem);
+  --radius: 20px;
+  position: fixed;
+  inset: var(--gap) var(--gap) var(--gap) auto;
+  width: min(43rem, 56vw);
+  max-width: calc(100vw - 2 * var(--gap));
+  height: calc(100dvh - 2 * var(--gap));
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  overflow: visible;
+}
+.folio::backdrop {
+  background: oklch(0.12 0.008 45 / 0);
+  transition: background-color var(--dur-panel) ease;
+}
+.folio[data-state='open']::backdrop { background: oklch(0.12 0.008 45 / 0.52); }
+.folio[data-state='closing']::backdrop { transition-duration: var(--dur-panel-exit); }
+
+/* Two pages beneath the sheet show only as edges on the spine side. */
+.folio__under {
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius);
+  background: var(--card-deep);
+  box-shadow: 0 0 0 1px oklch(0.205 0.01 45 / 0.08);
+  opacity: 0;
+  transform: translateX(3rem);
+  transition: opacity var(--dur-panel) ease, transform var(--dur-panel) var(--ease-drawer);
+}
+.folio__under--1 { inset: 14px 0 14px 0; --rest: translateX(-5px); background: var(--card-shade); }
+.folio__under--2 { inset: 30px 0 30px 0; --rest: translateX(-9px); }
+
+.folio__sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border-radius: var(--radius);
+  background: var(--fibre), var(--card);
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.65),
+    0 0 0 1px oklch(0.205 0.01 45 / 0.06),
+    -18px 0 40px -28px oklch(0.06 0.01 45 / 0.55),
+    0 40px 90px -30px oklch(0.06 0.01 45 / 0.75);
+  opacity: 0;
+  transform: translateX(3rem);
+  transition: opacity var(--dur-panel) ease, transform var(--dur-panel) var(--ease-drawer);
+}
+.folio[data-state='open'] .folio__sheet { opacity: 1; transform: none; }
+.folio[data-state='open'] .folio__under { opacity: 1; transform: var(--rest); }
+/* The pages beneath arrive a beat behind the sheet, as paper would. */
+.folio[data-state='open'] .folio__under--1 { transition-delay: 30ms; }
+.folio[data-state='open'] .folio__under--2 { transition-delay: 60ms; }
+.folio[data-state='closing'] .folio__sheet,
+.folio[data-state='closing'] .folio__under {
+  transition-duration: var(--dur-panel-exit);
+  transition-timing-function: var(--ease-in);
+  transition-delay: 0ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .folio__sheet, .folio__under { transform: none !important; }
+  .folio[data-state='open'] .folio__under { transform: var(--rest) !important; }
+}
+
+.folio :focus-visible { outline-color: var(--spot-ink); }
+
+/* ── Bar: tabs, progress, close ── */
+.bar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-4);
+  padding: 0 var(--s-2) 0 var(--page-pad);
+  border-bottom: 1px solid var(--rule-card);
+}
+.tabs { min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs ul {
+  position: relative;
+  display: flex;
+  gap: var(--s-6);
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+}
+.tabs a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 52px;
+  font-size: 0.9375rem;
+  font-weight: 430;
+  color: var(--ink-3);
+  text-decoration: none;
+  transition: color var(--dur-quick) ease;
+}
+.tabs a:hover { color: var(--ink); }
+.tabs a[aria-current='page'] { color: var(--ink); }
+.tabs a:focus-visible { outline-offset: -6px; }
+/* One ink mark that travels between tabs instead of six borders that blink. */
+.tabs__ink {
+  position: absolute;
+  left: 0; bottom: 0;
+  width: 100px; height: 2px;
+  background: var(--spot-ink);
+  transform-origin: 0 50%;
+  transition: transform 380ms var(--ease-out);
+}
+
+.close {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 44px;
+  padding: 0 var(--s-3);
+  background: none;
+  border: 0;
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: color var(--dur-quick) ease, transform var(--dur-press) var(--ease-out);
+}
+.close:hover { color: var(--ink); }
+.close:active { transform: scale(0.96); }
+.close svg { width: 0.85rem; height: 0.85rem; transition: transform var(--dur-soft) var(--ease-out); }
+@media (hover: hover) and (pointer: fine) {
+  .close:hover svg { transform: rotate(90deg); }
+}
+
+/* Reading progress: the only moving spot colour, a hairline under the bar. */
+.progress {
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 1px;
+  background: var(--spot-ink);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  opacity: 0;
+  transition: opacity var(--dur-soft) ease;
+}
+.progress[data-on] { opacity: 1; }
+
+/* ── Body and pages ── */
+.body {
+  flex: 1;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scroll-padding-top: var(--s-6);
+}
+.pages { display: grid; }
+.page {
+  grid-area: 1 / 1;
+  min-width: 0;
+  padding: var(--s-12) var(--page-pad) var(--s-12);
+}
+.page > * { max-width: var(--measure); }
+.page.is-leaving {
+  pointer-events: none;
+  transition: opacity var(--dur-quick) ease, transform 260ms var(--ease-out);
+}
+.page.is-leaving.go {
+  opacity: 0;
+  transform: translateX(calc(var(--dir, 1) * -14px));
+}
+
+/* Cascade: header, then each block, 45ms apart. Opening rises; turning moves with the direction of travel. */
+.cue { animation-fill-mode: both; animation-timing-function: var(--ease-out); }
+.page[data-enter='open'] .cue { animation-name: rise; animation-duration: 600ms; animation-delay: calc(140ms + var(--i, 0) * var(--stagger)); }
+.page[data-enter='turn'] .cue { animation-name: turn; animation-duration: 520ms; animation-delay: calc(70ms + var(--i, 0) * var(--stagger)); }
+@keyframes rise { from { opacity: 0; transform: translateY(12px); } }
+@keyframes turn { from { opacity: 0; transform: translateX(calc(var(--dir, 1) * 18px)); } }
+@media (prefers-reduced-motion: reduce) {
+  @keyframes rise { from { opacity: 0; } }
+  @keyframes turn { from { opacity: 0; } }
+  .page.is-leaving.go { transform: none; }
+}
+
+/* ── Header ── */
+.head {
+  display: grid;
+  gap: var(--s-3);
+  padding-bottom: var(--s-8);
+  margin-bottom: var(--rhythm-section);
+  border-bottom: 1px solid var(--rule-card-strong);
+}
+.head__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.55em;
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  font-variant-numeric: tabular-nums;
+}
+.head__num { color: var(--spot-ink); }
+.head__from { color: var(--ink-3); }
+.head__title {
+  margin-top: var(--s-2);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-2xl);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  color: var(--ink);
+  text-wrap: balance;
+  outline: none;
+}
+.head__summary {
+  max-width: 30ch;
+  font-size: var(--text-lg);
+  line-height: 1.42;
+  color: var(--ink-2);
+  text-wrap: pretty;
+}
+
+/* ── Shared content parts ── */
+.section { display: grid; gap: var(--rhythm-section); }
+.lede {
+  max-width: 34ch;
+  font-size: var(--text-lg);
+  line-height: 1.45;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+.lede--large {
+  max-width: 22ch;
+  font-family: var(--font-display);
+  font-weight: 400;
+  font-size: var(--text-xl);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+}
+.prose { display: grid; gap: var(--s-4); max-width: 60ch; font-size: 1.1875rem; line-height: 1.6; color: var(--ink-2); }
+.subhead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-4);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  letter-spacing: -0.015em;
+  color: var(--ink);
+}
+.subhead small { font-family: var(--font-sans); font-weight: 400; font-size: var(--text-sm); letter-spacing: 0; color: var(--ink-3); }
+.group { display: grid; gap: var(--s-6); }
+
+.topics { display: flex; flex-wrap: wrap; padding: 0; list-style: none; font-size: 0.9375rem; line-height: 1.6; color: var(--ink-3); }
+.topics li:not(:last-child)::after { content: '·'; padding-inline: 0.5em; color: var(--rule-card-strong); }
+
+/* Numbered entries: hairline above, small spot numeral in a narrow column. */
+.entries { display: grid; padding: 0; list-style: none; }
+.entry {
+  position: relative;
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr);
+  row-gap: var(--s-2);
+  padding: var(--s-6) 0 var(--s-8);
+  border-top: 1px solid var(--rule-card);
+  scroll-margin-top: var(--s-6);
+}
+.entry > * { grid-column: 2; }
+.entry__n {
+  grid-column: 1; grid-row: 1 / span 2;
+  padding-top: 0.42rem;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+  transition: color var(--dur-soft) ease;
+}
+.entry__meta { display: flex; flex-wrap: wrap; gap: 0.5em; font-size: var(--text-sm); color: var(--ink-3); }
+.entry__status { color: var(--spot-ink); }
+.entry__status::before { content: ''; display: inline-block; width: 5px; height: 5px; margin-right: 0.45em; border-radius: 50%; background: currentColor; vertical-align: 0.15em; }
+.entry__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  line-height: 1.15;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.entry__body { margin-top: var(--s-1); font-size: 1.0625rem; line-height: 1.6; color: var(--ink-2); max-width: 58ch; text-wrap: pretty; }
+.entry .topics { margin-top: var(--s-2); }
+/* When chosen from the desk stack: the rule above inks in, the numeral turns spot. */
+.entry::before {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; top: -1px;
+  height: 2px;
+  background: var(--spot-ink);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 560ms var(--ease-out);
+}
+.entry[data-current]::before { transform: scaleX(1); }
+.entry[data-current] .entry__n { color: var(--spot-ink); }
+
+/* ── Experience: the books on the desk ── */
+.desk { display: grid; gap: var(--s-3); }
+.desk__caption { display: flex; justify-content: space-between; gap: var(--s-4); font-size: var(--text-sm); color: var(--ink-3); }
+.stack {
+  display: grid;
+  gap: 3px;
+  padding: 0 0 0 var(--s-2);
+  list-style: none;
+}
+.stack li { display: flex; }
+.book {
+  --lift: 0px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: var(--w);
+  min-height: 2.75rem;
+  margin-left: var(--x);
+  padding: 0 1.15rem 0 0.95rem;
+  border: 0;
+  border-radius: 3px 5px 5px 3px;
+  background: var(--c);
+  color: oklch(0.96 0.01 80);
+  text-align: left;
+  cursor: pointer;
+  box-shadow:
+    inset 0 1px 0 oklch(1 0 0 / 0.16),
+    inset 0 -2px 0 oklch(0 0 0 / 0.14),
+    0 1px 1px oklch(0.2 0.02 45 / 0.3);
+  transform: translateX(var(--lift));
+  transition: transform 300ms var(--ease-out), box-shadow 300ms ease;
+}
+/* Gilt bands at each end, as on the painted spines. */
+.book::before, .book::after {
+  content: '';
+  position: absolute;
+  top: 7px; bottom: 7px;
+  width: 4px;
+  border-inline: 1px solid oklch(0.8 0.09 80 / 0.55);
+}
+.book::before { left: 0.35rem; }
+.book::after { right: 0.4rem; }
+.book__n { font-size: var(--text-xs); font-variant-numeric: tabular-nums; color: oklch(0.96 0.01 80 / 0.7); padding-left: 0.35rem; transition: color var(--dur-soft) ease; }
+.book__t { font-family: var(--font-display); font-weight: 500; font-size: 1rem; letter-spacing: -0.01em; line-height: 1.1; padding-block: 0.6rem; }
+@media (hover: hover) and (pointer: fine) {
+  .book:hover, .book[data-peek] { --lift: 8px; }
+}
+.book:active { transition-duration: var(--dur-press); --lift: 5px; }
+.book[aria-pressed='true'] {
+  --lift: 18px;
+  box-shadow: inset 0 1px 0 oklch(1 0 0 / 0.16), inset 0 -2px 0 oklch(0 0 0 / 0.14), 6px 3px 10px -4px oklch(0.2 0.02 45 / 0.45);
+}
+.book[aria-pressed='true'] .book__n { color: var(--spot); }
+.book:focus-visible { outline: 2px solid var(--spot-ink); outline-offset: 3px; }
+.desk__board { height: 6px; border-radius: 1px; background: var(--walnut-board); box-shadow: 0 2px 0 oklch(0.3 0.04 45 / 0.35); }
+
+/* Books settle onto the stack, bottom one first. */
+.page[data-enter] .stack li { animation: settle 560ms var(--ease-out) both; animation-delay: calc(220ms + var(--b) * 70ms); }
+@keyframes settle { from { opacity: 0; transform: translateY(-14px); } }
+@media (prefers-reduced-motion: reduce) { @keyframes settle { from { opacity: 0; } } }
+
+/* ── About ── */
+.values { display: grid; grid-template-columns: 1fr 1fr; gap: 0 var(--s-8); }
+.values div { padding: var(--s-4) 0 var(--s-6); border-top: 1px solid var(--rule-card); }
+.values dt { font-family: var(--font-display); font-weight: 500; font-size: 1.15rem; letter-spacing: -0.01em; }
+.values dd { margin-top: var(--s-2); color: var(--ink-2); line-height: 1.55; }
+@media (max-width: 560px) { .values { grid-template-columns: 1fr; } }
+
+/* ── Contact ── */
+.contact { display: grid; gap: var(--s-3); padding-top: var(--s-6); border-top: 1px solid var(--rule-card); }
+.contact__label { font-size: var(--text-sm); color: var(--ink-3); }
+.contact__row { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2) var(--s-6); }
+.contact__address {
+  font-family: var(--font-display);
+  font-weight: 450;
+  font-size: var(--text-xl);
+  letter-spacing: -0.025em;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--rule-card-strong);
+  text-underline-offset: 0.18em;
+  transition: text-decoration-color var(--dur-quick) ease;
+}
+.contact__address:hover { text-decoration-color: var(--spot-ink); }
+.copy {
+  display: inline-grid;
+  min-height: 44px;
+  align-items: center;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: transform var(--dur-press) var(--ease-out);
+}
+.copy:active { transform: scale(0.96); }
+.copy > span { grid-area: 1 / 1; display: inline-flex; align-items: center; gap: 0.4em; transition: opacity var(--dur-quick) ease, transform var(--dur-soft) var(--ease-out); }
+.copy__done { opacity: 0; transform: translateY(6px); color: var(--spot-ink); }
+.copy[data-done] .copy__idle { opacity: 0; transform: translateY(-6px); }
+.copy[data-done] .copy__done { opacity: 1; transform: none; }
+.copy__idle { text-decoration: underline; text-decoration-thickness: 1px; text-decoration-color: var(--spot-ink); text-underline-offset: 0.25em; }
+.copy svg { width: 0.95em; height: 0.95em; }
+.pending { color: var(--ink-3); }
+
+.sample {
+  display: inline-block;
+  margin-left: 0.5em;
+  padding: 0.05rem 0.45rem 0.1rem;
+  border: 1px dashed var(--spot-ink);
+  border-radius: 4px;
+  font-family: var(--font-sans);
+  font-weight: 400;
+  font-size: var(--text-xs);
+  letter-spacing: 0;
+  color: var(--spot-ink);
+  vertical-align: 0.35em;
+}
+.empty { color: var(--ink-3); font-size: 1.0625rem; line-height: 1.6; max-width: 44ch; }
+
+/* ── Pager: the next page, named with the object it lives in ── */
+.pager {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s-6);
+  margin-top: var(--s-16);
+  padding-top: var(--s-6);
+  border-top: 1px solid var(--rule-card-strong);
+}
+.pager a, .pager button {
+  display: grid;
+  align-content: start;
+  gap: var(--s-1);
+  padding: var(--s-2) 0;
+  background: none;
+  border: 0;
+  text-align: left;
+  text-decoration: none;
+  color: var(--ink);
+  cursor: pointer;
+}
+.pager .next { justify-items: end; text-align: right; grid-column: 2; }
+.pager__dir { font-size: var(--text-sm); color: var(--ink-3); }
+.pager__title {
+  position: relative;
+  justify-self: start;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.35rem;
+  letter-spacing: -0.02em;
+  padding-bottom: 3px;
+}
+.next .pager__title { justify-self: end; }
+.pager__title::before, .pager__title::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: var(--rule-card-strong);
+}
+.pager__title::after {
+  background: var(--spot-ink);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 420ms var(--ease-out);
+}
+.next .pager__title::after { transform-origin: 100% 50%; }
+.pager a:hover .pager__title::after, .pager button:hover .pager__title::after,
+.pager a:focus-visible .pager__title::after { transform: scaleX(1); }
+.pager__obj { font-size: var(--text-sm); color: var(--ink-3); }
+.pager a:active, .pager button:active { transform: scale(0.985); transition: transform var(--dur-press) var(--ease-out); }
+
+/* ── Phones: the page rises from the bottom; a strip of the room stays visible ── */
+@media (max-width: 1024px) {
+  .folio { width: min(43rem, 88vw); }
+}
+@media (max-width: 639px) {
+  .folio {
+    --radius: 18px;
+    inset: auto var(--gap) var(--gap) var(--gap);
+    width: auto;
+    height: calc(100dvh - 3.5rem);
+  }
+  .folio__sheet, .folio__under { transform: translateY(105%); }
+  .folio__under--1 { inset: 0 10px 0 10px; --rest: translateY(-6px); }
+  .folio__under--2 { inset: 0 22px 0 22px; --rest: translateY(-11px); }
+  .bar { padding-left: var(--s-4); }
+  .tabs { mask-image: linear-gradient(90deg, #000 80%, transparent); }
+  .tabs ul { gap: var(--s-4); padding-right: 2.5rem; }
+  .close span { display: none; }
+  .close { width: 44px; justify-content: center; padding: 0; }
+  .page { padding-top: var(--s-8); }
+  .entry { grid-template-columns: 2rem minmax(0, 1fr); }
+  .pager { grid-template-columns: 1fr; }
+  .pager .next { grid-column: 1; }
+  .book__t { font-size: 0.9375rem; }
+  .desk__caption { flex-direction: column; gap: 0; }
+}
+</style>
+</head>
+<body>
+
+<main class="home" id="main" tabindex="-1">
+  <div class="stage-wrap">
+    <div class="stage" id="stage">
+      <svg class="room" viewBox="0 0 1600 900" role="img" aria-labelledby="room-title" preserveAspectRatio="xMidYMid slice">
+        <title id="room-title">Placeholder for the painted room: a bookcase, a rainy window, and a desk with a lamp, a laptop, a notebook, a stack of books and a record player</title>
+        <defs>
+          <radialGradient id="lamp" cx="1010" cy="430" r="900" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#f1c896"/>
+            <stop offset=".35" stop-color="#c79a83"/>
+            <stop offset=".8" stop-color="#7c5a52"/>
+            <stop offset="1" stop-color="#5a4140"/>
+          </radialGradient>
+          <linearGradient id="night" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#232a36"/>
+            <stop offset="1" stop-color="#3a3f4b"/>
+          </linearGradient>
+          <radialGradient id="glow" cx="1010" cy="560" r="300" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stop-color="#ffd9a0" stop-opacity=".55"/>
+            <stop offset="1" stop-color="#ffd9a0" stop-opacity="0"/>
+          </radialGradient>
+        </defs>
+
+        <!-- wall and lamp light -->
+        <rect width="1600" height="900" fill="url(#lamp)"/>
+
+        <!-- window, rain -->
+        <g>
+          <rect x="1160" y="80" width="350" height="480" rx="6" fill="#e6d6c3"/>
+          <rect x="1180" y="100" width="150" height="440" fill="url(#night)"/>
+          <rect x="1340" y="100" width="150" height="440" fill="url(#night)"/>
+          <g stroke="#d9e0ea" stroke-opacity=".22" stroke-width="1.4" stroke-linecap="round">
+            <path d="M1200 130l-6 22M1250 170l-6 22M1300 120l-6 22M1222 260l-6 22M1288 300l-6 22M1210 380l-6 22M1270 430l-6 22M1315 480l-6 22"/>
+            <path d="M1365 150l-6 22M1420 210l-6 22M1470 130l-6 22M1390 320l-6 22M1450 360l-6 22M1375 450l-6 22M1430 500l-6 22M1480 270l-6 22"/>
+          </g>
+          <circle cx="1290" cy="190" r="3" fill="#f3d6a2" opacity=".5"/>
+          <circle cx="1440" cy="240" r="2.5" fill="#f3d6a2" opacity=".4"/>
+          <rect x="1110" y="60" width="70" height="560" fill="#ecd7c0" opacity=".82"/>
+          <rect x="1495" y="60" width="80" height="560" fill="#ecd7c0" opacity=".82"/>
+        </g>
+
+        <!-- desk -->
+        <rect x="0" y="690" width="1600" height="210" fill="#7d4c2f"/>
+        <rect x="0" y="690" width="1600" height="14" fill="#9b6640"/>
+        <rect x="0" y="690" width="1600" height="210" fill="url(#glow)"/>
+
+        <!-- lamp -->
+        <g>
+          <ellipse cx="1010" cy="688" rx="60" ry="9" fill="#5a3a26"/>
+          <rect x="1006" y="470" width="8" height="218" fill="#4b3326"/>
+          <path d="M930 470 L1090 470 L1060 380 L960 380 Z" fill="#e3ad62"/>
+          <path d="M930 470 L1090 470 L1086 458 L934 458 Z" fill="#f6d39a" opacity=".7"/>
+        </g>
+
+        <!-- dimmer under the hotspots (24%) -->
+        <rect class="dim" width="1600" height="900" fill="#120c0a"/>
+
+        <!-- Hotspot: bookcase → Bookshelf -->
+        <g class="hot" data-section="bookshelf" data-anchor="320,232" tabindex="0" role="button" aria-label="My bookshelf, the books on the shelf">
+          <g class="halo">
+            <rect x="120" y="60" width="400" height="640" rx="10" fill="#784427"/>
+            <rect x="140" y="80" width="360" height="600" fill="#4d2e1f"/>
+            <rect x="140" y="240" width="360" height="14" fill="#8a5432"/>
+            <rect x="140" y="410" width="360" height="14" fill="#8a5432"/>
+            <rect x="140" y="570" width="360" height="14" fill="#8a5432"/>
+            <g>
+              <ellipse cx="240" cy="226" rx="34" ry="14" fill="#e2d6c8"/>
+              <path d="M240 214 C210 160 270 140 250 110" stroke="#5f7b45" stroke-width="5" fill="none"/>
+              <circle cx="232" cy="128" r="13" fill="#e7a3b1"/><circle cx="258" cy="118" r="13" fill="#e7a3b1"/><circle cx="282" cy="132" r="12" fill="#e7a3b1"/>
+              <rect x="350" y="138" width="40" height="102" fill="#3f5a4c"/><rect x="392" y="150" width="30" height="90" fill="#e8ddcf"/><rect x="426" y="160" width="30" height="80" fill="#b5553a"/>
+            </g>
+            <g>
+              <rect x="162" y="300" width="30" height="110" fill="#7a2f34"/><rect x="194" y="296" width="34" height="114" fill="#34436a"/><rect x="230" y="306" width="28" height="104" fill="#e8ddcf"/>
+              <rect x="262" y="312" width="30" height="98" fill="#c0603e" transform="rotate(-12 277 410)"/>
+              <rect x="312" y="362" width="150" height="24" fill="#f0e4d2"/><rect x="306" y="386" width="166" height="24" fill="#5c5a8a"/>
+            </g>
+            <g>
+              <rect x="330" y="470" width="34" height="100" fill="#3f5a4c"/><rect x="366" y="476" width="28" height="94" fill="#e8ddcf"/>
+              <rect x="190" y="520" width="100" height="50" rx="6" fill="#2b2726"/><circle cx="240" cy="545" r="18" fill="#57514c"/>
+            </g>
+          </g>
+        </g>
+
+        <!-- Hotspot: notebook → About -->
+        <g class="hot" data-section="about" data-anchor="470,676" tabindex="0" role="button" aria-label="My story, the notebook">
+          <g class="halo">
+            <path d="M405 700 L520 700 L545 682 L430 682 Z" fill="#e9dccb"/>
+            <path d="M405 700 L520 700 L520 705 L405 705 Z" fill="#c9b8a3"/>
+            <path d="M470 683 L470 700" stroke="#b58f76" stroke-width="1.5"/>
+            <path d="M486 690 L534 690" stroke="#b43914" stroke-width="2"/>
+          </g>
+        </g>
+
+        <!-- Hotspot: laptop → Work -->
+        <g class="hot" data-section="work" data-anchor="712,498" tabindex="0" role="button" aria-label="My work, the laptop">
+          <g class="halo">
+            <path d="M600 520 L820 520 L850 680 L630 680 Z" fill="#cbc4d3"/>
+            <path d="M612 532 L810 532 L836 668 L640 668 Z" fill="#a8a1b6"/>
+            <path d="M560 680 L880 680 L900 698 L540 698 Z" fill="#d7d1de"/>
+            <path d="M640 560 L760 560" stroke="#f1ede6" stroke-opacity=".6" stroke-width="4"/>
+          </g>
+        </g>
+
+        <!-- Hotspot: the books on the desk → Experience -->
+        <g class="hot" data-section="experience" data-anchor="1196,588" tabindex="0" role="button" aria-label="Experience, the books on the desk">
+          <g class="halo">
+            <rect x="1104" y="664" width="190" height="26" rx="3" fill="#6b4630"/>
+            <rect x="1278" y="667" width="12" height="20" fill="#efe3d1"/>
+            <rect x="1114" y="638" width="172" height="26" rx="3" fill="#b5553a"/>
+            <rect x="1270" y="641" width="12" height="20" fill="#efe3d1"/>
+            <rect x="1100" y="612" width="182" height="26" rx="3" fill="#3f4b6e"/>
+            <rect x="1266" y="615" width="12" height="20" fill="#efe3d1"/>
+            <rect x="1118" y="588" width="160" height="24" rx="3" fill="#3f6560" transform="rotate(-2.5 1198 600)"/>
+            <rect x="1262" y="590" width="11" height="18" fill="#efe3d1" transform="rotate(-2.5 1198 600)"/>
+            <g stroke="#e6c27a" stroke-opacity=".6" stroke-width="1.4">
+              <path d="M1112 668v18M1117 668v18M1122 642v18M1127 642v18M1108 616v18M1113 616v18"/>
+            </g>
+          </g>
+        </g>
+
+        <!-- Hotspot: record player → Music -->
+        <g class="hot" data-section="music" data-anchor="1440,612" tabindex="0" role="button" aria-label="Music, the record player">
+          <g class="halo">
+            <rect x="1330" y="636" width="230" height="54" rx="6" fill="#5a3826"/>
+            <ellipse cx="1430" cy="636" rx="86" ry="16" fill="#1d1918"/>
+            <ellipse cx="1430" cy="636" rx="22" ry="5" fill="#e4673f"/>
+            <path d="M1528 626 L1500 640" stroke="#cfc7bd" stroke-width="3" stroke-linecap="round"/>
+          </g>
+        </g>
+      </svg>
+
+      <p class="placeholder-note">Placeholder room. The painting goes here.</p>
+      <div class="tag" id="tag" aria-hidden="true"><span class="tag__label"></span><span class="tag__leader"></span><span class="tag__dot"></span></div>
+    </div>
+  </div>
+
+  <footer class="baseline">
+    <div>
+      <p class="baseline__name">Susana Pérez</p>
+      <p class="baseline__disciplines">Product, Music, Technology</p>
+    </div>
+    <p class="baseline__hint">Explore the room</p>
+    <p class="baseline__note">Panel prototype. Open the books on the desk, then turn to Work. Copy is taken from content.ts; anything else is marked sample.</p>
+  </footer>
+</main>
+
+<dialog class="folio" id="folio" aria-labelledby="page-title">
+  <div class="folio__under folio__under--2" aria-hidden="true"></div>
+  <div class="folio__under folio__under--1" aria-hidden="true"></div>
+  <div class="folio__sheet">
+    <div class="bar">
+      <nav class="tabs" id="tabs" aria-label="Sections">
+        <ul role="list"></ul>
+      </nav>
+      <button type="button" class="close" id="close">
+        <span>Close</span>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg>
+      </button>
+      <span class="progress" id="progress" aria-hidden="true"></span>
+    </div>
+    <div class="body" id="body">
+      <div class="pages" id="pages"></div>
+    </div>
+  </div>
+</dialog>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)');
+  const ms = (name) => parseFloat(getComputedStyle(document.documentElement).getPropertyValue(name)) || 0;
+
+  // ── Content: copied from src/content/content.ts (no new facts) ──
+  const topics = (items, label) =>
+    `<ul class="topics" role="list" aria-label="${label}">${items.map((t) => `<li>${t}</li>`).join('')}</ul>`;
+
+  const experience = [
+    { id: 'product', title: 'Product management', spine: '--spine-teal', w: '86%', x: '0%',
+      summary: 'Shaping digital music-learning experiences, from discovery and onboarding to learning progression, with a focus on what helps learners build a lasting practice.',
+      focus: ['Product discovery', 'Onboarding', 'Learning progression', 'Cross-functional collaboration'] },
+    { id: 'licensing', title: 'Digital music licensing', spine: '--spine-slate', w: '94%', x: '2%',
+      summary: 'Working with musical works, repertoire and rights data to bring music into digital products, and translating licensing requirements into decisions product teams can act on.',
+      focus: ['Musical works & repertoire', 'Rights data', 'Licensing requirements'] },
+    { id: 'education', title: 'Music education', spine: '--spine-terracotta', w: '80%', x: '5%',
+      summary: 'A grounding in music education and pedagogy that still shapes how I think about learning design, feedback and progression.',
+      focus: ['Pedagogy', 'Learning design', 'Notation'] },
+    { id: 'piano', title: 'Piano', spine: '--spine-walnut', w: '90%', x: '1%',
+      summary: 'The instrument at the root of my musical life. It informs how I listen, how I practise, and how I think about learning.',
+      focus: ['Musicianship', 'Practice', 'Listening'] },
+  ];
+
+  const work = [
+    { title: 'Music learning experiences', kind: 'Area of focus',
+      summary: 'Designing thoughtful, accessible learning experiences that help people build a lasting relationship with music. I care about the first five minutes as much as the hundredth hour: what makes someone feel capable, and what brings them back to the instrument tomorrow.',
+      topics: ['Learning design', 'Accessibility', 'Practice habits', 'Motivation'] },
+    { title: 'Product discovery and engagement', kind: 'Area of focus',
+      summary: 'Exploring how onboarding, learning progression, personalisation and everyday product decisions can support engagement that means something to the learner, and not only to a chart.',
+      topics: ['Onboarding', 'Learning progression', 'Personalisation', 'Product discovery'] },
+    { title: 'Music rights and licensing', kind: 'Area of focus',
+      summary: 'Connecting the moving parts behind a single song in a digital product: musical works and repertoire, rights data, licensing agreements, and the product decisions that depend on all of them. Much of this work is translation, making a complex system legible for the people who build on it.',
+      topics: ['Musical works & repertoire', 'Rights data', 'Licensing agreements', 'Digital products'] },
+    { title: 'Notation and interactive learning', kind: 'Area of focus',
+      summary: 'Working where music pedagogy, notation systems, content design and interactive technology overlap. A score on a screen can do more than a score on paper, as long as it still respects how musicians read.',
+      topics: ['Music pedagogy', 'Notation systems', 'Content design', 'Interactive technology'] },
+    { title: 'Rights Intelligence', kind: 'Independent exploration', status: 'Exploration in progress',
+      summary: 'A personal exploration of data-driven tooling for musical-work identification, ownership, contract coverage and rights reconciliation. I use it to test ideas about how rights information could become easier to trust and act on. It is an independent project, not a commercial product.',
+      topics: ['Work identification', 'Ownership data', 'Contract coverage', 'Reconciliation'] },
+  ];
+
+  const pad = (n) => String(n).padStart(2, '0');
+
+  const SECTIONS = [
+    { id: 'work', nav: 'Work', title: 'Selected work', summary: 'Where music, learning and rights meet product.', object: 'the laptop', tip: 'My work',
+      render: () => `
+        <p class="lede">Most of my work sits where music meets the systems around it: how people learn it, how it is licensed, and how products can make both feel simpler than they are.</p>
+        <ol class="entries" role="list">${work.map((t, i) => `
+          <li class="entry">
+            <span class="entry__n" aria-hidden="true">${pad(i + 1)}</span>
+            <p class="entry__meta"><span>${t.kind}</span>${t.status ? `<span class="entry__status">${t.status}</span>` : ''}</p>
+            <h3 class="entry__title">${t.title}</h3>
+            <p class="entry__body">${t.summary}</p>
+            ${topics(t.topics, `Topics in ${t.title}`)}
+          </li>`).join('')}
+        </ol>` },
+    { id: 'about', nav: 'About', title: 'My story', summary: 'Music first, then product, and the thread between them.', object: 'the notebook', tip: 'My story',
+      render: () => `
+        <p class="lede lede--large">I’m Susana. I work on products where music, learning and technology meet.</p>
+        <div class="prose">
+          <p>Music is the thread that runs through everything I do. Piano taught me how learning feels from the inside: slow, physical, sometimes frustrating, and deeply rewarding when something finally clicks. I try to carry that feeling into every product decision I make.</p>
+          <p>My path has moved between music education, product management and digital music licensing. They can look like separate worlds, yet they keep asking me the same question: how do you make something complex feel clear, fair and human for the person on the other side?</p>
+          <p>Product thinking gives me a way to work on that question with other people: listening carefully, framing problems well, and making decisions with both evidence and empathy in the room. Technology is how those decisions eventually reach someone sitting at their instrument at home.</p>
+          <p>Away from the screen, I’m happiest in a room much like this one, with music on, something to write in, and time to think.</p>
+        </div>
+        <div class="group">
+          <h3 class="subhead">What I care about</h3>
+          <dl class="values">
+            <div><dt>Clarity over cleverness</dt><dd>The best experiences make hard things feel understandable, without pretending they are simple.</dd></div>
+            <div><dt>Learning as a relationship</dt><dd>People don’t just complete a course in music. They build a relationship with it, and products should respect that.</dd></div>
+            <div><dt>Respect for the people behind the music</dt><dd>Every song in a product has writers, performers and rights holders behind it. Getting that right matters.</dd></div>
+            <div><dt>Curiosity, with care</dt><dd>Asking good questions, testing ideas gently, and staying close to the people a product is for.</dd></div>
+          </dl>
+        </div>` },
+    { id: 'experience', nav: 'Experience', title: 'Experience', summary: 'The threads that run through my work.', object: 'the books on the desk', tip: 'My experience',
+      render: () => `
+        <p class="lede">The threads that run through my work so far, across product, music licensing and music education.</p>
+        <div class="desk">
+          <p class="desk__caption"><span>The books on the desk</span><span>Choose one to read about it</span></p>
+          <ol class="stack" role="list" aria-label="The books on the desk">${experience.map((e, i) => `
+            <li style="--b:${experience.length - 1 - i}">
+              <button type="button" class="book" data-target="exp-${e.id}" aria-pressed="false" aria-controls="exp-${e.id}"
+                style="--c:var(${e.spine});--w:${e.w};--x:${e.x}">
+                <span class="book__n" aria-hidden="true">${pad(i + 1)}</span><span class="book__t">${e.title}</span>
+              </button>
+            </li>`).join('')}
+          </ol>
+          <div class="desk__board" aria-hidden="true"></div>
+        </div>
+        <ol class="entries" role="list">${experience.map((e, i) => `
+          <li class="entry" id="exp-${e.id}" data-book="exp-${e.id}">
+            <span class="entry__n" aria-hidden="true">${pad(i + 1)}</span>
+            <h3 class="entry__title">${e.title}</h3>
+            <p class="entry__body">${e.summary}</p>
+            ${topics(e.focus, `Focus areas in ${e.title}`)}
+          </li>`).join('')}
+        </ol>` },
+    { id: 'bookshelf', nav: 'Bookshelf', title: 'Bookshelf', summary: 'What I’m reading, the books I love, and the ones I’d hand to you.', object: 'the books on the shelf', tip: 'My booklist',
+      render: () => `<p class="empty">The shelf layout is outside this prototype. The panel frame, header and pager shown here would carry it unchanged.</p>` },
+    { id: 'music', nav: 'Music', title: 'Music', summary: 'Playing, listening and learning.', object: 'the record player', tip: 'What I’m listening to',
+      render: () => `<p class="empty">The record collection is outside this prototype. The panel frame, header and pager shown here would carry it unchanged.</p>` },
+    { id: 'contact', nav: 'Contact', title: 'Say hello', summary: 'Ways to get in touch.', object: '', tip: '',
+      render: () => `
+        <p class="lede lede--large">Whether it’s about music learning, licensing, product work, or a piece of music you think I’d love, I’m always glad to hear from thoughtful people.</p>
+        <div class="contact">
+          <p class="contact__label">Email <span class="sample">sample</span></p>
+          <div class="contact__row">
+            <a class="contact__address" href="mailto:hello@example.com">hello@example.com</a>
+            <button type="button" class="copy" data-copy="hello@example.com">
+              <span class="copy__idle">Copy address</span>
+              <span class="copy__done" aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M3 8.5l3 3 7-7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>Copied</span>
+            </button>
+            <span class="visually-hidden" role="status" id="copy-status"></span>
+          </div>
+          <p class="pending">On the live site, until an address is published: “Direct contact details will be added here very soon.”</p>
+        </div>` },
+  ];
+  const byId = Object.fromEntries(SECTIONS.map((s) => [s.id, s]));
+  const indexOf = (id) => SECTIONS.findIndex((s) => s.id === id);
+
+  // ── Elements ──
+  const html = document.documentElement;
+  const stage = document.getElementById('stage');
+  const tag = document.getElementById('tag');
+  const folio = document.getElementById('folio');
+  const pages = document.getElementById('pages');
+  const body = document.getElementById('body');
+  const tabsList = document.querySelector('#tabs ul');
+  const progress = document.getElementById('progress');
+
+  // ── Tabs with one travelling ink mark ──
+  tabsList.innerHTML = SECTIONS.map((s) => `<li><a href="#${s.id}" data-id="${s.id}">${s.nav}</a></li>`).join('') +
+    '<span class="tabs__ink" aria-hidden="true"></span>';
+  const ink = tabsList.querySelector('.tabs__ink');
+  const tabLinks = [...tabsList.querySelectorAll('a')];
+
+  function placeInk(id, animate) {
+    const link = tabLinks.find((a) => a.dataset.id === id);
+    if (!link) return;
+    if (!animate || reduce.matches) ink.style.transition = 'none';
+    ink.style.transform = `translateX(${link.offsetLeft}px) scaleX(${link.offsetWidth / 100})`;
+    if (!animate || reduce.matches) { ink.getBoundingClientRect(); ink.style.transition = ''; }
+    const nav = tabsList.parentElement;
+    nav.scrollTo({ left: link.offsetLeft - (nav.clientWidth - link.offsetWidth) / 2, behavior: animate && !reduce.matches ? 'smooth' : 'auto' });
+  }
+
+  tabsList.addEventListener('click', (e) => {
+    const a = e.target.closest('a[data-id]');
+    if (!a) return;
+    e.preventDefault();
+    show(a.dataset.id);
+  });
+  tabsList.addEventListener('keydown', (e) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+    const i = tabLinks.indexOf(document.activeElement);
+    if (i < 0) return;
+    e.preventDefault();
+    tabLinks[(i + (e.key === 'ArrowRight' ? 1 : -1) + tabLinks.length) % tabLinks.length].focus();
+  });
+
+  // ── Pages ──
+  let current = null;
+  let returnFocus = null;
+  let openedAt = 0;
+
+  function readingTime(el) {
+    const words = el.textContent.trim().split(/\s+/).length;
+    const mins = Math.max(1, Math.round(words / 200));
+    return `${mins} minute${mins > 1 ? 's' : ''} to read`;
+  }
+
+  function buildPage(id) {
+    const s = byId[id];
+    const i = indexOf(id);
+    const prev = SECTIONS[i - 1];
+    const next = SECTIONS[i + 1];
+    const page = document.createElement('article');
+    page.className = 'page';
+    page.dataset.id = id;
+    page.innerHTML = `
+      <header class="head">
+        <p class="head__meta">
+          <span class="head__num">${pad(i + 1)}</span><span>/ ${pad(SECTIONS.length)}</span>
+          <span aria-hidden="true">·</span><span class="head__time"></span>
+        </p>
+        <h2 class="head__title" id="page-title" tabindex="-1">${s.title}</h2>
+        <p class="head__summary">${s.summary}</p>
+      </header>
+      <div class="section">${s.render()}</div>
+      <nav class="pager" aria-label="Pages">
+        ${prev ? `<a href="#${prev.id}" data-id="${prev.id}" rel="prev"><span class="pager__dir">Previous</span><span class="pager__title">${prev.title}</span>${prev.object ? `<span class="pager__obj">${cap(prev.object)}</span>` : ''}</a>` : ''}
+        ${next
+          ? `<a class="next" href="#${next.id}" data-id="${next.id}" rel="next"><span class="pager__dir">Next</span><span class="pager__title">${next.title}</span>${next.object ? `<span class="pager__obj">${cap(next.object)}</span>` : ''}</a>`
+          : `<button type="button" class="next" data-close><span class="pager__dir">That’s everything</span><span class="pager__title">Back to the room</span></button>`}
+      </nav>`;
+    page.querySelector('.head__time').textContent = readingTime(page.querySelector('.section'));
+    // One voice per page: if the lede opens with the summary's words, the header keeps only the title.
+    const lede = page.querySelector('.section > .lede');
+    const sum = s.summary.replace(/\.$/, '');
+    if (lede && lede.textContent.trim().startsWith(sum)) page.querySelector('.head__summary').remove();
+    // Cascade order: header, each block of the section, pager.
+    const cues = [page.querySelector('.head'), ...page.querySelector('.section').children, page.querySelector('.pager')];
+    cues.forEach((el, n) => { el.classList.add('cue'); el.style.setProperty('--i', Math.min(n, 7)); });
+    return page;
+  }
+  const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+
+  function show(id, mode = 'turn') {
+    if (!byId[id] || id === current) return;
+    const from = current ? indexOf(current) : -1;
+    const dir = from < 0 ? 1 : Math.sign(indexOf(id) - from);
+    const old = pages.querySelector('.page:not(.is-leaving)');
+    pages.querySelectorAll('.page.is-leaving').forEach((p) => p.remove());
+
+    if (old) {
+      const scrolled = body.scrollTop;
+      old.classList.add('is-leaving');
+      old.setAttribute('aria-hidden', 'true');
+      old.inert = true;
+      old.querySelector('#page-title')?.removeAttribute('id');
+      old.style.setProperty('--dir', dir);
+      old.style.marginTop = `${-scrolled}px`;
+      requestAnimationFrame(() => old.classList.add('go'));
+      setTimeout(() => old.remove(), 300);
+    }
+
+    const page = buildPage(id);
+    page.dataset.enter = mode;
+    page.style.setProperty('--dir', dir);
+    pages.appendChild(page);
+    body.scrollTop = 0;
+    current = id;
+
+    tabLinks.forEach((a) => (a.dataset.id === id ? a.setAttribute('aria-current', 'page') : a.removeAttribute('aria-current')));
+    placeInk(id, mode === 'turn');
+    history.replaceState(null, '', `#${id}`);
+    updateProgress();
+    page.querySelector('.head__title').focus({ preventScroll: true });
+    if (mode === 'turn') rollNumber(page, from + 1, indexOf(id) + 1, dir);
+  }
+
+  // The section number rolls like a counter when you turn pages.
+  function rollNumber(page, fromN, toN, dir) {
+    if (reduce.matches || !fromN) return;
+    const num = page.querySelector('.head__num');
+    num.style.display = 'inline-grid';
+    num.style.overflow = 'hidden';
+    num.innerHTML = `<span style="grid-area:1/1">${pad(fromN)}</span><span style="grid-area:1/1">${pad(toN)}</span>`;
+    const [a, b] = num.children;
+    const opts = { duration: 460, easing: 'cubic-bezier(0.23, 1, 0.32, 1)', fill: 'both', delay: 70 };
+    a.animate([{ transform: 'translateY(0)', opacity: 1 }, { transform: `translateY(${-dir * 100}%)`, opacity: 0 }], opts);
+    b.animate([{ transform: `translateY(${dir * 100}%)`, opacity: 0 }, { transform: 'translateY(0)', opacity: 1 }], opts);
+  }
+
+  // ── Open and close ──
+  function open(id, opener) {
+    if (folio.open) { show(id); return; }
+    returnFocus = opener || document.activeElement;
+    openedAt = performance.now();
+    current = null;
+    pages.innerHTML = '';
+    folio.showModal();
+    show(id, 'open');
+    requestAnimationFrame(() => {
+      folio.dataset.state = 'open';
+      html.dataset.panel = 'open';
+      placeInk(id, false);
+    });
+  }
+
+  function close() {
+    if (!folio.open || folio.dataset.state === 'closing') return;
+    folio.dataset.state = 'closing';
+    html.dataset.panel = 'closing';
+    setTimeout(() => {
+      folio.close();
+      folio.dataset.state = '';
+      delete html.dataset.panel;
+      current = null;
+      history.replaceState(null, '', location.pathname);
+      const target = returnFocus;
+      returnFocus = null;
+      if (target && target.isConnected && target !== document.body) target.focus({ preventScroll: true });
+      else document.getElementById('main').focus({ preventScroll: true });
+    }, ms('--dur-panel-exit'));
+  }
+
+  document.getElementById('close').addEventListener('click', close);
+  folio.addEventListener('cancel', (e) => { e.preventDefault(); close(); });
+  let pressOnBackdrop = false;
+  folio.addEventListener('pointerdown', (e) => { pressOnBackdrop = e.target === folio; });
+  folio.addEventListener('click', (e) => { if (pressOnBackdrop && e.target === folio) close(); });
+
+  // Pager, desk stack and copy, delegated from the page body.
+  pages.addEventListener('click', (e) => {
+    // Ignore a stray second click from the press that opened the folio.
+    if (performance.now() - openedAt < 350) return;
+    const link = e.target.closest('.pager a[data-id]');
+    if (link) { e.preventDefault(); show(link.dataset.id); return; }
+    if (e.target.closest('[data-close]')) { close(); return; }
+
+    const book = e.target.closest('.book');
+    if (book) { chooseBook(book); return; }
+
+    const copy = e.target.closest('.copy');
+    if (copy) {
+      navigator.clipboard?.writeText(copy.dataset.copy).catch(() => {});
+      copy.dataset.done = '';
+      document.getElementById('copy-status').textContent = 'Email address copied (sample)';
+      clearTimeout(copy._t);
+      copy._t = setTimeout(() => { delete copy.dataset.done; document.getElementById('copy-status').textContent = ''; }, 2400);
+    }
+  });
+
+  // ── Experience: the books on the desk ──
+  function chooseBook(book) {
+    const page = book.closest('.page');
+    const wasOn = book.getAttribute('aria-pressed') === 'true';
+    page.querySelectorAll('.book').forEach((b) => b.setAttribute('aria-pressed', 'false'));
+    page.querySelectorAll('.entry[data-current]').forEach((en) => delete en.dataset.current);
+    if (wasOn) return;
+    book.setAttribute('aria-pressed', 'true');
+    const entry = page.querySelector(`#${book.dataset.target}`);
+    entry.scrollIntoView({ behavior: reduce.matches ? 'auto' : 'smooth', block: 'start' });
+    // Ink the rule once the entry has arrived, so the motion is seen, not missed.
+    setTimeout(() => { entry.dataset.current = ''; }, reduce.matches ? 0 : 280);
+  }
+  // Reading an entry nudges its book out of the stack (when both are on screen).
+  pages.addEventListener('pointerover', (e) => {
+    const entry = e.target.closest('.entry[data-book]');
+    pages.querySelectorAll('.book[data-peek]').forEach((b) => delete b.dataset.peek);
+    if (entry) entry.closest('.page').querySelector(`.book[data-target="${entry.dataset.book}"]`)?.setAttribute('data-peek', '');
+  });
+
+  // ── Reading progress ──
+  let ticking = false;
+  function updateProgress() {
+    const max = body.scrollHeight - body.clientHeight;
+    progress.toggleAttribute('data-on', max > 40 && body.scrollTop > 4);
+    progress.style.transform = `scaleX(${max > 0 ? Math.min(1, body.scrollTop / max) : 0})`;
+    ticking = false;
+  }
+  body.addEventListener('scroll', () => { if (!ticking) { ticking = true; requestAnimationFrame(updateProgress); } }, { passive: true });
+  addEventListener('resize', () => { if (current) placeInk(current, false); });
+
+  // ── Room hotspots: halo, dim, tag after 350ms ──
+  let tagTimer;
+  const hots = [...stage.querySelectorAll('.hot')];
+  function light(hot, immediate) {
+    hots.forEach((h) => h.removeAttribute('data-lit'));
+    clearTimeout(tagTimer);
+    tag.removeAttribute('data-show');
+    if (!hot) { delete stage.dataset.hover; return; }
+    hot.setAttribute('data-lit', '');
+    stage.dataset.hover = hot.dataset.section;
+    const [x, y] = hot.dataset.anchor.split(',').map(Number);
+    const svg = stage.querySelector('svg').getBoundingClientRect();
+    const box = stage.getBoundingClientRect();
+    // viewBox is sliced to cover, so map through the actual scale.
+    const scale = Math.max(svg.width / 1600, svg.height / 900);
+    const ox = (svg.width - 1600 * scale) / 2, oy = (svg.height - 900 * scale) / 2;
+    tag.style.left = `${ox + x * scale + (svg.left - box.left)}px`;
+    tag.style.top = `${oy + y * scale + (svg.top - box.top)}px`;
+    tag.querySelector('.tag__label').textContent = byId[hot.dataset.section].tip;
+    tagTimer = setTimeout(() => tag.setAttribute('data-show', ''), immediate ? 0 : 350);
+  }
+  hots.forEach((hot) => {
+    hot.addEventListener('pointerenter', () => light(hot));
+    hot.addEventListener('pointerleave', () => light(null));
+    hot.addEventListener('focus', () => light(hot, true));
+    hot.addEventListener('blur', () => light(null));
+    const go = () => { light(null); open(hot.dataset.section, hot); };
+    hot.addEventListener('click', go);
+    hot.addEventListener('keydown', (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+  });
+
+  // Deep link: #experience opens straight to that page.
+  const start = location.hash.slice(1);
+  if (byId[start]) open(start, null);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,200 @@
+/*
+ * The editorial masthead: one slim row above the room, as wide as the room.
+ * Name and disciplines left, the menu alongside after a hairline, the scene
+ * control at the far right. Its height is the page's --header-h, which the
+ * room's size already allows for. Wraps onto more rows on narrow screens.
+ */
+.masthead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: clamp(1.25rem, 0.5rem + 1.6vw, 2.25rem);
+  row-gap: 0.75rem;
+  min-height: var(--header-h);
+  /* below it, the breathing space before the room (--hero-gap, App.css) */
+  padding-block: 1rem var(--hero-gap, 1.25rem);
+  /* arrives with the room (rise-in: SiteFooter.css; just a fade with reduced motion) */
+  animation: rise-in 600ms var(--ease-out) 160ms both;
+}
+
+.masthead__id {
+  display: grid;
+  gap: 0.35rem;
+}
+
+/* bold and prominent, tight like a magazine's nameplate */
+.masthead__name {
+  margin: 0;
+  font-family: var(--font-display);
+  font-weight: 600;
+  font-size: clamp(1.5rem, 1.05rem + 1.05vw, 2.05rem);
+  line-height: 1;
+  letter-spacing: -0.01em;
+  color: var(--on-sleeve);
+  font-kerning: normal;
+  font-feature-settings: 'kern', 'liga';
+}
+
+/* an editorial line under it: small, open, quiet */
+.masthead__disciplines {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-weight: 450;
+  font-size: 0.6875rem;
+  line-height: 1.2;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--on-sleeve-2);
+}
+
+/* The menu, set off from the name by a fine vertical rule. */
+.masthead__nav {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  padding-left: clamp(1.25rem, 0.5rem + 1.6vw, 2.25rem);
+  border-left: 1px solid var(--rule-sleeve);
+  margin-block: 0.2rem;
+}
+
+.masthead__links {
+  display: flex;
+  align-items: center;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* a faint dot between the links */
+.masthead__item + .masthead__item::before {
+  content: '·';
+  padding-inline: 0.1rem;
+  color: var(--on-sleeve-3);
+  opacity: 0.7;
+}
+
+.masthead__link {
+  position: relative;
+  display: inline-block;
+  padding: 0.55rem 0.6rem;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--on-sleeve-2);
+  transition: color 200ms var(--ease-out);
+}
+
+.masthead__item:first-child .masthead__link {
+  padding-left: 0;
+}
+
+/* a hairline in the site's vermilion slides in under the link */
+.masthead__link::after {
+  content: '';
+  position: absolute;
+  left: 0.6rem;
+  right: calc(0.6rem + 0.15em);
+  bottom: 0.25rem;
+  height: 1px;
+  background: var(--spot);
+  transform: scaleX(0);
+  transform-origin: 0 50%;
+  transition: transform 260ms var(--ease-out);
+}
+
+.masthead__item:first-child .masthead__link::after {
+  left: 0;
+}
+
+.masthead__link[aria-current='page'] {
+  color: var(--on-sleeve);
+}
+
+.masthead__link[aria-current='page']::after {
+  transform: scaleX(1);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .masthead__link:hover {
+    color: var(--on-sleeve);
+  }
+
+  .masthead__link:hover::after {
+    transform: scaleX(1);
+  }
+}
+
+.masthead__link:focus-visible {
+  outline: 1.5px solid var(--spot);
+  outline-offset: 0;
+  border-radius: 4px;
+  color: var(--on-sleeve);
+}
+
+/* the scene control at the far right; the same glass as the player (tokens below) */
+.masthead__scene {
+  margin-left: auto;
+}
+
+.masthead__scene:empty {
+  display: none;
+}
+
+.masthead {
+  --glass-fill: linear-gradient(150deg, oklch(1 0 0 / 0.11), oklch(1 0 0 / 0.035) 55%, oklch(1 0 0 / 0.06));
+  --glass-blur: blur(22px) saturate(170%);
+  --glass-shadow:
+    inset 0 1px 0.5px oklch(1 0 0 / 0.32),
+    inset 0 -1px 0.5px oklch(1 0 0 / 0.07),
+    0 14px 34px -14px oklch(0.05 0.01 45 / 0.85),
+    0 2px 6px -2px oklch(0.05 0.01 45 / 0.5);
+  --glass-rim: linear-gradient(140deg, oklch(1 0 0 / 0.55), oklch(1 0 0 / 0.08) 38%, oklch(1 0 0 / 0.04) 62%, oklch(1 0 0 / 0.28));
+}
+
+/* In the masthead the caption sits beside the pills, and names show below them. */
+.masthead .time-control {
+  grid-auto-flow: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.masthead .time-control__tip {
+  top: calc(100% + 0.55rem);
+  bottom: auto;
+  transform: translate(-50%, -3px);
+}
+
+/* Phone: name, then the menu and the scene control on rows of their own. */
+@media (max-width: 639px) {
+  .masthead {
+    flex-direction: column;
+    align-items: flex-start;
+    row-gap: 0.2rem;
+    padding-block: 1rem 0.85rem;
+  }
+
+  .masthead__nav {
+    padding-left: 0;
+    border-left: 0;
+    margin-block: 0;
+  }
+
+  .masthead__link {
+    padding-block: 0.9rem;
+  }
+
+  .masthead__scene {
+    margin-left: 0;
+    margin-top: 0.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .masthead__link::after {
+    transition: none;
+  }
+}

@@ -1,0 +1,143 @@
+/*
+ * Work thumbnails. The drawing is the object; the tile around it is only a
+ * 6px-cornered print with the soft warm shadow the record covers use.
+ * One small motion per drawing, played once when its tile (.wtile) is hovered,
+ * focused or marked data-play. Nothing loops; reduced motion keeps them still.
+ */
+.wthumb {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: 6px;
+  box-shadow:
+    0 1px 2px oklch(0.205 0.01 45 / 0.14),
+    0 10px 22px -12px oklch(0.205 0.01 45 / 0.4);
+}
+
+.wthumb .wt-note,
+.wthumb .wt-tab,
+.wthumb .wt-bar,
+.wthumb .wt-bed,
+.wthumb .wt-sofa {
+  transform-box: fill-box;
+}
+
+.wthumb .wt-note {
+  transform-origin: center;
+}
+
+.wthumb .wt-bar {
+  transform-origin: 0 50%;
+}
+
+.wthumb .wt-check {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wtile .wthumb {
+    transition: transform 320ms var(--ease-out, ease-out);
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .wtile:hover .wthumb {
+      transform: translateY(-3px);
+    }
+  }
+
+  /* Chord builder: the chord is played, C, then E, then G. */
+  :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-note {
+    animation: wt-note 420ms var(--ease-out, ease-out) both;
+    animation-delay: calc(var(--i) * 110ms);
+  }
+
+  /* Guidebook: the tabs slide out in turn, and the top of the list fills. */
+  :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-tab {
+    animation: wt-tab 460ms var(--ease-out, ease-out) both;
+    animation-delay: calc(var(--i) * 70ms);
+  }
+
+  :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-bar {
+    animation: wt-grow 620ms var(--ease-out, ease-out) 120ms both;
+  }
+
+  /* Licensing engine: each work is cleared in turn. */
+  :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-check {
+    animation: wt-draw 360ms var(--ease-out, ease-out) both;
+    animation-delay: calc(var(--i) * 90ms);
+  }
+
+  /* Apartment studio: the bed and sofa slide into place. */
+  :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-bed {
+    animation: wt-place-x 560ms var(--ease-out, ease-out) both;
+  }
+
+  :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-sofa {
+    animation: wt-place-y 560ms var(--ease-out, ease-out) 90ms both;
+  }
+
+  /* Rights intelligence: the pencil lines are drawn, the ring goes round. */
+  :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-edge {
+    animation: wt-dash 700ms var(--ease-out, ease-out) both;
+    animation-delay: calc(var(--i) * 50ms);
+  }
+
+  :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-ring {
+    animation: wt-ring 900ms var(--ease-out, ease-out) both;
+  }
+}
+
+@keyframes wt-note {
+  0% {
+    transform: scale(0.2);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.25);
+    opacity: 1;
+  }
+}
+
+@keyframes wt-tab {
+  0% {
+    transform: translateX(-10px);
+  }
+}
+
+@keyframes wt-grow {
+  from {
+    transform: scaleX(0.3);
+  }
+}
+
+@keyframes wt-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+
+@keyframes wt-place-x {
+  from {
+    transform: translateX(-10px);
+  }
+}
+
+@keyframes wt-place-y {
+  from {
+    transform: translateY(8px);
+  }
+}
+
+@keyframes wt-dash {
+  from {
+    stroke-dashoffset: 30;
+  }
+}
+
+@keyframes wt-ring {
+  from {
+    stroke-dasharray: 0 1;
+  }
+}

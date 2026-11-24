@@ -1,0 +1,125 @@
+/* Content inside the panel: serif for reading, sans for small labels. */
+.section {
+  display: grid;
+  gap: var(--space-lg);
+}
+
+.lede {
+  max-width: 34ch;
+  font-family: var(--font-serif);
+  font-size: var(--text-lg);
+  line-height: 1.45;
+  color: var(--ink);
+}
+
+.lede--large {
+  font-size: var(--text-xl);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+}
+
+.prose {
+  display: grid;
+  gap: var(--space-sm);
+  max-width: 62ch;
+  font-family: var(--font-serif);
+  font-size: 1.1875rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.section__closing {
+  font-family: var(--font-serif);
+  font-style: normal;
+  color: var(--ink-3);
+}
+
+.section__actions {
+  margin-top: var(--space-2xs);
+}
+
+.topics {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-sans);
+  font-size: 0.8125rem;
+  color: var(--ink-3);
+}
+
+.topics li:not(:last-child)::after {
+  content: '·';
+  margin: 0 0.55em;
+}
+
+.text-link {
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--spot-ink);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
+}
+
+.text-link:hover {
+  color: var(--spot-ink);
+}
+
+.text-button {
+  padding: 0;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+/* ── Music: the cards under the record crate ── */
+.music-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-lg);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.music-card {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2xs);
+  padding-top: var(--space-xs);
+  border-top: 1px solid var(--rule-card);
+}
+
+.music-card__eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--spot-ink);
+}
+
+.music-card__title {
+  font-family: var(--font-serif);
+  font-weight: 500;
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+.music-card__body {
+  font-family: var(--font-serif);
+  font-size: 1.0625rem;
+  line-height: 1.55;
+  color: var(--ink-2);
+}
+
+.music-card__link {
+  margin-top: var(--space-2xs);
+}
+
+@media (max-width: 639px) {
+  .music-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

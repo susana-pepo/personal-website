@@ -1,0 +1,875 @@
+/*
+ * Music: the deck, the record crate and the desk.
+ * Design study: docs/design-explorations/music/README.md (record-crate.html).
+ * Vermilion stays rare: the live dot, the "Start with" numeral, the play disc and focus rings.
+ */
+:root {
+  /* The room's record player, and the board under the record crate */
+  --walnut-board: linear-gradient(oklch(0.5 0.075 52), oklch(0.42 0.065 50) 40%, oklch(0.34 0.06 48));
+  --plinth: linear-gradient(165deg, oklch(0.6 0.11 58), oklch(0.5 0.1 50) 60%, oklch(0.45 0.09 48));
+  --vinyl: oklch(0.17 0.006 45);
+  --vinyl-groove: oklch(0.19 0.006 45);
+  --vinyl-deep: oklch(0.15 0.006 45);
+  --dur-flip: 340ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-flip: 1ms;
+  }
+}
+
+/* Shared head for both blocks: the heading, with a quiet line under it. */
+.music-head {
+  display: grid;
+  gap: var(--space-3xs);
+}
+
+.music-head__title {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-size: var(--text-lg);
+}
+
+.music-head__description {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+}
+
+/* ════════ The record (shared by the deck, the sleeves and the desk) ════════ */
+.vinyl__face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(circle, var(--vinyl-groove) 0 1px, var(--vinyl-deep) 1px 2.2px),
+    var(--vinyl);
+}
+
+/* The lead-out band and the run-in edge. */
+.vinyl__face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    transparent 0 37%,
+    oklch(0.13 0.006 45) 37% 40%,
+    transparent 40% 94%,
+    oklch(0.12 0.006 45) 94%
+  );
+}
+
+.vinyl__label {
+  position: absolute;
+  inset: 32%;
+  overflow: hidden;
+  border-radius: 50%;
+  background: var(--spot);
+}
+
+.vinyl__label > img,
+.vinyl__label > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Spindle hole */
+.vinyl__label::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 7%;
+  height: 7%;
+  min-width: 3px;
+  min-height: 3px;
+  border-radius: 50%;
+  background: oklch(0.85 0.01 80);
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 0 1px oklch(0.3 0.01 45 / 0.5);
+}
+
+/* The lamp's light on the vinyl. It sits on its own layer and never turns. */
+.vinyl__sheen {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  background: conic-gradient(
+    from 200deg,
+    transparent 0deg,
+    oklch(1 0 0 / 0.1) 25deg,
+    transparent 55deg,
+    transparent 180deg,
+    oklch(1 0 0 / 0.07) 205deg,
+    transparent 235deg
+  );
+  mix-blend-mode: screen;
+}
+
+@keyframes music-spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes music-spin-from {
+  from {
+    rotate: 48deg;
+  }
+  to {
+    rotate: 408deg;
+  }
+}
+
+/* ════════ 1. The deck: "What I'm listening to" ════════ */
+.deck {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.deck__track {
+  display: grid;
+  grid-template-columns: 9.5rem minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-md);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.deck__loading {
+  height: 7.25rem;
+  border-radius: 10px;
+  background: var(--card-shade);
+}
+
+/* The plinth: the painting's honey walnut, lit along its top edge. */
+.tt {
+  position: relative;
+  width: 9.5rem;
+  height: 7.25rem;
+  border-radius: 9px;
+  background:
+    repeating-linear-gradient(
+      92deg,
+      oklch(1 0 0 / 0) 0 7px,
+      oklch(1 0 0 / 0.035) 7px 8px,
+      oklch(0 0 0 / 0) 8px 15px,
+      oklch(0 0 0 / 0.04) 15px 16px
+    ),
+    var(--plinth);
+  box-shadow:
+    inset 0 1px 0 oklch(0.85 0.08 70 / 0.55),
+    inset 0 -2px 0 oklch(0.3 0.05 45 / 0.35),
+    0 1px 2px oklch(0.2 0.01 45 / 0.25),
+    0 14px 26px -14px oklch(0.2 0.03 45 / 0.6);
+}
+
+.tt__platter {
+  position: absolute;
+  left: 0.45rem;
+  top: 0.475rem;
+  width: 6.3rem;
+  height: 6.3rem;
+  border-radius: 50%;
+  background: oklch(0.32 0.01 60);
+  box-shadow:
+    inset 0 0 0 1px oklch(0.6 0.01 70 / 0.5),
+    0 2px 5px oklch(0.2 0.03 45 / 0.45);
+}
+
+.tt__platter .vinyl__sheen {
+  inset: 0.15rem;
+}
+
+.tt__record {
+  position: absolute;
+  inset: 0.15rem;
+  border-radius: 50%;
+  animation: music-spin 1.8s linear infinite; /* 33⅓ rpm */
+  animation-play-state: paused;
+}
+
+.tt[data-playing] .tt__record {
+  animation-play-state: running;
+}
+
+.tt__arm {
+  position: absolute;
+  left: calc(8.25rem - 8px);
+  top: calc(1.25rem - 8px);
+  width: 16px;
+  height: 84px;
+  overflow: visible;
+  transform-origin: 8px 8px;
+  rotate: 2deg;
+  transition: rotate 900ms var(--ease-in-out);
+  filter: drop-shadow(0 2px 1.5px oklch(0.2 0.03 45 / 0.45));
+}
+
+.tt[data-playing] .tt__arm {
+  rotate: 33deg;
+}
+
+.tt__knob {
+  position: absolute;
+  right: 1.55rem;
+  bottom: 0.55rem;
+  width: 0.55rem;
+  height: 0.55rem;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, oklch(0.96 0.005 80), oklch(0.72 0.01 70));
+  box-shadow: 0 1px 1.5px oklch(0.2 0.03 45 / 0.5);
+}
+
+.tt__knob--2 {
+  right: 0.7rem;
+}
+
+.deck__text {
+  min-width: 0;
+}
+
+.deck__status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.deck[data-state='live'] .deck__status {
+  color: var(--spot-ink);
+}
+
+.deck[data-state='live'] .deck__status::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.deck__title {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.35rem;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+}
+
+.deck__track:hover .deck__title {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: var(--spot-ink);
+  text-underline-offset: 0.2em;
+}
+
+.deck__artist {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: var(--font-sans);
+  color: var(--ink-2);
+  line-height: 1.4;
+}
+
+.deck__open {
+  display: block;
+  margin-top: 0.55rem;
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.deck__track:focus-visible {
+  outline: 2px solid var(--spot-ink);
+  outline-offset: 4px;
+  border-radius: 10px;
+}
+
+/* ════════ 2. The crate: sleeves standing on a walnut board ════════ */
+.crate-section {
+  position: relative; /* the flying sleeve is positioned against this */
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.25rem;
+  container-type: inline-size;
+}
+
+.crate {
+  --s: 8.25rem; /* sleeve size */
+  position: relative;
+  height: calc(var(--s) * 1.34);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+@container (max-width: 30rem) {
+  .crate {
+    --s: 6.5rem;
+  }
+}
+
+/* The board: 6px of walnut with a soft contact shadow. */
+.crate::after {
+  content: '';
+  position: absolute;
+  left: -0.5rem;
+  right: -0.5rem;
+  bottom: -6px;
+  height: 6px;
+  border-radius: 1px;
+  background: var(--walnut-board);
+  box-shadow: 0 6px 12px -6px oklch(0.2 0.03 45 / 0.55);
+}
+
+.crate > li {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--s);
+  height: calc(var(--s) * 1.34);
+  transform: translateX(var(--x, 0px));
+  transition: transform var(--dur-flip) var(--ease-out);
+}
+
+.sleeve {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.sleeve:focus-visible {
+  outline: none;
+}
+
+.sleeve__face,
+.sleeve__disc {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--s);
+  height: var(--s);
+}
+
+.sleeve__face {
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--card-shade);
+  /* Each sleeve throws a little shadow on the one behind it. */
+  box-shadow:
+    -7px 0 10px -7px oklch(0.15 0.02 45 / 0.55),
+    inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.25),
+    0 1px 1px oklch(0.2 0.01 45 / 0.2);
+  transition:
+    transform var(--dur-flip) var(--ease-out),
+    box-shadow var(--dur-flip) var(--ease-out);
+}
+
+.sleeve__face > img,
+.sleeve__face > svg,
+.desk__sleeve > img,
+.desk__sleeve > svg,
+.flight > img,
+.flight > svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  -webkit-user-drag: none;
+}
+
+/* Printed on uncoated board: a little tooth, and the faint ring a record leaves on its sleeve. */
+.sleeve__face::after,
+.desk__sleeve::after,
+.flight::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(circle at 50% 50%, transparent 0 44%, oklch(1 0 0 / 0.07) 45.5%, transparent 47.5%),
+    linear-gradient(180deg, oklch(1 0 0 / 0.12), transparent 22%),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .9 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  mix-blend-mode: soft-light;
+}
+
+.sleeve__disc {
+  border-radius: 50%;
+  scale: 0.94;
+  transition: transform var(--dur-flip) var(--ease-out);
+}
+
+/* Hover or focus: the sleeve rises a little and its record peeks out of the top. */
+.crate > li[data-active] .sleeve__face {
+  transform: translateY(-0.5rem);
+  box-shadow:
+    -9px 0 14px -8px oklch(0.15 0.02 45 / 0.6),
+    inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.25),
+    0 14px 22px -14px oklch(0.2 0.01 45 / 0.6);
+}
+
+.crate > li[data-active] .sleeve__disc {
+  transform: translateY(calc(var(--s) * -0.3));
+}
+
+.sleeve:focus-visible .sleeve__face {
+  outline: 2px solid var(--spot-ink);
+  outline-offset: 3px;
+}
+
+.sleeve:active .sleeve__face {
+  transform: translateY(-0.5rem) scale(0.98);
+}
+
+/* The one on the desk leaves its slot almost empty. */
+.crate > li[data-out] .sleeve__face {
+  transform: translateY(0.35rem);
+  box-shadow:
+    -7px 0 10px -7px oklch(0.15 0.02 45 / 0.3),
+    inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.18);
+}
+
+.crate > li[data-out] .sleeve__face > * {
+  opacity: 0;
+  transition: opacity var(--dur-soft) var(--ease-out);
+}
+
+.crate > li[data-out] .sleeve__disc {
+  opacity: 0;
+}
+
+.crate[data-instant] > li,
+.crate[data-instant] .sleeve__face,
+.crate[data-instant] .sleeve__disc {
+  transition: none;
+}
+
+.crate__caption {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2xs);
+  min-height: 1.5rem;
+  margin-top: 0.4rem;
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  color: var(--ink-3);
+  white-space: nowrap;
+}
+
+.crate__caption b {
+  overflow: hidden;
+  font-weight: 500;
+  color: var(--ink);
+  text-overflow: ellipsis;
+}
+
+.crate__caption > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ════════ 3. The desk: the record pulled out, with its liner notes ════════ */
+.desk-wrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-panel) var(--ease-drawer);
+}
+
+.desk-wrap[data-open] {
+  grid-template-rows: 1fr;
+}
+
+.desk {
+  display: grid;
+  gap: var(--space-xs);
+  min-height: 0;
+  overflow: hidden;
+}
+
+.desk-wrap[data-settled] .desk {
+  overflow: visible;
+}
+
+.desk__inner {
+  --sleeve-w: 11rem;
+  display: grid;
+  grid-template-columns: 16rem minmax(0, 1fr);
+  gap: 1.25rem 1.75rem;
+  align-items: start;
+  padding: 1.75rem 0 0.25rem;
+  border-top: 1px solid var(--rule-card);
+}
+
+.desk__object {
+  position: relative;
+  width: 16rem;
+  height: 11rem;
+}
+
+@container (max-width: 33rem) {
+  .desk__inner {
+    --sleeve-w: 10rem;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .desk__object {
+    width: 14.5rem;
+    height: 10rem;
+  }
+}
+
+.desk__vinyl {
+  position: absolute;
+  left: 0.25rem;
+  top: 0.25rem;
+  width: calc(var(--sleeve-w) - 0.5rem);
+  aspect-ratio: 1;
+  transition: transform 760ms var(--ease-out);
+}
+
+.desk__disc {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  box-shadow: 0 8px 18px -10px oklch(0.1 0.01 45 / 0.7);
+  rotate: 0deg;
+  transition: rotate 760ms var(--ease-out);
+}
+
+/* It rolls as it slides: 44% of its width is about 48° of turn. */
+.desk[data-out] .desk__vinyl {
+  transform: translateX(44%);
+}
+
+.desk[data-out] .desk__disc {
+  rotate: 48deg;
+}
+
+.desk[data-out] .desk__inner[data-turning] .desk__disc {
+  animation: music-spin-from 1.8s linear infinite;
+}
+
+.desk__sleeve {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--sleeve-w);
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--card-shade);
+  box-shadow:
+    inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.25),
+    0 2px 3px oklch(0.2 0.01 45 / 0.2),
+    0 22px 34px -20px oklch(0.2 0.01 45 / 0.65);
+}
+
+.desk__sleeve[data-hidden] {
+  visibility: hidden;
+}
+
+/* Liner notes settle in one after another once the record lands. */
+.desk__notes {
+  display: grid;
+  align-content: start;
+  min-width: 0;
+}
+
+.desk__notes > * {
+  opacity: 0;
+  translate: 0 6px;
+  transition:
+    opacity var(--dur-soft) var(--ease-out),
+    translate var(--dur-soft) var(--ease-out);
+}
+
+.desk[data-out] .desk__notes > * {
+  opacity: 1;
+  translate: 0 0;
+}
+
+.desk[data-out] .desk__notes > :nth-child(2) {
+  transition-delay: 40ms;
+}
+.desk[data-out] .desk__notes > :nth-child(3) {
+  transition-delay: 80ms;
+}
+.desk[data-out] .desk__notes > :nth-child(4) {
+  transition-delay: 120ms;
+}
+.desk[data-out] .desk__notes > :nth-child(5) {
+  transition-delay: 160ms;
+}
+.desk[data-out] .desk__notes > :nth-child(n + 6) {
+  transition-delay: 200ms;
+}
+
+.desk__kind {
+  font-family: var(--font-sans);
+  font-size: var(--text-xs);
+  color: var(--ink-3);
+}
+
+.desk__title {
+  margin-top: 0.3rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: 1.6rem;
+  line-height: 1.12;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.desk__artist {
+  margin-top: 0.25rem;
+  font-family: var(--font-sans);
+  color: var(--ink-2);
+}
+
+.desk__note {
+  max-width: 34ch;
+  margin-top: 0.9rem;
+  font-family: var(--font-sans);
+  line-height: 1.5;
+}
+
+.desk__facts {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.3rem var(--space-sm);
+  margin: var(--space-sm) 0 0;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--rule-card);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+}
+
+.desk__facts dt {
+  color: var(--ink-3);
+}
+
+.desk__facts dd {
+  margin: 0;
+  color: var(--ink);
+}
+
+.desk__num {
+  margin-right: 0.35em;
+  font-variant-numeric: tabular-nums;
+  color: var(--spot-ink);
+}
+
+.desk__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem 1.25rem;
+  margin-top: 1.25rem;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+}
+
+.desk__play {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-weight: 500;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.desk__play-disc {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  background: var(--spot-ink);
+  color: var(--card);
+  box-shadow: 0 4px 12px -2px oklch(0.4 0.12 36 / 0.45);
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+
+.desk__play:active .desk__play-disc {
+  transform: scale(0.94);
+}
+
+.desk__play-disc svg {
+  width: 0.95rem;
+  height: 0.95rem;
+}
+
+.desk__play:focus-visible {
+  outline: none;
+}
+
+.desk__play:focus-visible .desk__play-disc {
+  outline: 2px solid var(--spot-ink);
+  outline-offset: 3px;
+}
+
+/* Spotify's player: loaded only on request. */
+.desk__player {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows var(--dur-panel) var(--ease-drawer);
+}
+
+.desk__player[data-open] {
+  grid-template-rows: 1fr;
+}
+
+.desk__player > div {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.desk__embed {
+  display: block;
+  width: 100%;
+  margin-top: var(--space-xs);
+  border: 0;
+  border-radius: 12px;
+  background: var(--card-shade);
+}
+
+.desk__embed iframe {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 12px;
+}
+
+/* Development samples: a drawing in place of the real player. */
+.desk__stand-in {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: center;
+  height: 152px;
+  margin-top: var(--space-xs);
+  padding: var(--space-sm);
+  border-radius: 12px;
+  background: color-mix(in oklch, var(--player-tint, oklch(0.42 0.07 50)) 55%, oklch(0.2 0.01 45));
+  font-family: var(--font-sans);
+  color: oklch(0.97 0.005 80);
+}
+
+.desk__stand-in-art {
+  width: 7rem;
+  height: 7rem;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.desk__stand-in-art > svg,
+.desk__stand-in-art > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.desk__stand-in-title {
+  font-weight: 600;
+}
+
+.desk__stand-in-artist {
+  font-size: var(--text-sm);
+  opacity: 0.75;
+}
+
+.desk__stand-in-bar {
+  height: 3px;
+  margin-top: var(--space-sm);
+  overflow: hidden;
+  border-radius: 2px;
+  background: oklch(1 0 0 / 0.25);
+}
+
+.desk__stand-in-bar i {
+  display: block;
+  width: 28%;
+  height: 100%;
+  background: oklch(1 0 0 / 0.85);
+}
+
+/* The copy of a sleeve flying between the crate and the desk. */
+.flight {
+  position: absolute;
+  z-index: 50;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--card-shade);
+  pointer-events: none;
+  transform-origin: 0 0;
+  box-shadow:
+    inset 0 0 0 0.5px oklch(0.2 0.01 45 / 0.25),
+    0 24px 40px -18px oklch(0.2 0.01 45 / 0.6);
+}
+
+/* ════════ Small screens ════════ */
+@media (max-width: 639px) {
+  .deck__track {
+    grid-template-columns: 8rem minmax(0, 1fr);
+    gap: var(--space-sm);
+  }
+
+  .tt {
+    scale: 0.84;
+    transform-origin: 0 50%;
+  }
+}
+
+/* ════════ Reduced motion: every state stays, nothing travels ════════ */
+@media (prefers-reduced-motion: reduce) {
+  .tt__record,
+  .desk[data-out] .desk__inner[data-turning] .desk__disc {
+    animation: none;
+  }
+
+  .tt__arm,
+  .desk__vinyl,
+  .desk__disc,
+  .desk-wrap,
+  .desk__player,
+  .crate > li,
+  .sleeve__face,
+  .sleeve__disc {
+    transition: none;
+  }
+
+  /* Notes fade in place. */
+  .desk__notes > * {
+    translate: none;
+    transition: opacity var(--dur-soft) var(--ease-out);
+  }
+
+  .desk[data-out] .desk__notes > * {
+    transition-delay: 0ms;
+  }
+}

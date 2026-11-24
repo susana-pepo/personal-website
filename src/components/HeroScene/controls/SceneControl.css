@@ -1,0 +1,249 @@
+/*
+ * The scene control (time of day and weather), at the far right of the
+ * masthead: a quiet caption and two small pills in the same glass as the player
+ * (the --glass-* tokens are set on .masthead and .credits; fallbacks keep it
+ * whole anywhere else). Each option's name is a tooltip (above it by default,
+ * below it in the masthead: see Masthead.css).
+ */
+.time-control {
+  /* one option's box (slot wide, opt tall); the highlight slides by whole slots */
+  --opt: 2rem;
+  --slot: var(--opt);
+  --pad: 3px;
+  --thumb-inset: 0px;
+  --ease-time: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur-time: 420ms;
+  display: grid;
+  justify-items: end;
+  gap: 0.4rem;
+  font-family: var(--font-sans);
+}
+
+/*
+ * Fingers: each option is 44 px wide and the pill a slimmer 36 px; a clear
+ * margin above and below each option (see ::after) makes every target 44 × 44.
+ */
+@media (any-pointer: coarse) {
+  .time-control {
+    --opt: 36px;
+    --slot: 44px;
+    --pad: 0px;
+    --thumb-inset: 4px;
+  }
+
+  .time-control__option::after {
+    content: '';
+    position: absolute;
+    inset: -4px 0;
+  }
+}
+
+/* "Scene": small, spaced capitals, like a caption in a gallery. */
+.time-control__caption {
+  padding-inline: 0.15rem;
+  font-size: 0.625rem;
+  font-weight: 500;
+  line-height: 1;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--on-sleeve-3);
+}
+
+.time-control__row {
+  display: flex;
+  gap: 0.45rem;
+}
+
+/* Each choice is its own pill of glass; its highlight slides within it. */
+.time-control__group {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  padding: var(--pad);
+  border-radius: 999px;
+  background: var(
+    --glass-fill,
+    linear-gradient(150deg, oklch(1 0 0 / 0.11), oklch(1 0 0 / 0.035) 55%, oklch(1 0 0 / 0.06))
+  );
+  backdrop-filter: var(--glass-blur, blur(22px) saturate(170%));
+  -webkit-backdrop-filter: var(--glass-blur, blur(22px) saturate(170%));
+  box-shadow: var(
+    --glass-shadow,
+    inset 0 1px 0.5px oklch(1 0 0 / 0.32),
+    inset 0 -1px 0.5px oklch(1 0 0 / 0.07),
+    0 14px 34px -14px oklch(0.05 0.01 45 / 0.85),
+    0 2px 6px -2px oklch(0.05 0.01 45 / 0.5)
+  );
+}
+
+/* The same liquid rim as the player, brightest where the light catches the top-left edge. */
+.time-control__group::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  padding: 1px;
+  border-radius: inherit;
+  background: var(
+    --glass-rim,
+    linear-gradient(140deg, oklch(1 0 0 / 0.55), oklch(1 0 0 / 0.08) 38%, oklch(1 0 0 / 0.04) 62%, oklch(1 0 0 / 0.28))
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* The chosen option: a smaller drop of glass that glides between the options. */
+.time-control__thumb {
+  position: absolute;
+  z-index: -1;
+  top: calc(var(--pad) + var(--thumb-inset));
+  left: calc(var(--pad) + var(--thumb-inset));
+  width: calc(var(--slot) - 2 * var(--thumb-inset));
+  height: calc(var(--opt) - 2 * var(--thumb-inset));
+  border-radius: 999px;
+  background: oklch(1 0 0 / 0.14);
+  box-shadow:
+    inset 0 1px 0.5px oklch(1 0 0 / 0.35),
+    0 4px 10px -4px oklch(0.05 0.01 45 / 0.6);
+  transform: translateX(calc(var(--index, 0) * var(--slot)));
+  transition: transform var(--dur-time) var(--ease-time);
+  will-change: transform;
+  pointer-events: none;
+}
+
+.time-control__option {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: var(--slot);
+  height: var(--opt);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--on-sleeve);
+  opacity: 0.55;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    opacity var(--dur-time) var(--ease-time),
+    transform 160ms var(--ease-out);
+}
+
+.time-control__option[data-checked] {
+  opacity: 1;
+  cursor: default;
+}
+
+.time-control__option:active {
+  transform: scale(0.94);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .time-control__option:not([data-checked]):hover {
+    opacity: 0.88;
+  }
+}
+
+/* Keyboard focus: the site's vermilion ring, drawn just inside the pill's curve. */
+.time-control__option:focus-visible {
+  outline: 1.5px solid var(--spot);
+  outline-offset: -2px;
+  border-radius: 999px;
+}
+
+.time-control__icon {
+  width: calc(var(--opt) * 0.5);
+  height: calc(var(--opt) * 0.5);
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  overflow: visible;
+  transition: transform var(--dur-time) var(--ease-time);
+}
+
+.time-control__option[data-checked] .time-control__icon {
+  transform: scale(1.06);
+}
+
+/* The option's name: a tiny glass tooltip above it, on hover, keyboard focus, or just after a tap. */
+.time-control__tip {
+  position: absolute;
+  bottom: calc(100% + 0.55rem);
+  left: 50%;
+  z-index: 3;
+  padding: 0.3em 0.65em 0.32em;
+  font-size: 0.6875rem;
+  font-weight: 450;
+  line-height: 1.1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  color: var(--on-sleeve);
+  border-radius: 999px;
+  background: oklch(0.2 0.012 50 / 0.72);
+  backdrop-filter: blur(12px) saturate(150%);
+  -webkit-backdrop-filter: blur(12px) saturate(150%);
+  box-shadow:
+    inset 0 1px 0.5px oklch(1 0 0 / 0.16),
+    0 6px 14px -6px oklch(0.05 0.01 45 / 0.7);
+  opacity: 0;
+  transform: translate(-50%, 3px);
+  transition:
+    opacity 200ms var(--ease-out),
+    transform 240ms var(--ease-time);
+  pointer-events: none;
+}
+
+.time-control__option[data-tapped] .time-control__tip,
+.time-control__option:focus-visible .time-control__tip {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .time-control__option:hover .time-control__tip {
+    opacity: 1;
+    transform: translate(-50%, 0);
+    transition-delay: 120ms;
+  }
+}
+
+/* Without backdrop blur, a denser pane keeps the hairlines readable. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .time-control__group {
+    background: oklch(0.24 0.012 50 / 0.92);
+  }
+
+  .time-control__tip {
+    background: oklch(0.2 0.015 50 / 0.92);
+  }
+}
+
+/* Reduced motion: the highlight moves at once; only quick fades remain. */
+@media (prefers-reduced-motion: reduce) {
+  .time-control__thumb,
+  .time-control__icon,
+  .time-control__option {
+    transition: none;
+  }
+
+  .time-control__option:active,
+  .time-control__option[data-checked] .time-control__icon {
+    transform: none;
+  }
+
+  .time-control__tip,
+  .time-control__option:hover .time-control__tip,
+  .time-control__option:focus-visible .time-control__tip,
+  .time-control__option[data-tapped] .time-control__tip {
+    transform: translate(-50%, 0);
+    transition: opacity 120ms linear;
+  }
+}

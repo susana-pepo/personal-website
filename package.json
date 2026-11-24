@@ -1,0 +1,40 @@
+{
+  "name": "susana-perez-portfolio",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "engines": {
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -b",
+    "test": "vitest run",
+    "spotify:auth": "node scripts/spotify-auth.mjs",
+    "hotspots:preview": "python3 scripts/preview-hotspots.py",
+    "scene:trace": "python3 scripts/trace-overlays.py",
+    "scene:glows": "python3 scripts/build-glows.py",
+    "scene:cat": "python3 scripts/build-cat.py",
+    "scene:woman": "python3 scripts/build-woman.py",
+    "scene:coffee": "python3 scripts/build-coffee.py",
+    "scene:window": "python3 scripts/build-window-layers.py",
+    "scene:windows": "python3 scripts/build-window-views.py"
+  },
+  "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource-variable/newsreader": "^5.3.0",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.3.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.1"
+  }
+}
