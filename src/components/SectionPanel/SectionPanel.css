@@ -572,7 +572,8 @@ html:has(.panel[open]) {
 
   .panel__tabs ul {
     --tab-gap: var(--space-sm);
-    padding-inline-end: 2.5rem;
+    /* room at the end for the fade, so any tab can rest whole at a tab's edge (tabRowScroll) */
+    padding-inline-end: 4rem;
   }
 
   /* "Close" becomes just the ×, still named for assistive tech. */

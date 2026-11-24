@@ -136,3 +136,21 @@ The room was about 366×206 at 390. On a touch phone held upright it's now talle
 - Work: the folded file list on phones and the tablet frame at 768 and 1024 both work. Opening a file unfolds it in place.
 - The panel tab row scrolls sideways on phones, with a fade at the end, and the current tab is scrolled into view.
 - Reduced motion: every fix here is layout only. The one scroll added is instant when reduced motion is on.
+
+## Final check (24 November, after the swipeable phone room)
+Checked at 360, 375, 390, 430, 768×1024, 1024×768, 1280, 1440, 1920, 844×390 and 667×375: the room, every section, and the open states. No page scrolls sideways at any size.
+
+### Fixed
+- **The room's arrows were too heavy.** They were 36px dark discs, about a tenth of the room's width, sitting on her hair and the window. They're now 30px, about a twelfth, in lighter glass, with a smaller icon. The tap target is still 44px.
+- **On phones the player didn't line up with the room.** It was 320px under a 366px room, and its left edge was a few pixels in. It now runs edge to edge under the room at every phone width.
+- **The panel's tab row cut a word in half at its left edge** ("'ork", "ience"). It used to centre the current tab. Now it rests on a tab's own edge, showing the tab before the current one (`tabRowScroll` in `folio.ts`, with tests). The row has a little more room at its end, so even Contact at 360 rests cleanly.
+
+### Looked at and fine
+- Balance on tall phones: the masthead, room and player sit centred as one block, with the player in thumb reach.
+- Landscape phones: the masthead is one row at 800px and wider, and the room fills the height beneath it.
+- Tablet and desktop: unchanged and balanced. The 768 portrait room still has wide bands above and below, which is the price of its width.
+- The mug in the phone room: a pale box seemed to show around it in a compressed screenshot. At 3× it's only the mug's normal soft glow.
+
+### Still open
+- On a phone, the panel's first screen spends about 280px on the number, the display title and the rule before any content. It's elegant, but a smaller phone title (for example, the short-screen size) would show content sooner. That's a design decision for Susana.
+- The Experience middle spines (39 to 43px) and the small editorial captions are as noted above.

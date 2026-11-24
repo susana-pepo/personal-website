@@ -18,6 +18,7 @@ import { animationMs, prefersReducedMotion } from '../../lib/motion'
 import { sectionComponent } from '../sections/registry'
 import {
   inkTransform,
+  tabRowScroll,
   pad,
   readDuration,
   readingProgress,
@@ -196,10 +197,19 @@ export function SectionPanel({ section }: SectionPanelProps) {
       void ink.getBoundingClientRect()
       ink.style.transition = ''
     }
-    // Bring the current tab into view in the sideways-scrolling row.
+    // Bring the current tab into view in the sideways-scrolling row, starting at a tab's edge.
     const nav = navRef.current
     if (nav && nav.scrollWidth > nav.clientWidth) {
-      nav.scrollTo({ left: tab.offsetLeft - (nav.clientWidth - tab.offsetWidth) / 2, behavior: instant ? 'auto' : 'smooth' })
+      const links = Array.from(tabsRef.current?.querySelectorAll<HTMLElement>('a') ?? [])
+      const faded = getComputedStyle(nav).maskImage !== 'none' ? nav.clientWidth * 0.2 : 0
+      const left = tabRowScroll(
+        links.map((a) => ({ left: a.offsetLeft, width: a.offsetWidth })),
+        links.indexOf(tab),
+        nav.clientWidth,
+        nav.scrollWidth - nav.clientWidth,
+        faded,
+      )
+      nav.scrollTo({ left, behavior: instant ? 'auto' : 'smooth' })
     }
   }, [])
 

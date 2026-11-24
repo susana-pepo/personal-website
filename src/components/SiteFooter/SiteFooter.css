@@ -926,11 +926,18 @@ a.player__title:hover {
       'copy';
     row-gap: var(--space-md);
     /* the copyright line stays clear of the home indicator */
-    padding: var(--space-md) var(--gutter) calc(var(--space-lg) + env(safe-area-inset-bottom));
+    /* the same side margin as the room (App.css), so the player lines up under it */
+    padding: var(--space-md) 0.75rem calc(var(--space-lg) + env(safe-area-inset-bottom));
   }
 
+  /* as wide as the room above it, edge to edge */
   .player-dock {
-    justify-self: start;
+    justify-self: stretch;
+    width: auto;
+  }
+
+  .player-dock > .player {
+    width: 100%;
   }
 
   .credits__copy {

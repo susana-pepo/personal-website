@@ -65,3 +65,32 @@ export function readDuration(value: string, fallback: number): number {
   if (Number.isNaN(n)) return fallback
   return v.endsWith('ms') ? n : v.endsWith('s') ? n * 1000 : n
 }
+
+/**
+ * Where the sideways-scrolling tab row should rest so the current tab shows whole. It starts at a
+ * tab's own edge, never halfway through a word: the tab before the current one when it fits (so
+ * you can see where you came from), otherwise the furthest edge that still shows it. `endFade` is
+ * the width the row fades out over at its right, which doesn't count as showing.
+ */
+export function tabRowScroll(
+  tabs: readonly { left: number; width: number }[],
+  current: number,
+  viewport: number,
+  maxScroll: number,
+  endFade = 0,
+): number {
+  const tab = tabs[current]
+  if (!tab) return 0
+  const right = tab.left + tab.width
+  // (2px of leeway: sub-pixel rounding shouldn't decide between two tabs)
+  const ok = (k: number, fade: number) => {
+    const start = tabs[k]?.left
+    return start !== undefined && start <= maxScroll && right <= start + viewport - fade + 2
+  }
+  if (ok(current - 1, endFade)) return tabs[current - 1]!.left
+  // At the end of the row the fade can't be cleared: a tab partly in it still beats one cut in two.
+  for (const fade of [endFade, 0]) {
+    for (let k = current; k >= 0; k--) if (ok(k, fade)) return tabs[k]!.left
+  }
+  return Math.min(Math.max(tab.left, 0), maxScroll)
+}

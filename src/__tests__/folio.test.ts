@@ -8,6 +8,7 @@ import {
   readDuration,
   readingProgress,
   tabIndexForKey,
+  tabRowScroll,
   turnDirection,
 } from '../components/SectionPanel/folio'
 
@@ -80,5 +81,35 @@ describe('small helpers', () => {
     expect(readDuration(' 0.12s', 0)).toBe(120)
     expect(readDuration('', 240)).toBe(240)
     expect(readDuration('fast', 240)).toBe(240)
+  })
+})
+
+describe('tabRowScroll', () => {
+  // Six tabs 60px wide with 16px between them, in a 200px window: the row is 446px, so 246px of scroll.
+  const tabs = Array.from({ length: 6 }, (_, i) => ({ left: i * 76, width: 60 }))
+  const max = 6 * 76 - 16 - 200
+
+  it('rests on the tab before the current one, at its edge', () => {
+    expect(tabRowScroll(tabs, 0, 200, max)).toBe(0)
+    expect(tabRowScroll(tabs, 2, 200, max)).toBe(76)
+    expect(tabRowScroll(tabs, 3, 200, max)).toBe(152)
+  })
+
+  it('near the end, takes the furthest edge that still shows the current tab, or the very end', () => {
+    // the tab before the last starts past the end of the scroll; no edge shows the last tab whole
+    expect(tabRowScroll(tabs, 5, 200, max)).toBe(max)
+    // with room at the row's end (a phone's trailing padding), it rests on an edge again
+    expect(tabRowScroll(tabs, 5, 200, max + 70)).toBe(304)
+  })
+
+  it('treats the faded end as hidden', () => {
+    expect(tabRowScroll(tabs, 3, 200, max)).toBe(152)
+    // with 80px faded, tab 3 would sit in the fade behind tab 2, so it leads itself
+    expect(tabRowScroll(tabs, 3, 200, max, 80)).toBe(228)
+  })
+
+  it('at the end of the row, lets the last tab sit in the fade rather than cut a tab in two', () => {
+    // no edge clears an 80px fade for the last tab; ignoring it, the edge of tab 4 shows it whole
+    expect(tabRowScroll(tabs, 5, 200, max + 70, 80)).toBe(304)
   })
 })
