@@ -437,9 +437,45 @@ const COME_MS = 1100
  * Handing over between the piano on the shelf (in the room's light) and its copy in the air (in full
  * light): the same picture at the same place, so they cross over as a change of light, never a swap.
  */
-const HANDOFF_MS = 220
+const HANDOFF_MS = 140
+/** The real piano lifts itself off the wood (in the room, in its light) before anything else happens, and sets itself down last. */
+const LIFT_MS = 300
 const shelfPiano = () => document.querySelector<HTMLElement>('.scene-object--piano')
 const lend = (lent: boolean) => shelfPiano()?.toggleAttribute('data-lent', lent)
+const lift = (up: boolean) => shelfPiano()?.toggleAttribute('data-lift', up)
+/**
+ * The room's own light where the shelf piano is: its evening shading, and at night its cool layer
+ * too (HeroScene.css: .room-mood, .time-light--night, both multiplied over the room), so its copy
+ * in the air can start in exactly that light and brighten as it comes away.
+ */
+type Glow = { at: [number, number]; size: [number, number]; stops: [number, [number, number, number]][] }
+const MOOD: Glow = { at: [0.54, 0.52], size: [0.46, 0.6], stops: [[0, [255, 250, 244]], [0.3, [238, 220, 206]], [0.62, [196, 166, 156]], [0.86, [150, 120, 124]], [1, [122, 96, 108]]] }
+const NIGHT: Glow = { at: [0.54, 0.52], size: [0.6, 0.75], stops: [[0, [243, 244, 252]], [0.55, [205, 207, 229]], [1, [164, 168, 203]]] }
+function glowAt({ at, size, stops }: Glow, x: number, y: number) {
+  const r = Math.hypot((x - at[0]) / size[0], (y - at[1]) / size[1])
+  let i = 1
+  while (i < stops.length - 1 && stops[i]![0] < r) i++
+  const [r0, c0] = stops[i - 1]!
+  const [r1, c1] = stops[i]!
+  const k = Math.max(0, Math.min(1, (r - r0) / (r1 - r0 || 1)))
+  return c0.map((v, j) => (v + (c1[j]! - v) * k) / 255)
+}
+const LAMP_LIFT = [1.23, 1.32, 1.1]
+function roomLight() {
+  const room = document.querySelector('.room-mood')?.getBoundingClientRect()
+  const piano = shelfPiano()?.getBoundingClientRect()
+  if (!room || !piano || !room.width) return 'rgb(255 255 255)'
+  const x = (piano.left + piano.width / 2 - room.left) / room.width
+  const y = (piano.top + piano.height / 2 - room.top) / room.height
+  let c = glowAt(MOOD, x, y)
+  const night = document.querySelector('.time-light--night')
+  const nightK = night ? Number(getComputedStyle(night).opacity) || 0 : 0
+  if (nightK > 0) c = c.map((v, j) => v * (1 - nightK + nightK * glowAt(NIGHT, x, y)[j]!))
+  // ...and the lamp's warm light (an overlay over the room, not worth modelling): measured against
+  // the real piano on the shelf, it lifts the shading this much, most in green, least in blue
+  c = c.map((v, j) => Math.min(1, v * LAMP_LIFT[j]!))
+  return `rgb(${c.map((v) => Math.round(v * 255)).join(' ')})`
+}
 const GO_MS = 750
 /** How long its controls take to step aside before it goes back to the shelf. */
 const GO_AFTER_MS = 120
@@ -451,15 +487,15 @@ const SHELF_TURN = 20 // degrees: the shelf picture's angle (its right side furt
  * Its journey from the shelf to you, as keyframes along an arc: it rises off the shelf first (as if
  * picked up), then turns down at the top of its curve and glides to the middle and settles, growing
  * as it comes. Sampled finely so the path is a true curve; the animation's one easing paces it.
- * Also says where it takes the curve (swapAt: the top of the arc), for the pictures' swap.
+ * Also says where the pictures change places (swapAt: mid-flight).
  */
 function journey({ dx, dy, scale, height }: Place) {
   const rise = Math.max(height * 0.6, window.innerHeight * 0.06) // how far above the straight path it arcs
   const cx = dx * 0.55 // the arc's control point: past the start, above both ends
   const cy = Math.min(dy, 0) - rise
-  // the top of the curve: where it stops rising and turns down towards you (dy/dt = 0)
-  const apex = (dy - cy) / (dy - 2 * cy)
-  const swapAt = Math.min(0.75, Math.max(0.25, Number.isFinite(apex) ? apex : 0.42))
+  // where the two pictures change places: in the middle of the flight, at full speed, far from the
+  // shelf at both ends (on a wide screen the arc's top comes right after take-off: too close)
+  const swapAt = 0.48
   const path = Array.from({ length: 25 }, (_, i) => {
     const t = i / 24
     const u = 1 - t
@@ -475,7 +511,7 @@ const SHADOW_ON_SHELF = 'drop-shadow(0 0.15rem 0.25rem oklch(0.08 0.01 45 / 0.55
 const SHADOW_IN_AIR = 'drop-shadow(0 1.5rem 2.5rem oklch(0.08 0.01 45 / 0.45))'
 /**
  * The shelf's three-quarter picture flies out as itself, and gives way to the front-on close-up in a
- * blink exactly where it takes the curve (the top of its arc, swapAt), under a touch of motion blur;
+ * blink in the middle of its flight (swapAt), at full speed, under a touch of motion blur;
  * from there the close-up turns the rest of the way to face you as it comes down to land. Two
  * different pictures never dissolve slowly: that shows as a ghost.
  */
@@ -504,6 +540,8 @@ function swap(swapAt: number) {
     ],
   }
 }
+/** The room's light on the shelf picture: a tint over the picture alone (its own outline as the mask). */
+const FROM_LIGHT: CSSProperties = { maskImage: `url(${PIANO.src})`, WebkitMaskImage: `url(${PIANO.src})` }
 const FROM_STYLE: CSSProperties = {
   // the shelf picture at the close-up's height, centred (it's the wider of the two)
   width: `${(PIANO.width / PIANO.height / (W / H)) * 100}%`,
@@ -552,6 +590,10 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     const from = node.querySelector('.piano-close__from')
     const { path, swapAt } = journey(place)
     const { turn, blur, facing } = swap(swapAt)
+    // the copy starts in the room's light, exactly as the piano on the shelf looks, and comes into
+    // full light as it rises (before it turns to face you)
+    const light = node.querySelector<HTMLElement>('.piano-close__from-light')
+    if (light) light.style.background = roomLight()
     const moves = [
       node.animate(path, timing),
       node.animate([{ filter: SHADOW_ON_SHELF }, { filter: SHADOW_IN_AIR }], timing),
@@ -560,6 +602,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
       from?.animate(blur, timing),
       body?.animate(blur, timing),
       body?.animate(facing, timing),
+      light?.animate([{ opacity: 1, offset: 0 }, { opacity: 0, offset: Math.max(0.1, swapAt - 0.06) }], timing),
     ]
     if (!back && from) {
       // its copy fades in over the piano on the shelf, which then steps out of the room
@@ -577,28 +620,25 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     if (!open || !box || !node || box.open) return
     box.showModal()
     keysRef.current?.focus({ preventScroll: true })
-    const from = reducedMotion ? null : fromShelf()
-    // it waits on the shelf, looking just like the piano there, until its picture is decoded
+    // the real piano lifts itself off the wood first, in the room; its copy waits unseen until
+    // that's done and its own picture is decoded, then takes over in the air, at the same place
     const body = node.querySelector<HTMLElement>('.piano-close__body')
     const shelfPicture = node.querySelector<HTMLElement>('.piano-close__from')
-    if (from) {
-      node.style.transform = `translate(${from.dx}px, ${from.dy}px) scale(${from.scale})`
-      if (body) body.style.opacity = '0'
-      if (shelfPicture) shelfPicture.style.opacity = '0' // (it fades in over the shelf piano: travel)
-    }
+    if (body) body.style.opacity = '0'
+    if (shelfPicture) shelfPicture.style.opacity = '0'
+    if (!reducedMotion) lift(true)
     let live = true
     const art = node.querySelector('img')
-    void (art?.decode?.() ?? Promise.resolve())
-      .catch(() => {})
-      .then(() => {
-        if (!live) return
-        node.style.transform = ''
-        setState('open')
-        if (from) travel(from, false)
-        else lend(true) // (no journey: it simply steps out of the room)
-        if (body) body.style.opacity = ''
-        if (shelfPicture) shelfPicture.style.opacity = ''
-      })
+    const lifted = new Promise((done) => window.setTimeout(done, reducedMotion ? 0 : LIFT_MS))
+    void Promise.all([(art?.decode?.() ?? Promise.resolve()).catch(() => {}), lifted]).then(() => {
+      if (!live) return
+      const from = reducedMotion ? null : fromShelf()
+      setState('open')
+      if (from) travel(from, false)
+      else lend(true) // (no journey: it simply steps out of the room)
+      if (body) body.style.opacity = ''
+      if (shelfPicture) shelfPicture.style.opacity = ''
+    })
     return () => {
       live = false
     }
@@ -616,6 +656,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
       if (done) return
       done = true
       lend(false)
+      lift(false) // the real piano sets itself down on the wood
       box.close()
       setState('closed')
       onClosed()
@@ -625,11 +666,13 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     const going = travel(to, true)
     if (!going) return finish()
     // (and never later than it should be: a tab in the background barely runs animations)
+    lift(true) // (the real piano waits in the air above the shelf, unseen, to be handed back)
     const late = window.setTimeout(finish, GO_AFTER_MS + GO_MS + HANDOFF_MS + 250)
     void going.finished
       .catch(() => {})
       .then(() => {
-        // landed on the shelf: the shelf piano comes back under it, and its copy fades away
+        // back above the shelf, still in the air: the real piano comes back under it, its copy fades
+        // away, then the real one sets itself down (finish)
         lend(false)
         const from = stage.current?.querySelector('.piano-close__from')
         const fade = from?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: HANDOFF_MS, easing: 'ease-in', fill: 'forwards' })
@@ -836,7 +879,10 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
             </svg>
             </div>
             {/* the shelf's picture, for the moment it turns to face you */}
-            <img className="piano-close__from" src={PIANO.src} alt="" style={FROM_STYLE} draggable={false} aria-hidden="true" />
+            <span className="piano-close__from" style={FROM_STYLE} aria-hidden="true">
+              <img src={PIANO.src} alt="" draggable={false} />
+              <span className="piano-close__from-light" style={FROM_LIGHT} />
+            </span>
           </div>
 
           {/* what to play over: the landscape on the screen and the loop, each stepped through with its arrows */}
