@@ -53,10 +53,10 @@ export function SiteFooter(_props: SiteFooterProps) {
       : radio.status === 'done'
         ? 'Take a breath'
         : radio.status === 'paused'
-          ? 'Paused'
+          ? 'Paused · lo-fi beats'
           : on
-            ? `Focusing${withRain ? ' · rain on' : ''}`
-            : `25 min · lo-fi${radio.raining && radio.rainOn ? ' and rain' : ''}`
+            ? `Lo-fi beats${withRain ? ' · rain on' : ''}`
+            : `Lo-fi beats${radio.raining && radio.rainOn ? ' and rain' : ''} · 25 min`
 
   return (
     <div className="credits">
@@ -86,21 +86,29 @@ export function SiteFooter(_props: SiteFooterProps) {
               <path className="player__wave-far" d="M1 23.5q-2.5 4.5 0 9" />
               <path className="player__wave-far" d="M39 23.5q2.5 4.5 0 9" />
             </g>
+            {/* a music note between the ear cups: it's music, not a call */}
+            <path className="player__note" d="M21.5 28V20l3-1" />
+            <circle className="player__note-head" cx="19.8" cy="28.3" r="1.8" />
           </svg>
         </span>
 
         <p className="player__title">
-          {inSession ? (
-            <span ref={leftRef} className="player__left">
+          <span className="player__name">{radio.status === 'done' ? 'Nice focus' : 'Focus with me'}</span>
+          {inSession && (
+            <span ref={leftRef} className="player__left" title="Time left in this session">
               {clock(focusLeft(roomRadio().focus().elapsed))}
             </span>
-          ) : radio.status === 'done' ? (
-            'Nice focus'
-          ) : (
-            'Focus with me'
           )}
         </p>
         <p className="player__meta" aria-live="polite">
+          {on && (
+            <span className="player__eq" aria-hidden="true">
+              <i />
+              <i />
+              <i />
+              <i />
+            </span>
+          )}
           {meta}
         </p>
 
