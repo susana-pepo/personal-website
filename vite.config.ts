@@ -43,10 +43,43 @@ function nowPlayingDevRoute(mode: string): Plugin {
   }
 }
 
+/**
+ * Where the site is served from. '/' everywhere except GitHub Pages, which serves this
+ * repository at /personal-website/ (the workflow in .github/workflows/pages.yml sets
+ * SITE_BASE). Vite already prefixes the paths it bundles, in CSS and in index.html's tags.
+ */
+const BASE = process.env.SITE_BASE ?? '/'
+
+/**
+ * The room's pictures and clips are referred to by root paths written as plain strings
+ * ('/media/scene/…' in scene-layout.json, layout.ts, content.ts and index.html's early
+ * preload script), which Vite doesn't rewrite. When the site lives under a sub-path, this
+ * prefixes them at build time, so the source keeps one simple form of path.
+ */
+function subPathMedia(base: string): Plugin {
+  const prefix = (code: string) => code.replace(/(['"`])\/(media|cv)\//g, `$1${base}$2/`)
+  return {
+    name: 'sub-path-media',
+    apply: 'build',
+    enforce: 'post',
+    transform(code, id) {
+      if (base === '/' || id.includes('node_modules') || !/\.(ts|tsx|js|jsx|json)$/.test(id.split('?')[0]!)) return null
+      const next = prefix(code)
+      return next === code ? null : { code: next, map: null }
+    },
+    // after Vite's own rewrite of the page's tags, so nothing is prefixed twice
+    transformIndexHtml: {
+      order: 'post',
+      handler: (html) => (base === '/' ? html : prefix(html)),
+    },
+  }
+}
+
 export default defineConfig(({ mode }) => ({
-  plugins: [react(), nowPlayingDevRoute(mode)],
+  base: BASE,
+  plugins: [react(), nowPlayingDevRoute(mode), subPathMedia(BASE)],
   define: {
-    __CV_PATH__: JSON.stringify(hasCv ? `/${CV_PUBLIC_PATH}` : ''),
+    __CV_PATH__: JSON.stringify(hasCv ? `${BASE}${CV_PUBLIC_PATH}` : ''),
   },
   test: {
     environment: 'node',
