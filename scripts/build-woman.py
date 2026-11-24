@@ -595,7 +595,7 @@ def _neck_paint(a, m):
             # a short soft shadow right under the jaw, then skin close to the face's own tone
             shade[y, x] = hi - (hi - lo) * np.exp(-max(0, y - ytop) / 9)
             if front - 1.6 < x <= front + 1:  # the drawing's thin warm outline along the throat
-                shade[y, x] *= 0.78
+                shade[y, x] *= 0.86
     fill = cv2.GaussianBlur(fill, (0, 0), 0.8)
     shade = cv2.GaussianBlur(shade, (0, 0), 1.0)
     neck = m['tone'][None, None, :] * np.where(shade > 0, shade, 1)[..., None]
@@ -656,10 +656,39 @@ def _neck_paint(a, m):
     return np.clip(a, 0, 255).round().astype(np.uint8)
 
 
-def paint_neck_seq(frames):
+def throat_keep(shape, m):
+    """The throat's line, from under the jaw to just past where it meets the collar, as a soft 0-1
+    mask. The edge clean-up must leave it alone: it took the collar's last pixels for leftovers of
+    the old background and repainted them in the sweater's blue, a small grey nub at the throat."""
+    H, W = shape[:2]
+    keep = np.zeros((H, W), np.float32)
+    if m['jy'] <= 0:
+        return keep
+    x0, x1 = NECK_X
+    top_x, jy, col = m['top_x'], m['jy'], m['col']
+    y_meet = None  # where the throat's line reaches the collar
+    for y in range(int(jy), min(H, NECK_Y[1] + 120)):
+        i = int(round(top_x + (y - jy) * THROAT_LEAN)) - x0
+        if 0 <= i < len(col) and col[i] >= 0 and y >= col[i]:
+            y_meet = y
+            break
+    if y_meet is None:
+        return keep
+    y0, y1 = int(jy) + 4, min(H, y_meet + 7)
+    Y, X = np.mgrid[y0:y1, x0:x1]
+    d = np.abs(X - (top_x + (Y - jy) * THROAT_LEAN))
+    keep[y0:y1, x0:x1] = np.clip((4.5 - d) / 1.5, 0, 1)
+    mx = top_x + (y_meet - jy) * THROAT_LEAN
+    Y, X = np.mgrid[0:H, 0:W]
+    keep = np.maximum(keep, np.clip((10 - np.hypot(X - mx, Y - y_meet)) / 3, 0, 1))
+    return _blurred(keep, 1.0)
+
+
+def paint_neck_seq(frames, keeps=None):
     """Every frame (RGBA arrays) with her neck painted in, following her head. The jaw, collar and
     throat are measured per frame, then evened out over neighbouring frames, so the neck never
-    jitters; its tone is one for the whole clip."""
+    jitters; its tone is one for the whole clip. If `keeps` is a list, each frame's throat_keep
+    mask is added to it."""
     ms = [_neck_measure(f) for f in frames]
     tones = [m['tone'] for m in ms if m['tone'] is not None]
     tone = np.median(np.stack(tones), 0) if tones else None
@@ -675,6 +704,8 @@ def paint_neck_seq(frames):
             med = np.median(np.where(stack >= 0, stack, np.nan), 0)
             sm[key] = np.where(np.isnan(med), -1.0, med)
         out.append(_neck_paint(frames[t], sm))
+        if keeps is not None:
+            keeps.append(throat_keep(frames[t].shape, sm))
     return out
 
 
@@ -946,19 +977,22 @@ def build_clip(name, width, quality):
     home_src = source_layers(CLIPS[HOME])[0][0]
     # the home frame itself, prepared the same way (steady pen and hair; it's its own light)
     home_steady, home_pen = steady_pen([home_src], home_src)
-    home_ready = paint_neck_seq([np.asarray(fill_hair_gaps(home_steady[0]))])[0]
+    home_throat = []
+    home_ready = paint_neck_seq([np.asarray(fill_hair_gaps(home_steady[0]))], home_throat)[0]
     srcs, pens = steady_pen([f for f, _ in layers], home_src)  # 1. one clean pen
     srcs, gains = hold_light([np.asarray(f) for f in srcs], home_ready)  # 2. the light held to the home frame
     print(f'  light held: gains {gains.min():.3f}-{gains.max():.3f}', flush=True)
     srcs = [np.asarray(f) for f in fill_hair_gaps_seq([Image.fromarray(f) for f in srcs])]  # 3. hair gaps filled, evened over time
-    srcs = paint_neck_seq(srcs)  # 3b. her neck, which the export left out, painted in
+    throats = []
+    srcs = paint_neck_seq(srcs, throats)  # 3b. her neck, which the export left out, painted in
     srcs = calm_shimmer(srcs, keep=pens)  # 4. the shimmer calmed (not the clean pen)
-    # 5. what the edge clean-up must leave alone: the clean pen, and the frame's own pen
-    # wherever that shows (lifted to turn a page, the clean pen can't follow it)
-    keeps = [own_pen(f) if m is None else np.maximum(m, own_pen(f)) for f, m in zip(srcs, pens)]
+    # 5. what the edge clean-up must leave alone: the clean pen, the frame's own pen wherever
+    # that shows (lifted to turn a page, the clean pen can't follow it), and the throat's line
+    keeps = [np.maximum(own_pen(f) if m is None else np.maximum(m, own_pen(f)), t) for f, m, t in zip(srcs, pens, throats)]
     layers = [(Image.fromarray(f), h, m) for f, h, m in zip(srcs, holds_src, keeps)]
     del srcs
-    home = finished(Image.fromarray(home_ready), home_pen[0]) if name != HOME else None
+    home_keep = home_throat[0] if home_pen[0] is None else np.maximum(home_pen[0], home_throat[0])
+    home = finished(Image.fromarray(home_ready), home_keep) if name != HOME else None
     out, holds = [], []
     for i, (img, hold, pen) in enumerate(layers):
         out.append(finished(img, pen))

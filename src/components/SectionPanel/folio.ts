@@ -94,3 +94,18 @@ export function tabRowScroll(
   }
   return Math.min(Math.max(tab.left, 0), maxScroll)
 }
+
+/**
+ * Where the desk lamp's bulb falls on the sheet, as percentages of the sheet's box, for the
+ * glass's light (--lamp-x and --lamp-y in SectionPanel.css). Kept a little inside the edges, so
+ * the brightest stretch of the rim never lands on a rounded corner; null when either box is
+ * missing (the lamp hidden or not drawn yet), and the CSS falls back to its own guess.
+ */
+export function lampOnSheet(
+  bulb: { x: number; y: number },
+  sheet: { left: number; top: number; width: number; height: number },
+): { x: number; y: number } | null {
+  if (!(sheet.width > 0 && sheet.height > 0) || !Number.isFinite(bulb.x) || !Number.isFinite(bulb.y)) return null
+  const at = (v: number) => Math.round(Math.min(88, Math.max(12, v * 100)) * 10) / 10
+  return { x: at((bulb.x - sheet.left) / sheet.width), y: at((bulb.y - sheet.top) / sheet.height) }
+}

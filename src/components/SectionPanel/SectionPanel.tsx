@@ -16,8 +16,10 @@ import { SECTION_IDS, type SectionId } from '../../content/types'
 import { closeSection, currentSection, hrefFor } from '../../lib/router'
 import { animationMs, prefersReducedMotion } from '../../lib/motion'
 import { sectionComponent } from '../sections/registry'
+import { lampParts } from '../../scene/scene-layout.json'
 import {
   inkTransform,
+  lampOnSheet,
   tabRowScroll,
   readDuration,
   readingProgress,
@@ -28,6 +30,22 @@ import '../sections/sections.css'
 import '../sections/panel-sections.css'
 import './SectionPanel.css'
 import { HeaderArt } from './HeaderArt'
+
+/**
+ * Lights the glass from the room's desk lamp: where its bulb is, as --lamp-x and --lamp-y on
+ * the dialog (SectionPanel.css draws the rim and the bloom there). Measured from the dialog,
+ * which the sheet fills and which never moves, so the sheet's own slide can't skew it.
+ */
+function placeLamp(dialog: HTMLDialogElement) {
+  const art = document.querySelector('.scene-object--lamp .scene-object__art') ?? document.querySelector('.scene-object--lamp')
+  const box = art?.getBoundingClientRect()
+  const [fx, fy] = lampParts.bulb
+  const at = box && box.width > 0 ? lampOnSheet({ x: box.left + box.width * fx!, y: box.top + box.height * fy! }, dialog.getBoundingClientRect()) : null
+  for (const [name, value] of [['--lamp-x', at?.x], ['--lamp-y', at?.y]] as const) {
+    if (value === undefined) dialog.style.removeProperty(name)
+    else dialog.style.setProperty(name, `${value}%`)
+  }
+}
 
 /** The outgoing page's slide in SectionPanel.css, for when its animations can't be read. */
 const LEAVE_FALLBACK_MS = 260
@@ -91,6 +109,7 @@ export function SectionPanel({ section }: SectionPanelProps) {
         setPage(next)
         setLeaving(null)
         dialog.showModal()
+        placeLamp(dialog)
         // Next frame, so the entry transition runs from the closed styles.
         const frame = requestAnimationFrame(() => setState('open'))
         return () => cancelAnimationFrame(frame)
@@ -174,6 +193,25 @@ export function SectionPanel({ section }: SectionPanelProps) {
   }, [state])
 
   useEffect(() => () => void delete document.documentElement.dataset.panel, [])
+
+  // The room is laid out again on a resize, and the lamp with it: the glass follows its light.
+  // (Measured once more as the sheet arrives, for a deep link that opened before the room.)
+  useEffect(() => {
+    if (state !== 'open') return
+    const dialog = dialogRef.current
+    if (!dialog) return
+    placeLamp(dialog)
+    let frame = 0
+    const onResize = () => {
+      cancelAnimationFrame(frame)
+      frame = requestAnimationFrame(() => placeLamp(dialog))
+    }
+    window.addEventListener('resize', onResize)
+    return () => {
+      cancelAnimationFrame(frame)
+      window.removeEventListener('resize', onResize)
+    }
+  }, [state])
 
   // The outgoing page is removed once it has faded and slid away (read from its own
   // animations, so reduced motion's shorter fade lets it go sooner), with a frame to spare.

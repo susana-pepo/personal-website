@@ -246,7 +246,7 @@
   -webkit-backdrop-filter: blur(5px) saturate(0.85);
   backdrop-filter: blur(5px) saturate(0.85);
   opacity: 0;
-  transition: opacity 560ms cubic-bezier(0.4, 0, 0.2, 1);
+  transition: opacity 800ms cubic-bezier(0.45, 0, 0.15, 1);
 }
 
 .piano-close[data-state='open']::backdrop {
@@ -670,21 +670,22 @@
   opacity: 0;
   translate: 0 0.5rem;
   transition:
-    opacity 360ms cubic-bezier(0.4, 0, 0.2, 1) var(--arrive, 520ms),
-    translate 420ms cubic-bezier(0.2, 0, 0, 1) var(--arrive, 520ms);
+    opacity 420ms cubic-bezier(0.4, 0, 0.2, 1) var(--arrive, 900ms),
+    translate 520ms cubic-bezier(0.2, 0, 0, 1) var(--arrive, 900ms);
 }
 
+/* (once it has all but landed: the close control, then the dials, then the words) */
 .piano-close__close {
-  --arrive: 480ms;
+  --arrive: 820ms;
   translate: 0 -0.5rem;
 }
 
 .piano-close__dials {
-  --arrive: 560ms;
+  --arrive: 900ms;
 }
 
 .piano-close__how {
-  --arrive: 640ms;
+  --arrive: 980ms;
 }
 
 .piano-close[data-state='open'] .piano-close__close,

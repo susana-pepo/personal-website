@@ -3,6 +3,7 @@ import { content } from '../content/content'
 import { SECTION_IDS } from '../content/types'
 import {
   inkTransform,
+  lampOnSheet,
   objectLabel,
   pad,
   readDuration,
@@ -111,5 +112,23 @@ describe('tabRowScroll', () => {
   it('at the end of the row, lets the last tab sit in the fade rather than cut a tab in two', () => {
     // no edge clears an 80px fade for the last tab; ignoring it, the edge of tab 4 shows it whole
     expect(tabRowScroll(tabs, 5, 200, max + 70, 80)).toBe(304)
+  })
+})
+
+describe('lampOnSheet', () => {
+  const sheet = { left: 738, top: 14, width: 688, height: 872 }
+
+  it('places the bulb as percentages of the sheet', () => {
+    expect(lampOnSheet({ x: 738 + 344, y: 14 + 436 }, sheet)).toEqual({ x: 50, y: 50 })
+  })
+
+  it('keeps the light off the rounded corners', () => {
+    expect(lampOnSheet({ x: 0, y: 2000 }, sheet)).toEqual({ x: 12, y: 88 })
+    expect(lampOnSheet({ x: 5000, y: -40 }, sheet)).toEqual({ x: 88, y: 12 })
+  })
+
+  it('gives up on a sheet or a bulb it cannot measure', () => {
+    expect(lampOnSheet({ x: 10, y: 10 }, { ...sheet, width: 0 })).toBeNull()
+    expect(lampOnSheet({ x: Number.NaN, y: 10 }, sheet)).toBeNull()
   })
 })

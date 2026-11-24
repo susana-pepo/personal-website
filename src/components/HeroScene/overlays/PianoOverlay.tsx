@@ -432,38 +432,71 @@ const DIALS = [
 
 const keyOf = (target: EventTarget) => (target as Element).closest?.<SVGElement>('[data-key]')?.dataset.key
 /** How long the piano takes to come close, and to go back. */
-const COME_MS = 760
-const GO_MS = 520
-/** One curve for the whole journey: a gentle start (it's lifted), a long, soft landing. */
-const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)'
+const COME_MS = 1100
+const GO_MS = 750
+/** How long its controls take to step aside before it goes back to the shelf. */
+const GO_AFTER_MS = 120
+/** One curve for the whole journey: an unhurried start (it's lifted), a long, soft landing. */
+const EASE = 'cubic-bezier(0.45, 0, 0.15, 1)'
 type Place = { dx: number; dy: number; scale: number; height: number }
+const SHELF_TURN = 20 // degrees: the shelf picture's angle (its right side further away)
 /**
  * Its journey from the shelf to you, as keyframes along an arc: it rises off the shelf first (as if
- * picked up), then glides down to the middle and settles, growing as it comes. Sampled finely so the
- * path is a true curve; the animation's one easing paces it.
+ * picked up), then turns down at the top of its curve and glides to the middle and settles, growing
+ * as it comes. Sampled finely so the path is a true curve; the animation's one easing paces it.
+ * Also says where it takes the curve (swapAt: the top of the arc), for the pictures' swap.
  */
 function journey({ dx, dy, scale, height }: Place) {
   const rise = Math.max(height * 0.6, window.innerHeight * 0.06) // how far above the straight path it arcs
   const cx = dx * 0.55 // the arc's control point: past the start, above both ends
   const cy = Math.min(dy, 0) - rise
-  return Array.from({ length: 25 }, (_, i) => {
+  // the top of the curve: where it stops rising and turns down towards you (dy/dt = 0)
+  const apex = (dy - cy) / (dy - 2 * cy)
+  const swapAt = Math.min(0.75, Math.max(0.25, Number.isFinite(apex) ? apex : 0.42))
+  const path = Array.from({ length: 25 }, (_, i) => {
     const t = i / 24
     const u = 1 - t
     const x = u * u * dx + 2 * u * t * cx
     const y = u * u * dy + 2 * u * t * cy
-    const k = scale + (1 - scale) * (1 - Math.pow(1 - t, 1.6)) // it grows a little ahead of its travel
+    const k = Math.pow(scale, 1 - t) // it grows at an even pace to the eye (by the same factor each moment)
     return { transform: `translate(${x}px, ${y}px) scale(${k})`, offset: t }
   })
+  return { path, swapAt }
 }
 /** Its shadow: small and close on the shelf, wide and soft in the air in front of the room. */
 const SHADOW_ON_SHELF = 'drop-shadow(0 0.15rem 0.25rem oklch(0.08 0.01 45 / 0.55))'
 const SHADOW_IN_AIR = 'drop-shadow(0 1.5rem 2.5rem oklch(0.08 0.01 45 / 0.45))'
-/** The shelf's three-quarter picture, dissolving into the front-on close-up as it turns to face you. */
-const TURN = [
-  { opacity: 1, offset: 0 },
-  { opacity: 1, offset: 0.14 },
-  { opacity: 0, offset: 0.58 },
-]
+/**
+ * The shelf's three-quarter picture flies out as itself, and gives way to the front-on close-up in a
+ * blink exactly where it takes the curve (the top of its arc, swapAt), under a touch of motion blur;
+ * from there the close-up turns the rest of the way to face you as it comes down to land. Two
+ * different pictures never dissolve slowly: that shows as a ghost.
+ */
+function swap(swapAt: number) {
+  const turn = [
+    { opacity: 1, offset: 0 },
+    { opacity: 1, offset: swapAt - 0.04 },
+    { opacity: 0, offset: swapAt + 0.04 },
+  ]
+  return {
+    turn,
+    blur: [
+      { filter: 'blur(0px)', offset: 0 },
+      { filter: 'blur(0px)', offset: swapAt - 0.12 },
+      { filter: 'blur(1.6px)', offset: swapAt },
+      { filter: 'blur(0px)', offset: swapAt + 0.14 },
+    ],
+    // the close-up turning to face you, from the moment it takes over (on its own layer, so the
+    // shelf picture is never tilted)
+    facing: [
+      { transform: `perspective(1600px) rotateY(${SHELF_TURN}deg)`, offset: 0 },
+      ...Array.from({ length: 9 }, (_, i) => ({
+        transform: `perspective(1600px) rotateY(${SHELF_TURN * (1 - i / 8)}deg)`,
+        offset: swapAt + ((1 - swapAt) * i) / 8,
+      })),
+    ],
+  }
+}
 const FROM_STYLE: CSSProperties = {
   // the shelf picture at the close-up's height, centred (it's the wider of the two)
   width: `${(PIANO.width / PIANO.height / (W / H)) * 100}%`,
@@ -500,14 +533,25 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
   const travel = (place: Place, back: boolean) => {
     const node = stage.current
     if (!node) return null
-    const timing: KeyframeAnimationOptions = { duration: back ? GO_MS : COME_MS, easing: EASE, fill: back ? 'forwards' : 'none', direction: back ? 'reverse' : 'normal' }
+    const timing: KeyframeAnimationOptions = {
+      duration: back ? GO_MS : COME_MS,
+      delay: back ? GO_AFTER_MS : 0, // (going back, its controls leave first)
+      easing: EASE,
+      fill: back ? 'both' : 'none',
+      direction: back ? 'reverse' : 'normal',
+    }
     const body = node.querySelector('.piano-close__body')
     const from = node.querySelector('.piano-close__from')
+    const { path, swapAt } = journey(place)
+    const { turn, blur, facing } = swap(swapAt)
     const moves = [
-      node.animate(journey(place), timing),
+      node.animate(path, timing),
       node.animate([{ filter: SHADOW_ON_SHELF }, { filter: SHADOW_IN_AIR }], timing),
-      from?.animate(TURN, timing),
-      body?.animate(TURN.map((k) => ({ ...k, opacity: 1 - k.opacity })), timing),
+      from?.animate(turn, timing),
+      body?.animate(turn.map((k) => ({ ...k, opacity: 1 - k.opacity })), timing),
+      from?.animate(blur, timing),
+      body?.animate(blur, timing),
+      body?.animate(facing, timing),
     ]
     return moves[0]!
   }
@@ -520,7 +564,14 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     box.showModal()
     keysRef.current?.focus({ preventScroll: true })
     const from = reducedMotion ? null : fromShelf()
-    if (from) node.style.transform = `translate(${from.dx}px, ${from.dy}px) scale(${from.scale})` // waits on the shelf, unseen, until its picture is decoded
+    // it waits on the shelf, looking just like the piano there, until its picture is decoded
+    const body = node.querySelector<HTMLElement>('.piano-close__body')
+    const shelfPicture = node.querySelector<HTMLElement>('.piano-close__from')
+    if (from) {
+      node.style.transform = `translate(${from.dx}px, ${from.dy}px) scale(${from.scale})`
+      if (body) body.style.opacity = '0'
+      if (shelfPicture) shelfPicture.style.opacity = '1'
+    }
     let live = true
     const art = node.querySelector('img')
     void (art?.decode?.() ?? Promise.resolve())
@@ -530,6 +581,8 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
         node.style.transform = ''
         setState('open')
         if (from) travel(from, false)
+        if (body) body.style.opacity = ''
+        if (shelfPicture) shelfPicture.style.opacity = ''
       })
     return () => {
       live = false
@@ -556,7 +609,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     const going = travel(to, true)
     if (!going) return finish()
     // (and never later than it should be: a tab in the background barely runs animations)
-    const late = window.setTimeout(finish, GO_MS + 250)
+    const late = window.setTimeout(finish, GO_AFTER_MS + GO_MS + 250)
     void going.finished
       .catch(() => {})
       .then(() => {

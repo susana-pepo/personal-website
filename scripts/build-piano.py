@@ -25,6 +25,11 @@ the build keeps it and rewrites the rest of the file):
                           at the top); without it, the picture there darkened by `gap`, and
                  wall     a neighbour's side wall where it shows (0: never), wallDepth  darker going down
                  neighbourShadow / neighbourReach   soft shadow on it from the keys around it
+                 topStays {front, shade, reach}   a front-on press with no edge moving (moved edges
+                          read as outlines): only its front goes down, from `front` (a share of its
+                          height: just above its front edge), and it shades to `shade` just under its
+                          top edges (the rail, a black key's end), back to its pressed light a drop and
+                          `reach` px further down. Overrides pivot, sidesStay and the gap settings
   shelfImage   the render shown on the shelf (a transparent PNG; optional, else `image`): it can be
                another angle than the close-up's (on the shelf, three-quarter, showing its left side
                like the other things there); only the close-up has to be front-on
@@ -82,6 +87,7 @@ GEOMETRY = ROOT / 'src/scene/hotspot-geometry.json'
 WEBP = dict(quality=92, alpha_quality=100, method=6, exact=True)
 ATLAS_MAX_WIDTH = 2048
 GROW = 9  # how far past its first outline a key may claim its rim (px)
+RIM_REACH, RIM_LIGHT, RIM_RISE = 6, 90, 30  # a key's side rim beside its watershed outline: how far (px), how light (luma), how much it may brighten again
 SIDE_KEEP, SIDE_BLEND = 3, 3  # a sinking key's own side pixels: how far in they're kept, then blended (px)
 NOTES = {'C': 0, 'D': 2, 'E': 4, 'F': 5, 'G': 7, 'A': 9, 'B': 11}
 
@@ -189,7 +195,28 @@ def whole_keys(rgba, cores):
     cv2.watershed(rgb, markers)
     # (smoothed: the watershed's edge steps a pixel at a time)
     smooth = lambda m: cv2.GaussianBlur(m.astype(np.float32), (0, 0), 1.5) > 0.5
-    return [solid(smooth(solid((markers == i + 2) & reach[i]))) for i in range(len(cores))]
+    masks = [solid(smooth(solid((markers == i + 2) & reach[i]))) for i in range(len(cores))]
+    # The watershed stops at a rim's strongest edge, which along a key's sides is a few pixels in
+    # from its outline: the rounded side rim, left out, would stay lit while the key goes down and
+    # shades, a thin pale line around it. So each key also takes the lit rim beside it, sideways
+    # only (never up onto the rail or down onto the keyboard's lip), row by row out from its edge
+    # until the dark gap, or until the picture brightens well past the rim's darkest so far: that is
+    # the far side of the gap (the next key, or the case's wall), not this key's rim.
+    taken = np.any(masks, axis=0)
+    usable = ~taken & (rgba[..., 3] > 200)
+    for i, m in enumerate(masks):
+        grown = m.copy()
+        for y in np.nonzero(m.any(1))[0]:
+            xs = np.nonzero(m[y])[0]
+            for start, step in ((xs.min(), -1), (xs.max(), 1)):
+                low = lum[y, start]
+                for x in range(start + step, start + step * (RIM_REACH + 1), step):
+                    if not (0 <= x < lum.shape[1]) or not usable[y, x] or lum[y, x] < RIM_LIGHT or lum[y, x] > low + RIM_RISE:
+                        break
+                    grown[y, x] = True
+                    low = min(low, lum[y, x])
+        masks[i] = grown
+    return masks
 
 
 def nearest_outside(mask):
@@ -221,6 +248,15 @@ def press(base, keys, owner, index, params):
     # 0 at the back of the key, 1 from its front edge down
     share = np.clip((yy - top) / max((bottom - top) * p['frontEdge'], 1), 0, 1)
     dy = d * (p['pivot'] + (1 - p['pivot']) * share)
+    under = p.get('topStays')
+    if under:
+        # Seen from the front, nothing of a key's top moves when it goes down: its edges (under the
+        # rail, and the ledges under the black keys) stay exactly where they are, since a moved edge,
+        # however clean, reads as an outline. Only its front goes down: from just above its front
+        # edge, its surface is drawn out by the drop, and its front face slides down behind the
+        # keyboard's lip. (So its sides don't move either, and no gap opens anywhere.)
+        front = top + under['front'] * (bottom - top)
+        dy = np.where(yy < front, 0, np.minimum(yy - front, d)).astype(np.float32)
     map_y = np.repeat((yy - dy).astype(np.float32)[:, None], w, 1)
     map_x = np.repeat(np.arange(w, dtype=np.float32)[None, :], h, 0)
     if p.get('sidesStay'):
@@ -237,7 +273,13 @@ def press(base, keys, owner, index, params):
         map_x = (map_x - dy[:, None] * (kl + (kr - kl) * across)).astype(np.float32)
     m = mask.astype(np.float32)
     sunk = cv2.remap(np.ascontiguousarray(base[..., :3]), map_x, map_y, cv2.INTER_LINEAR, borderMode=cv2.BORDER_REPLICATE)
-    if p.get('sidesStay'):
+    if under:
+        still = m  # nothing opens: the whole key is still key
+        # (and its sides keep their own pixels, as below: the slid picture meets the side's pixel steps)
+        inner = cv2.distanceTransform(mask.astype(np.uint8), cv2.DIST_L2, 5)
+        keep = np.clip(1 - (inner - SIDE_KEEP) / SIDE_BLEND, 0, 1)
+        sunk = sunk * (1 - keep[..., None]) + base[..., :3] * keep[..., None]
+    elif p.get('sidesStay'):
         # Seen from the front, a key goes straight down between its neighbours: its sides stay
         # exactly where they are, and only its top comes down. So the only place it leaves is a
         # band under its top edge: anything thinner (a pixel's sliver along a leaning side) is
@@ -260,6 +302,20 @@ def press(base, keys, owner, index, params):
     sunk = in_shade(sunk, p['shade'], p['richer']) * (1 - p['backShade'] * (1 - share))[:, None, None]
     edge = cv2.distanceTransform((still > 0.5).astype(np.uint8), cv2.DIST_L2, 5)
     sunk *= (1 - p['neighbourShadow'] * np.exp(-edge / p['neighbourReach']))[..., None]
+    if under:
+        # Gone down below its edges, it lies in their shadow: darkest just under them (the rail, a
+        # black key's end), easing back to its pressed light a drop (and `reach`) further down.
+        # (That shadow's line is smoothed across the key, and the shade blurred within the key only:
+        # where a ledge starts, and along its sides, nothing may come out lighter or darker than
+        # what's beside it, or that would show as a line.)
+        lo = under['shade']
+        cols = mask.any(0)
+        edge_top = np.where(cols, mask.argmax(0), 0).astype(np.float32)
+        line = cv2.dilate(edge_top[None, :], np.ones((1, 15), np.uint8))[0]
+        v = np.clip((yy[:, None] - line[None, :]) / (d + under.get('reach', 8)), 0, 1)
+        g = (lo + (1 - lo) * v * v * (3 - 2 * v)).astype(np.float32)
+        g = cv2.GaussianBlur(g * m, (0, 0), 4) / np.maximum(cv2.GaussianBlur(m, (0, 0), 4), 1e-3)
+        sunk *= np.where(mask, g, 1)[..., None]
 
     # Where the key no longer is. With `gapColour` (deep, near): the keyboard's own dark gap,
     # deepest where the key was highest, nothing of the key itself left showing there. Otherwise
