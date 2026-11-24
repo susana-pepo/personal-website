@@ -1,5 +1,5 @@
 {
-  "$comment": "Views through the window for each time of day, built by scripts/build-window-views.py. canvasBox: where the animated view and its still are drawn on the 1920x1080 canvas (the glass mask decides what shows). mask: the painting's exact glass over that box (white, alpha = glass; glass-mask.png is inset and its sill level, so it would leave painted sky beside the bars and under the new view). Per time: towerLights = the TV tower's aviation lights (x, y, size in canvas px; strength 0-1), cityWindows = lit windows suited to brief lights-off covers (canvas px; facade = the wall colour around each), facade = their typical wall colour. fit = how the source was scaled onto the canvas and how far its bars landed from the painted ones.",
+  "$comment": "Views through the window for each time of day, built by scripts/build-window-views.py. canvasBox: where the animated view and its still are drawn on the 1920x1080 canvas (the glass mask decides what shows). mask: the painting's exact glass over that box (white, alpha = glass; glass-mask.png is inset and its sill level, so it would leave painted sky beside the bars and under the new view). Per time: towerLights = the TV tower's aviation lights (x, y, size in canvas px; strength 0-1), cityWindows = lit windows suited to brief lights-off covers (canvas px; facade = the wall colour around each), facade = their typical wall colour. fit = how the source was scaled onto the canvas and how far its bars landed from the painted ones. video = the loop as H.264 video, what the page plays (animated = the same loop as an animated picture, the fallback); size = the loop's frame size in pixels (the video is padded to an even size).",
   "default": "dawn",
   "canvasBox": {
     "x": 895,
@@ -79,7 +79,12 @@
         "facade": "oklch(35.3% 0.074 293)"
       }
     ],
-    "facade": "oklch(34.4% 0.070 287)"
+    "facade": "oklch(34.4% 0.070 287)",
+    "video": "/media/scene/window-views/dawn-loop.mp4",
+    "size": [
+      957,
+      695
+    ]
   },
   "midday": {
     "animated": "/media/scene/window-views/midday-loop.webp",
@@ -103,7 +108,12 @@
       }
     ],
     "cityWindows": [],
-    "facade": null
+    "facade": null,
+    "video": "/media/scene/window-views/midday-loop.mp4",
+    "size": [
+      957,
+      695
+    ]
   },
   "night": {
     "animated": "/media/scene/window-views/night-loop.webp",
@@ -183,6 +193,11 @@
         "facade": "oklch(33.0% 0.074 272)"
       }
     ],
-    "facade": "oklch(31.6% 0.062 274)"
+    "facade": "oklch(31.6% 0.062 274)",
+    "video": "/media/scene/window-views/night-loop.mp4",
+    "size": [
+      957,
+      695
+    ]
   }
 }
