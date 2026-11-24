@@ -1,6 +1,6 @@
 # Contact: redesign plan
 
-**Status (24 November): built.** The mug is drawn flat (`contact/DrawnMug.tsx`); the render, `ChatMug` and `SocialIcon` are removed. On phones the mug sits left, aligned with the text, rather than centred.
+**Status (24 November): built, composed as option A.** The intro sits beside the mug, as About sets its lede beside the portrait; below a hairline, "Let’s chat" and LinkedIn share a baseline (stacked on phones, with the mug above the intro). The mug is drawn flat from Susana’s own (`contact/DrawnMug.tsx`) and stands on its own walnut coaster, no board; the render, `ChatMug` and `SocialIcon` are removed.
 
 ## Why it reads as early 2000s
 
