@@ -289,6 +289,15 @@ export function layoutShelf(books: Book[], shelf: Shelf): Slot[] {
   return slots
 }
 
+/**
+ * The shelf's boards. On a narrow shelf a pile of books lying flat moves to a board of its
+ * own beneath the upright books, so the whole shelf shows without sliding sideways.
+ */
+export function shelfRows(slots: Slot[], narrow: boolean): Slot[][] {
+  const pile = slots.findIndex((s) => s.type === 'stack')
+  return narrow && pile > 0 ? [slots.slice(0, pile), slots.slice(pile)] : [slots]
+}
+
 /** Size of the 3D book in the detail drawer, in CSS pixels. */
 export function detailSize(spec: BookSpec, coverHeight = 200) {
   return {

@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
-import { clamp, layoutShelf, type PlacedBook } from '../../../content/bookGeometry'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
+import { clamp, layoutShelf, shelfRows, type PlacedBook, type Slot } from '../../../content/bookGeometry'
 import type { Book, Shelf } from '../../../content/types'
 import { transitionMs } from '../../../lib/motion'
 import { BookCover } from '../books/BookCover'
@@ -17,6 +17,9 @@ const CLOSE_FALLBACK_MS = 300
 const OPEN_FALLBACK_MS = 460
 /** A frame to spare after the drawer stops. */
 const SPARE_MS = 20
+
+/** Below this width (bookshelf.css's `shelves` container, 30rem) a pile lies on a board of its own. */
+const NARROW_PX = 480
 
 const vars = (v: Record<string, string | number>) => v as CSSProperties
 const units = (n: number) => `calc(${n} * var(--u))`
@@ -49,6 +52,21 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
 
   const drawerRef = useRef<HTMLDivElement>(null)
 
+  // Narrow or not, measured before the first paint so the shelf never jumps between layouts.
+  const sectionRef = useRef<HTMLElement>(null)
+  const [narrow, setNarrow] = useState(false)
+  useLayoutEffect(() => {
+    const el = sectionRef.current
+    if (!el) return
+    const update = () => setNarrow(el.clientWidth > 0 && el.clientWidth < NARROW_PX)
+    update()
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(update)
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [])
+  const rows = useMemo(() => shelfRows(slots, narrow), [slots, narrow])
+
   // Keep the last book in the drawer while it closes.
   const [shown, setShown] = useState<PlacedBook | null>(null)
   if (openPlaced && openPlaced !== shown) setShown(openPlaced)
@@ -77,11 +95,12 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
     return () => window.clearTimeout(timer)
   }, [openPlaced, reducedMotion])
 
-  // Arrow keys walk along the shelf; Home and End jump to its ends.
+  // Arrow keys walk along the shelf (across both boards when it has two); Home and End jump to its ends.
   const onKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
     const current = (event.target as HTMLElement).closest<HTMLElement>('.bs-book')
     if (!current) return
-    const all = [...event.currentTarget.querySelectorAll<HTMLElement>('.bs-book')]
+    const shelfEl = event.currentTarget.closest('.bs-shelf') ?? event.currentTarget
+    const all = [...shelfEl.querySelectorAll<HTMLElement>('.bs-row .bs-book')]
     const i = all.indexOf(current)
     const moves: Record<string, number> = { ArrowRight: i + 1, ArrowDown: i + 1, ArrowLeft: i - 1, ArrowUp: i - 1, Home: 0, End: all.length - 1 }
     const to = moves[event.key]
@@ -116,88 +135,92 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
   }
   const slip = (p: PlacedBook) => <span className="bs-slip" style={vars({ '--x': p.spec.slipX.toFixed(2) })} />
 
+  const renderSlot = (s: Slot) => {
+    switch (s.type) {
+      case 'upright':
+        return (
+          <li key={bookKey(s.book)} className="bs-slot" style={vars({ '--w': s.w, '--h': s.h, '--shade': s.shade })}>
+            {bookButton(s, '', <><BookSpine book={s.book} spec={s.spec} />{slip(s)}</>)}
+          </li>
+        )
+      case 'face':
+        return (
+          <li key={bookKey(s.book)} className="bs-slot bs-slot--face" style={vars({ '--w': s.w, '--h': s.h, '--shade': s.shade })}>
+            {bookButton(
+              s,
+              'face',
+              <>
+                <span className="bs-book__tilt">
+                  <BookCover book={s.book} spec={s.spec} />
+                </span>
+              </>,
+            )}
+          </li>
+        )
+      case 'lean':
+        return (
+          <li
+            key={bookKey(s.book)}
+            className="bs-slot bs-slot--lean"
+            style={vars({
+              '--w': s.w,
+              '--h': s.h,
+              '--shade': s.shade,
+              '--lean': `${s.lean}deg`,
+              marginLeft: units(s.marginLeft),
+              marginRight: units(s.marginRight),
+            })}
+          >
+            {bookButton(s, '', <><BookSpine book={s.book} spec={s.spec} />{slip(s)}</>)}
+          </li>
+        )
+      case 'stack':
+        return (
+          <li key="stack" className="bs-slot bs-slot--stack" style={vars({ '--shade': s.shade, marginLeft: units(26) })}>
+            {s.books.map((p) =>
+              bookButton(
+                p,
+                'flat',
+                <span className="bs-book__rot">
+                  <BookSpine book={p.book} spec={p.spec} />
+                </span>,
+                vars({ '--w': p.spec.height, '--h': p.spec.thick, '--dx': p.dx, '--rw': p.spec.thick, '--rh': p.spec.height }),
+              ),
+            )}
+          </li>
+        )
+      case 'object':
+        return (
+          <li
+            key={s.object}
+            className={s.object === 'bookend' ? 'bs-slot bs-slot--obj bs-slot--bookend' : 'bs-slot bs-slot--obj'}
+            aria-hidden="true"
+            style={vars({ '--w': s.w, '--h': s.h })}
+          >
+            <span className="bs-obj" style={{ width: units(s.w), height: units(s.h) }}>
+              <ShelfObjectArt />
+            </span>
+          </li>
+        )
+    }
+  }
+
   return (
-    <section className="bs-shelf" data-shelf={shelf.id} aria-labelledby={headingId}>
+    <section ref={sectionRef} className="bs-shelf" data-shelf={shelf.id} aria-labelledby={headingId}>
       <h3 id={headingId} className="bs-shelf__title">
         {shelf.title}
       </h3>
 
-      <div className={featured ? 'bs-feature' : 'bs-plain'}>
-        <div className="bs-bay">
-          <div className="bs-lamp" aria-hidden="true" />
-          <ul className="bs-row" role="list" onKeyDown={onKeyDown}>
-            {slots.map((s) => {
-              switch (s.type) {
-                case 'upright':
-                  return (
-                    <li key={bookKey(s.book)} className="bs-slot" style={vars({ '--w': s.w, '--h': s.h, '--shade': s.shade })}>
-                      {bookButton(s, '', <><BookSpine book={s.book} spec={s.spec} />{slip(s)}</>)}
-                    </li>
-                  )
-                case 'face':
-                  return (
-                    <li key={bookKey(s.book)} className="bs-slot bs-slot--face" style={vars({ '--w': s.w, '--h': s.h, '--shade': s.shade })}>
-                      {bookButton(
-                        s,
-                        'face',
-                        <>
-                          <span className="bs-book__tilt">
-                            <BookCover book={s.book} spec={s.spec} />
-                          </span>
-                        </>,
-                      )}
-                    </li>
-                  )
-                case 'lean':
-                  return (
-                    <li
-                      key={bookKey(s.book)}
-                      className="bs-slot bs-slot--lean"
-                      style={vars({
-                        '--w': s.w,
-                        '--h': s.h,
-                        '--shade': s.shade,
-                        '--lean': `${s.lean}deg`,
-                        marginLeft: units(s.marginLeft),
-                        marginRight: units(s.marginRight),
-                      })}
-                    >
-                      {bookButton(s, '', <><BookSpine book={s.book} spec={s.spec} />{slip(s)}</>)}
-                    </li>
-                  )
-                case 'stack':
-                  return (
-                    <li key="stack" className="bs-slot bs-slot--stack" style={vars({ '--shade': s.shade, marginLeft: units(26) })}>
-                      {s.books.map((p) =>
-                        bookButton(
-                          p,
-                          'flat',
-                          <span className="bs-book__rot">
-                            <BookSpine book={p.book} spec={p.spec} />
-                          </span>,
-                          vars({ '--w': p.spec.height, '--h': p.spec.thick, '--dx': p.dx, '--rw': p.spec.thick, '--rh': p.spec.height }),
-                        ),
-                      )}
-                    </li>
-                  )
-                case 'object':
-                  return (
-                    <li
-                      key={s.object}
-                      className={s.object === 'bookend' ? 'bs-slot bs-slot--obj bs-slot--bookend' : 'bs-slot bs-slot--obj'}
-                      aria-hidden="true"
-                      style={vars({ '--w': s.w, '--h': s.h })}
-                    >
-                      <span className="bs-obj" style={{ width: units(s.w), height: units(s.h) }}>
-                        <ShelfObjectArt />
-                      </span>
-                    </li>
-                  )
-              }
-            })}
-          </ul>
-          <ShelfBoard />
-        </div>
+      <div className={featured ? 'bs-feature' : 'bs-plain'} data-boards={rows.length > 1 ? rows.length : undefined}>
+        {rows.map((row, r) => (
+          <div className="bs-bay" key={r}>
+            <div className="bs-lamp" aria-hidden="true" />
+            <ul className="bs-row" role="list" onKeyDown={onKeyDown}>
+              {row.map(renderSlot)}
+            </ul>
+            <ShelfBoard />
+          </div>
+        ))}
         {!featured && (
           <p className="bs-caption" aria-hidden="true">
             {peek && (

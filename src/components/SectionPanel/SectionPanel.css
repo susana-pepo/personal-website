@@ -43,7 +43,8 @@ html:has(.panel[open]) {
   --sheet-gap: clamp(0.5rem, 0.2rem + 0.6vw, 0.875rem);
   --sheet-radius: 20px;
   position: fixed;
-  inset: var(--sheet-gap) var(--sheet-gap) var(--sheet-gap) auto;
+  /* On its side, a phone's notch can take the right edge: the sheet keeps clear of it. */
+  inset: var(--sheet-gap) max(var(--sheet-gap), env(safe-area-inset-right)) var(--sheet-gap) auto;
   width: min(43rem, 56vw);
   max-width: calc(100vw - 2 * var(--sheet-gap));
   height: calc(100dvh - 2 * var(--sheet-gap));
@@ -181,8 +182,9 @@ html:has(.panel[open]) {
 }
 
 .panel__tabs ul {
+  --tab-gap: var(--space-md);
   display: flex;
-  gap: var(--space-md);
+  gap: var(--tab-gap);
   margin: 0;
   padding: 0;
   list-style: none;
@@ -199,6 +201,27 @@ html:has(.panel[open]) {
   color: var(--ink-3);
   text-decoration: none;
   transition: color var(--dur-quick) var(--ease-out);
+}
+
+/* Each tab answers across half the gap on either side, so a short word ("Work") is still a
+   44px target. Not padding: the ink is measured from the link's own box. */
+.panel__tabs a {
+  position: relative;
+}
+
+.panel__tabs a::after {
+  content: '';
+  position: absolute;
+  inset: 0 calc(var(--tab-gap) / -2);
+}
+
+/* ...but never past the row's ends, or the row would overflow and scroll. */
+.panel__tabs li:first-child a::after {
+  left: 0;
+}
+
+.panel__tabs li:last-child a::after {
+  right: 0;
 }
 
 .panel__tabs a:hover,
@@ -307,12 +330,17 @@ html:has(.panel[open]) {
 
 .panel__pages {
   display: grid;
+  /* A page never scrolls the sheet sideways: whatever is too wide is clipped, and
+     scrollIntoView (a drawer, a player) can't shift the page off its padding. */
+  overflow-x: clip;
 }
 
 .panel__page {
   grid-area: 1 / 1;
   min-width: 0;
   padding: var(--rhythm-section) var(--page-pad);
+  /* The last lines scroll clear of the home indicator. */
+  padding-bottom: calc(var(--rhythm-section) + env(safe-area-inset-bottom));
 }
 
 .panel__page > * {
@@ -543,7 +571,7 @@ html:has(.panel[open]) {
   }
 
   .panel__tabs ul {
-    gap: var(--space-sm);
+    --tab-gap: var(--space-sm);
     padding-inline-end: 2.5rem;
   }
 
@@ -566,6 +594,23 @@ html:has(.panel[open]) {
 
   .panel__page {
     padding-top: var(--space-lg);
+  }
+}
+
+/* A short screen (a phone on its side): the header steps back so the page starts on the
+   first screen instead of below a display title. */
+@media (max-height: 500px) {
+  .panel__page {
+    padding-top: var(--space-lg);
+  }
+
+  .panel__header {
+    margin-bottom: var(--space-lg);
+    padding-bottom: var(--space-md);
+  }
+
+  .panel__title {
+    font-size: var(--text-xl);
   }
 }
 

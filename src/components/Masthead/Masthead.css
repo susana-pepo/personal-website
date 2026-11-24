@@ -184,8 +184,9 @@
     margin-block: 0;
   }
 
+  /* 44px tall to a finger */
   .masthead__link {
-    padding-block: 0.9rem;
+    padding-block: 1rem;
   }
 
   .masthead__scene {

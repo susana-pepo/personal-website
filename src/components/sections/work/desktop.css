@@ -264,6 +264,27 @@
   outline-offset: 2px;
 }
 
+/* Fingers: the arrows and "Explore project" keep their size but answer a 44px target. */
+@media (any-pointer: coarse) {
+  .wdesk__step,
+  .wdesk__explore {
+    position: relative;
+  }
+
+  .wdesk__step::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+  }
+
+  .wdesk__explore::after {
+    content: '';
+    position: absolute;
+    inset: -10px -6px;
+  }
+}
+
 /* Where the row is: one dot per position, the current one longer and warm. */
 .wdesk__dots {
   display: flex;

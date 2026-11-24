@@ -19,6 +19,9 @@
 
 .bs-shelves {
   display: grid;
+  /* One column no wider than the page: the long shelf scrolls inside itself instead
+     of stretching an `auto` column (and the panel) past the edge of a phone. */
+  grid-template-columns: minmax(0, 1fr);
   row-gap: var(--space-lg);
   container: shelves / inline-size;
 }
@@ -771,6 +774,33 @@
     left: 0;
   }
 
+  /* Two boards (ShelfRow's shelfRows): the upright books and the bookend on the first, the pile
+     beneath on its own. Each fits the width, so nothing waits off the edge to be found. */
+  [data-shelf='loved'] .bs-plain[data-boards] {
+    display: grid;
+    row-gap: var(--space-sm);
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+
+  [data-shelf='loved'] .bs-plain[data-boards] .bs-bay {
+    /* about 300 units of books on the first board: as large as fits, at most the long shelf's size */
+    --u: min(1.15px, calc(100cqi / 300));
+    width: 100%;
+    min-width: 100%;
+    max-width: 100%;
+  }
+
+  [data-shelf='loved'] .bs-plain[data-boards] .bs-row {
+    justify-content: safe center;
+    padding-inline: calc(10 * var(--u));
+  }
+
+  /* the pile needs no gap after a bookend it no longer stands beside */
+  [data-shelf='loved'] .bs-plain[data-boards] .bs-slot--stack {
+    margin-left: 0 !important;
+  }
+
   /* On a phone the title and author stay beside the cover. */
   .bs-feature {
     column-gap: var(--space-md);
@@ -804,14 +834,31 @@
 }
 
 @media (max-width: 639px) {
+  /* The opened book beside its title, as the book being read stands beside its own: smaller
+     (zoom, so its box shrinks too), the words given the rest of the width. */
   .bs-detail {
-    grid-template-columns: minmax(0, 1fr);
+    grid-template-columns: auto minmax(0, 1fr);
     gap: var(--space-sm);
+    align-items: center;
   }
 
   .bs-stage {
-    justify-self: start;
+    zoom: 0.72;
   }
+
+  .bs-detail__title {
+    font-size: var(--text-md);
+  }
+}
+
+/* Reading now: its title already stands beside the cover, so while the book is out the drawer
+   names it and the words beside the shelf step back. */
+.bs-feature__text {
+  transition: opacity var(--dur-soft) ease;
+}
+
+[data-shelf='reading']:has(.bs-drawer[data-open]) .bs-feature__text {
+  opacity: 0;
 }
 
 /* ── Reduced motion: no lift, tilt or turn; every change is a short fade ── */

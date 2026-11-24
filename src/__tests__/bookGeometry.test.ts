@@ -10,6 +10,7 @@ import {
   PALETTE,
   poseFor,
   SHELF_H,
+  shelfRows,
   specFor,
   spineName,
   wrapWords,
@@ -114,6 +115,18 @@ describe('shelf layout', () => {
     expect(stack.books).toHaveLength(2)
     // Biggest at the bottom.
     expect(stack.books[0]!.spec.height).toBeLessThanOrEqual(stack.books[1]!.spec.height)
+  })
+
+  it('moves a pile to a board of its own on a narrow shelf, and only there', () => {
+    const posed = [book('A'), book('B'), book('C', { pose: 'flat' }), book('D', { pose: 'flat' })]
+    const slots = layoutShelf(posed, shelf('loved', 'bookend'))
+    expect(shelfRows(slots, false)).toEqual([slots])
+    const [upper, lower] = shelfRows(slots, true)
+    expect(upper!.map((s) => s.type)).toEqual(['upright', 'upright', 'object'])
+    expect(lower!.map((s) => s.type)).toEqual(['stack'])
+    // Nothing to move: one board, however narrow.
+    const plain = layoutShelf(loved, shelf('loved'))
+    expect(shelfRows(plain, true)).toEqual([plain])
   })
 
   it('places every book exactly once and numbers them in shelf order', () => {

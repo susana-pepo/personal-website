@@ -13,13 +13,21 @@
   align-items: center;
   gap: 0.5rem;
   max-width: calc(100% - 2rem);
-  padding: 0.38rem 0.4rem 0.38rem 0.75rem;
+  padding: 0.45rem 0.45rem 0.45rem 0.85rem;
   border-radius: 999px;
   background: var(--glass-fill, oklch(1 0 0 / 0.08));
   backdrop-filter: var(--glass-blur, blur(22px) saturate(170%));
   -webkit-backdrop-filter: var(--glass-blur, blur(22px) saturate(170%));
   box-shadow: var(--glass-shadow, 0 10px 24px -12px oklch(0.05 0.01 45 / 0.7));
   translate: -50% 0;
+  /* Its own glass, darker and quieter than the toolbar's: over the painting the shared pane took
+     on the room's orange and read as a blob. This one stays a calm caption on any part of it. */
+  --glass-fill: linear-gradient(150deg, oklch(0.26 0.016 52 / 0.74), oklch(0.17 0.012 45 / 0.7));
+  --glass-blur: blur(16px) saturate(115%);
+  --glass-rim: linear-gradient(140deg, oklch(1 0 0 / 0.34), oklch(1 0 0 / 0.05) 45%, oklch(1 0 0 / 0.14));
+  --glass-shadow:
+    0 12px 26px -14px oklch(0.05 0.01 45 / 0.75),
+    0 2px 6px -3px oklch(0.05 0.01 45 / 0.4);
   /* When it arrives, counted from the entrance (data-entered; it is paused until then): it
      finishes landing as the halo sweep's last object peaks. The sweep starts 3400ms in
      (settled at 1300 + DISCOVERY_DELAY_MS 2100, HeroScene.tsx), its sixth object 5 x 180ms
@@ -76,7 +84,7 @@
   margin: 0;
   font-family: var(--font-display);
   font-weight: 500;
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   line-height: 1.2;
   white-space: nowrap;
   color: var(--on-sleeve);
@@ -85,7 +93,7 @@
 .discovery-hint__text {
   margin: 0;
   font-family: var(--font-sans);
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   line-height: 1.2;
   white-space: nowrap;
   color: var(--on-sleeve-2, var(--on-sleeve));
@@ -215,11 +223,11 @@
   .credits > .discovery-hint {
     bottom: calc(100% + 0.6rem);
     gap: 0.4rem;
-    padding: 0.28rem 0.3rem 0.28rem 0.6rem;
+    padding: 0.3rem 0.3rem 0.3rem 0.7rem;
   }
 
   .discovery-hint__title {
-    font-size: 0.75rem;
+    font-size: 0.875rem;
   }
 
   .discovery-hint__text {

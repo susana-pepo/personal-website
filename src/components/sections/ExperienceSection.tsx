@@ -1,6 +1,7 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { content } from '../../content/content'
 import type { EducationEntry, ExperienceRole } from '../../content/types'
+import { prefersReducedMotion } from '../../lib/motion'
 import { objectLabel, pad } from '../SectionPanel/folio'
 import { DeskPile, pileColours, type DeskItem } from './experience/DeskPile'
 import { spineTitle, startYear, yearsOf } from './experience/years'
@@ -174,7 +175,11 @@ function Pile({
         panelId={pageId}
         onSelect={(item, byKeyboard) => {
           setInstant(byKeyboard)
-          setSelected(closable && !byKeyboard && item.id === selected ? null : item.id)
+          const next = closable && !byKeyboard && item.id === selected ? null : item.id
+          setSelected(next)
+          // On a phone the page opens below the fold: bring it up, or the tap seems to do nothing.
+          // Not for the keyboard, whose focus stays on the pile.
+          if (next && !byKeyboard) revealPage(pageId(item))
         }}
       />
       {items.map((item, i) => (
@@ -184,6 +189,22 @@ function Pile({
       ))}
     </section>
   )
+}
+
+/**
+ * Scroll a page that has just opened into view, if it starts too low in the panel to be
+ * seen (on a phone, below the pile). Waits a frame for it to be shown.
+ */
+function revealPage(id: string) {
+  requestAnimationFrame(() => {
+    const page = document.getElementById(id)
+    const scroller = page?.closest('.panel__body')
+    if (!page || !scroller) return
+    // Less than about four lines of it showing: bring its top up.
+    if (page.getBoundingClientRect().top > scroller.getBoundingClientRect().bottom - 96) {
+      page.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+    }
+  })
 }
 
 /** One open page, under the desk, in the colour of the book it came from. */

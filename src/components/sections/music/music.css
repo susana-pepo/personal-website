@@ -240,7 +240,7 @@
   align-items: center;
   gap: 0.45em;
   font-family: var(--font-sans);
-  font-size: var(--text-xs);
+  font-size: 0.8125rem;
   color: var(--ink-3);
 }
 
@@ -285,8 +285,12 @@
   display: block;
   margin-top: 0.55rem;
   font-family: var(--font-sans);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--ink-3);
+  text-decoration: underline;
+  text-decoration-color: var(--rule-card-strong);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.25em;
 }
 
 .deck__track:focus-visible {
@@ -858,14 +862,23 @@
 
 /* ════════ Small screens ════════ */
 @media (max-width: 639px) {
+  /* The record player above the track, so a long title and its artists get the full
+     width instead of a narrow column beside it. */
   .deck__track {
-    grid-template-columns: 8rem minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
     gap: var(--space-sm);
   }
 
   .tt {
     scale: 0.84;
-    transform-origin: 0 50%;
+    transform-origin: 0 0;
+    /* give back the height the smaller plinth no longer uses */
+    margin-bottom: calc(7.25rem * -0.16);
+  }
+
+  .deck__title {
+    font-size: 1.25rem;
   }
 }
 
