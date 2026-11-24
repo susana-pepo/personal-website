@@ -18,6 +18,8 @@ import {
   type SnowLight,
   type Weather,
 } from '../../../scene/weather'
+import { FrostLayer } from './FrostLayer'
+import { GlassDrops } from './GlassDrops'
 import './WeatherLayer.css'
 
 const FLAKE_COUNT = 420
@@ -307,6 +309,8 @@ export function WeatherLayer({ weather, time, motionAllowed }: WeatherLayerProps
         className="weather-snow"
         style={{ opacity: moving || snowing ? 1 : 0 }}
       />
+      <FrostLayer snowing={snowing} time={time} moving={moving} />
+      <GlassDrops raining={weather === 'rain'} time={time} moving={moving} />
     </span>
   )
 }

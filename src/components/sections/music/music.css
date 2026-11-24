@@ -587,6 +587,22 @@
   visibility: hidden;
 }
 
+/* Podcasts: the cover comes out on its own, so the desk is only as wide as the cover. */
+.crate-section[data-variant='podcasts'] .desk__inner {
+  grid-template-columns: var(--sleeve-w) minmax(0, 1fr);
+}
+
+.crate-section[data-variant='podcasts'] .desk__object {
+  width: var(--sleeve-w);
+  height: var(--sleeve-w);
+}
+
+@container (max-width: 33rem) {
+  .crate-section[data-variant='podcasts'] .desk__inner {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 /* Liner notes settle in one after another once the record lands. */
 .desk__notes {
   display: grid;

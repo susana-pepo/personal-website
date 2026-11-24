@@ -15,7 +15,7 @@ import { content } from '../../content/content'
 import { SECTION_IDS, type SectionId } from '../../content/types'
 import { closeSection, currentSection, hrefFor } from '../../lib/router'
 import { prefersReducedMotion } from '../../lib/motion'
-import { SECTION_COMPONENTS } from '../sections/registry'
+import { sectionComponent } from '../sections/registry'
 import {
   inkTransform,
   pad,
@@ -62,6 +62,7 @@ interface SectionPanelProps {
  */
 export function SectionPanel({ section }: SectionPanelProps) {
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const sheetRef = useRef<HTMLDivElement>(null)
   const headingRef = useRef<HTMLHeadingElement>(null)
   const bodyRef = useRef<HTMLDivElement>(null)
   const navRef = useRef<HTMLElement>(null)
@@ -119,12 +120,45 @@ export function SectionPanel({ section }: SectionPanelProps) {
 
     if (dialog.open) {
       setState('closing')
-      const exitMs = readDuration(getComputedStyle(dialog).getPropertyValue('--folio-exit'), 240)
-      const timer = window.setTimeout(() => {
+      // The dialog goes when the sheet's own fade ends, so the exit is never cut
+      // short. The fade, not the slide: it always ends last, also when a close
+      // reverses an opening that's only part-way (both were shortened, and the fade
+      // had got further), and with reduced motion it's all there is. Transitions
+      // inside the sheet (ink, progress, links) bubble up, hence the target check;
+      // and an opening fade that happens to end just as the close begins doesn't
+      // count, hence the check that the sheet really is gone.
+      const sheet = sheetRef.current
+      let timer = 0
+      const onEnd = (event: TransitionEvent) => {
+        if (event.target !== sheet || event.propertyName !== 'opacity') return
+        if (getComputedStyle(event.target as Element).opacity === '0') remove()
+      }
+      // Backup for when the end is missed, timed from when the fade actually starts
+      // (a busy page can start it well after this effect), with a longer first wait
+      // for when no fade runs at all (the sheet never got as far as open).
+      const exitMs = readDuration(getComputedStyle(dialog).getPropertyValue('--folio-exit'), 260)
+      const arm = (ms: number) => {
+        window.clearTimeout(timer)
+        timer = window.setTimeout(remove, ms)
+      }
+      const onRun = (event: TransitionEvent) => {
+        if (event.target === sheet && event.propertyName === 'opacity') arm(exitMs + 100)
+      }
+      const stop = () => {
+        window.clearTimeout(timer)
+        sheet?.removeEventListener('transitionend', onEnd)
+        sheet?.removeEventListener('transitionrun', onRun)
+      }
+      const remove = () => {
+        stop()
         dialog.close()
         finish()
-      }, exitMs + 20)
-      return () => window.clearTimeout(timer)
+      }
+      sheet?.addEventListener('transitionend', onEnd)
+      sheet?.addEventListener('transitionrun', onRun)
+      arm(exitMs + 600)
+      // Reopening mid-close lands here first, so the old exit can't close the new page.
+      return stop
     }
     // The browser already closed it (see the close listener below): just tidy up.
     if (pageRef.current) finish()
@@ -271,7 +305,7 @@ export function SectionPanel({ section }: SectionPanelProps) {
       onPointerDown={onDialogPointerDown}
       onClick={onDialogClick}
     >
-      <div className="panel__sheet">
+      <div ref={sheetRef} className="panel__sheet">
         <div className="panel__bar">
           <nav ref={navRef} className="panel__nav" aria-label="Sections" onKeyDown={onTabsKeyDown}>
             <div ref={tabsRef} className="panel__tabs">
@@ -326,7 +360,9 @@ function FolioPage({ page, leaving, headingRef }: FolioPageProps) {
   const index = SECTION_IDS.indexOf(id)
   const fromIndex = from ? SECTION_IDS.indexOf(from) : -1
   const rolls = !leaving && enter === 'turn' && fromIndex >= 0
-  const Content = SECTION_COMPONENTS[id]
+  // Chosen once per page: a preloaded section renders at once with no fallback.
+  // Swapping from lazy to plain on a later render would remount the content.
+  const [Content] = useState(() => sectionComponent(id))
 
   return (
     <article

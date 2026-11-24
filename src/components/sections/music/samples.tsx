@@ -4,7 +4,7 @@
  * lazily behind import.meta.env.DEV, so it never reaches the live site.
  */
 import { content } from '../../../content/content'
-import { RecordCrate } from './RecordCrate'
+import { RecordCrate, type CrateVariant } from './RecordCrate'
 import type { CrateRecord } from './types'
 
 const C = {
@@ -22,12 +22,12 @@ const C = {
   sand: 'oklch(0.86 0.03 80)',
 }
 
-type Motif = 'window' | 'keys' | 'stripes' | 'arcs' | 'type' | 'split' | 'grid' | 'sun' | 'moon'
+type Motif = 'window' | 'keys' | 'stripes' | 'arcs' | 'type' | 'split' | 'grid' | 'sun' | 'moon' | 'wave' | 'mic' | 'quote'
 
 interface Sample {
   t: string
   a: string
-  k: 'Album' | 'Playlist'
+  k: 'Album' | 'Playlist' | 'Podcast'
   y?: number
   n: string
   s: [string, string]
@@ -192,6 +192,29 @@ function coverSvg(r: Sample): string {
           .join('')}
         ${T(7, 15, 9, ac, r.t, 600)}${T(7, 22, 4.4, ac, r.a, 400)}`
       break
+    case 'wave':
+      g = `${range(19)
+        .map((i) => {
+          const h = 6 + Math.abs(Math.sin(i * 1.7) * 26) + (i % 3) * 3
+          return `<rect x="${7 + i * 4.6}" y="${46 - h / 2}" width="2.4" height="${h}" rx="1.2" fill="${i === 11 ? ac : fg}" opacity="${i === 11 ? 1 : 0.8}"/>`
+        })
+        .join('')}
+        ${T(7, 84, 8.5, fg, r.t, 600)}${T(7, 92, 4.4, fg, r.a, 400)}`
+      break
+    case 'mic':
+      g = `<rect x="40" y="14" width="20" height="34" rx="10" fill="${fg}"/>
+        ${range(5)
+          .map(
+            (i) => `<line x1="42" y1="${20 + i * 5}" x2="58" y2="${20 + i * 5}" stroke="${bg}" stroke-width=".7" opacity=".5"/>`,
+          )
+          .join('')}
+        <path d="M33 38 a17 17 0 0 0 34 0" fill="none" stroke="${fg}" stroke-width="2"/>
+        <line x1="50" y1="55" x2="50" y2="64" stroke="${fg}" stroke-width="2"/><rect x="41" y="64" width="18" height="2.4" rx="1" fill="${ac}"/>
+        ${T(50, 84, 7.5, fg, r.t, 600, 'middle')}${T(50, 92, 4.4, fg, r.a, 400, 'middle')}`
+      break
+    case 'quote':
+      g = `${T(5, 52, 58, ac, '“', 600)}${T(7, 70, 8, fg, r.t, 600)}${T(7, 78, 4.4, fg, r.a, 400)}`
+      break
     case 'moon':
       g = `<circle cx="64" cy="38" r="19" fill="${fg}"/><circle cx="72" cy="33" r="17" fill="${bg}"/>
         ${T(7, 82, 8, fg, 'Late, low', 500)}${T(7, 91, 8, ac, 'and slow', 500)}`
@@ -212,7 +235,52 @@ function SampleCover({ svg }: { svg: string }) {
   )
 }
 
-const SAMPLE_RECORDS: CrateRecord[] = SAMPLES.map((r) => {
+const EPISODE: [string, string] = ['Ep. 12', 'Sample episode title']
+
+const PODCAST_SAMPLES: Sample[] = [
+  {
+    t: 'Sample Show',
+    a: 'Sample host',
+    k: 'Podcast',
+    n: 'Weekly, about 45 min',
+    s: EPISODE,
+    art: ['wave', C.ink, C.sand, C.spot],
+  },
+  {
+    t: 'The Example Hour',
+    a: 'Two sample hosts',
+    k: 'Podcast',
+    n: 'Monthly, about 1 h',
+    s: EPISODE,
+    art: ['mic', C.sage, C.card, C.spot],
+  },
+  {
+    t: 'Placeholder Radio',
+    a: 'Sample host',
+    k: 'Podcast',
+    n: 'Weekly, about 30 min',
+    s: EPISODE,
+    art: ['quote', C.card, C.ink, C.terracotta],
+  },
+  {
+    t: 'Lorem Notes',
+    a: 'A sample studio',
+    k: 'Podcast',
+    n: 'Every two weeks, about 50 min',
+    s: EPISODE,
+    art: ['stripes', C.plum, C.sand, C.ochre],
+  },
+  {
+    t: 'Demo Conversations',
+    a: 'Sample host',
+    k: 'Podcast',
+    n: 'Weekly, about 40 min',
+    s: EPISODE,
+    art: ['sun', C.sand, C.terracotta, C.ink],
+  },
+]
+
+const toRecord = (r: Sample): CrateRecord => {
   const svg = coverSvg(r)
   return {
     key: `sample:${r.t}`,
@@ -227,9 +295,19 @@ const SAMPLE_RECORDS: CrateRecord[] = SAMPLES.map((r) => {
     tint: r.art[1],
     sample: true,
   }
-})
+}
 
-export default function CratePreview() {
-  const { collection } = content.music
-  return <RecordCrate records={SAMPLE_RECORDS} heading={collection.heading} description={collection.description} />
+const SAMPLE_RECORDS = SAMPLES.map(toRecord)
+const SAMPLE_PODCASTS = PODCAST_SAMPLES.map(toRecord)
+
+export default function CratePreview({ variant = 'records' }: { variant?: CrateVariant }) {
+  const shelf = variant === 'podcasts' ? content.music.podcasts : content.music.collection
+  return (
+    <RecordCrate
+      records={variant === 'podcasts' ? SAMPLE_PODCASTS : SAMPLE_RECORDS}
+      heading={shelf.heading}
+      description={shelf.description}
+      variant={variant}
+    />
+  )
 }

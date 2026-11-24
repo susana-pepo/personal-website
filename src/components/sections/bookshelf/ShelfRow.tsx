@@ -39,6 +39,11 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
   const headingId = `${idBase}-${shelf.id}`
   const drawerId = `${idBase}-${shelf.id}-detail`
 
+  // The book under the pointer or keyboard focus, named beneath the shelf.
+  const [peekKey, setPeekKey] = useState<string | null>(null)
+  const peek = placed.find((p) => bookKey(p.book) === peekKey) ?? null
+  const featured = shelf.id === 'reading' ? (placed[0] ?? null) : null
+
   // Keep the last book in the drawer while it closes.
   const [shown, setShown] = useState<PlacedBook | null>(null)
   if (openPlaced && openPlaced !== shown) setShown(openPlaced)
@@ -94,6 +99,10 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
         data-book-key={key}
         data-reading={shelf.id === 'reading' ? '' : undefined}
         onClick={() => onToggle(key)}
+        onPointerEnter={() => setPeekKey(key)}
+        onPointerLeave={() => setPeekKey((k) => (k === key ? null : k))}
+        onFocus={() => setPeekKey(key)}
+        onBlur={() => setPeekKey((k) => (k === key ? null : k))}
       >
         {children}
       </button>
@@ -102,86 +111,103 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
   const slip = (p: PlacedBook) => <span className="bs-slip" style={vars({ '--x': p.spec.slipX.toFixed(2) })} />
 
   return (
-    <section className="bs-shelf" aria-labelledby={headingId}>
+    <section className="bs-shelf" data-shelf={shelf.id} aria-labelledby={headingId}>
       <h3 id={headingId} className="bs-shelf__title">
         {shelf.title}
       </h3>
 
-      <div className="bs-bay">
-        <div className="bs-lamp" aria-hidden="true" />
-        <ul className="bs-row" role="list" onKeyDown={onKeyDown}>
-          {slots.map((s) => {
-            switch (s.type) {
-              case 'upright':
-                return (
-                  <li key={bookKey(s.book)} className="bs-slot" style={vars({ '--w': s.w, '--h': s.h, '--shade': s.shade })}>
-                    {bookButton(s, '', <><BookSpine book={s.book} spec={s.spec} />{slip(s)}</>)}
-                  </li>
-                )
-              case 'face':
-                return (
-                  <li key={bookKey(s.book)} className="bs-slot bs-slot--face" style={vars({ '--w': s.w, '--h': s.h, '--shade': s.shade })}>
-                    {bookButton(
-                      s,
-                      'face',
-                      <>
-                        <span className="bs-book__tilt">
-                          <BookCover book={s.book} spec={s.spec} />
-                        </span>
-                        {slip(s)}
-                      </>,
-                    )}
-                  </li>
-                )
-              case 'lean':
-                return (
-                  <li
-                    key={bookKey(s.book)}
-                    className="bs-slot bs-slot--lean"
-                    style={vars({
-                      '--w': s.w,
-                      '--h': s.h,
-                      '--shade': s.shade,
-                      '--lean': `${s.lean}deg`,
-                      marginLeft: units(s.marginLeft),
-                      marginRight: units(s.marginRight),
-                    })}
-                  >
-                    {bookButton(s, '', <><BookSpine book={s.book} spec={s.spec} />{slip(s)}</>)}
-                  </li>
-                )
-              case 'stack':
-                return (
-                  <li key="stack" className="bs-slot bs-slot--stack" style={vars({ '--shade': s.shade, marginLeft: units(8) })}>
-                    {s.books.map((p) =>
-                      bookButton(
-                        p,
-                        'flat',
-                        <span className="bs-book__rot">
-                          <BookSpine book={p.book} spec={p.spec} />
-                        </span>,
-                        vars({ '--w': p.spec.height, '--h': p.spec.thick, '--dx': p.dx, '--rw': p.spec.thick, '--rh': p.spec.height }),
-                      ),
-                    )}
-                  </li>
-                )
-              case 'object':
-                return (
-                  <li
-                    key={s.object}
-                    className={s.object === 'bookend' ? 'bs-slot bs-slot--obj bs-slot--bookend' : 'bs-slot bs-slot--obj'}
-                    aria-hidden="true"
-                    style={vars({ '--w': s.w, '--h': s.h })}
-                  >
-                    <span className="bs-obj" style={{ width: units(s.w), height: units(s.h) }}>
-                      <ShelfObjectArt />
-                    </span>
-                  </li>
-                )
-            }
-          })}
-        </ul>
-        <ShelfBoard />
+      <div className={featured ? 'bs-feature' : 'bs-plain'}>
+        <div className="bs-bay">
+          <div className="bs-lamp" aria-hidden="true" />
+          <ul className="bs-row" role="list" onKeyDown={onKeyDown}>
+            {slots.map((s) => {
+              switch (s.type) {
+                case 'upright':
+                  return (
+                    <li key={bookKey(s.book)} className="bs-slot" style={vars({ '--w': s.w, '--h': s.h, '--shade': s.shade })}>
+                      {bookButton(s, '', <><BookSpine book={s.book} spec={s.spec} />{slip(s)}</>)}
+                    </li>
+                  )
+                case 'face':
+                  return (
+                    <li key={bookKey(s.book)} className="bs-slot bs-slot--face" style={vars({ '--w': s.w, '--h': s.h, '--shade': s.shade })}>
+                      {bookButton(
+                        s,
+                        'face',
+                        <>
+                          <span className="bs-book__tilt">
+                            <BookCover book={s.book} spec={s.spec} />
+                          </span>
+                        </>,
+                      )}
+                    </li>
+                  )
+                case 'lean':
+                  return (
+                    <li
+                      key={bookKey(s.book)}
+                      className="bs-slot bs-slot--lean"
+                      style={vars({
+                        '--w': s.w,
+                        '--h': s.h,
+                        '--shade': s.shade,
+                        '--lean': `${s.lean}deg`,
+                        marginLeft: units(s.marginLeft),
+                        marginRight: units(s.marginRight),
+                      })}
+                    >
+                      {bookButton(s, '', <><BookSpine book={s.book} spec={s.spec} />{slip(s)}</>)}
+                    </li>
+                  )
+                case 'stack':
+                  return (
+                    <li key="stack" className="bs-slot bs-slot--stack" style={vars({ '--shade': s.shade, marginLeft: units(26) })}>
+                      {s.books.map((p) =>
+                        bookButton(
+                          p,
+                          'flat',
+                          <span className="bs-book__rot">
+                            <BookSpine book={p.book} spec={p.spec} />
+                          </span>,
+                          vars({ '--w': p.spec.height, '--h': p.spec.thick, '--dx': p.dx, '--rw': p.spec.thick, '--rh': p.spec.height }),
+                        ),
+                      )}
+                    </li>
+                  )
+                case 'object':
+                  return (
+                    <li
+                      key={s.object}
+                      className={s.object === 'bookend' ? 'bs-slot bs-slot--obj bs-slot--bookend' : 'bs-slot bs-slot--obj'}
+                      aria-hidden="true"
+                      style={vars({ '--w': s.w, '--h': s.h })}
+                    >
+                      <span className="bs-obj" style={{ width: units(s.w), height: units(s.h) }}>
+                        <ShelfObjectArt />
+                      </span>
+                    </li>
+                  )
+              }
+            })}
+          </ul>
+          <ShelfBoard />
+        </div>
+        {!featured && (
+          <p className="bs-caption" aria-hidden="true">
+            {peek && (
+              <>
+                <span className="bs-caption__title">{peek.book.title}</span> · {peek.book.author}
+              </>
+            )}
+          </p>
+        )}
+        {featured && (
+          <div className="bs-feature__text">
+            <p className="bs-feature__title">{featured.book.title}</p>
+            <p className="bs-feature__author">{featured.book.author}</p>
+            {featured.book.note && <p className="bs-feature__note">{featured.book.note}</p>}
+          </div>
+        )}
       </div>
 
       <div ref={drawerRef} id={drawerId} className="bs-drawer" data-open={isOpen ? '' : undefined} inert={!isOpen}>

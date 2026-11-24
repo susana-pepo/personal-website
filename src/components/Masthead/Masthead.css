@@ -13,8 +13,9 @@
   min-height: var(--header-h);
   /* below it, the breathing space before the room (--hero-gap, App.css) */
   padding-block: 1rem var(--hero-gap, 1.25rem);
-  /* arrives with the room (rise-in: SiteFooter.css; just a fade with reduced motion) */
-  animation: rise-in 600ms var(--ease-out) 160ms both;
+  /* arrives with the room (rise-in: SiteFooter.css; just a fade with reduced motion). Fills
+     backwards only: rise-in ends on the resting state, so nothing needs holding afterwards. */
+  animation: rise-in 600ms var(--ease-out) 160ms backwards;
 }
 
 .masthead__id {
@@ -129,7 +130,7 @@
 }
 
 .masthead__link:focus-visible {
-  outline: 1.5px solid var(--spot);
+  outline: 2px solid var(--spot);
   outline-offset: 0;
   border-radius: 4px;
   color: var(--on-sleeve);

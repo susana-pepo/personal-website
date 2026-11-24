@@ -220,6 +220,64 @@
   max-width: 30ch;
 }
 
+/* The opening sentence with my photo beside it, as a print laid on the page. */
+.about-opening--portrait {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-lg);
+}
+
+.about-print {
+  width: 12rem;
+  margin: 0;
+  padding: 0.5rem 0.5rem 0.75rem;
+  background: oklch(0.975 0.005 85);
+  border-radius: 2px;
+  box-shadow:
+    0 0 0 1px oklch(0.205 0.01 45 / 0.06),
+    0 1px 2px oklch(0.205 0.01 45 / 0.12),
+    0 16px 30px -16px oklch(0.205 0.02 45 / 0.45);
+  transform: rotate(2deg);
+  transition: transform 260ms var(--ease-out);
+}
+
+.about-print img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  object-fit: cover;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .about-print:hover {
+    transform: rotate(0deg) translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .about-print {
+    transition: none;
+  }
+
+  .about-print:hover {
+    transform: rotate(2deg);
+  }
+}
+
+@media (max-width: 639px) {
+  .about-opening--portrait {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-md);
+  }
+
+  .about-print {
+    order: -1;
+    width: 9rem;
+  }
+}
+
 .about-closing {
   max-width: 60ch;
   padding-top: var(--rhythm-block);
@@ -231,156 +289,296 @@
   text-wrap: pretty;
 }
 
-/* ── Contact: the address set large ── */
-.reach {
+/*
+ * ── Contact: the note under the mug ──
+ * The room's mug stands on the top-right corner of a small paper note, on the
+ * walnut desk edge. Only the paper is turned; the text on it stays straight.
+ * The lamp is upper right, so the note's shadow falls down and to the left.
+ */
+.note-desk {
+  --mug-w: 10rem;
+  /* the mug illustration is 646:1020 (steam above, mug and coaster below); --mug-sink is how far its coaster sits into the card on phones */
+  --mug-h: calc(var(--mug-w) * 1.579);
+  /* the coaster's back rim just inside the paper's top edge, so it reads as resting on it */
+  --mug-sink: calc(var(--mug-h) * 0.21);
+  --mug-right: 1rem;
+  --u: 1.4px;
   display: grid;
-  gap: var(--rhythm-block);
-  padding-top: var(--rhythm-block);
-  border-top: 1px solid var(--rule-card);
+  /* the steam may rise a little into the space under the header rule; the group sits a touch lower than before */
+  margin-top: calc(var(--rhythm-section) * -0.25);
 }
 
-.reach__email {
+.note {
+  position: relative;
+  /* Two columns of one height: the note, and the mug standing beside it on the same desk edge. */
   display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--mug-col);
+  column-gap: var(--space-md);
+  --mug-col: clamp(9rem, 41%, 16rem);
+}
+
+.note__card {
+  grid-column: 1;
+  grid-row: 1;
+  /* its own stacking context, so the paper (::before, z-index -1) sits just behind the text, not behind the panel */
+  isolation: isolate;
+}
+
+/* The mug's column takes the note's height; the drawing fills it and stands at its foot. */
+.note__mugcol {
+  position: relative;
+  grid-column: 2;
+  grid-row: 1;
+}
+
+.note__card {
+  position: relative;
+  display: grid;
+  gap: var(--space-lg);
+  padding: var(--space-lg) var(--space-lg) var(--space-md);
+}
+
+/* The paper: a touch warmer than the panel, with grain, turned about -1°. */
+.note__card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: 3px;
+  background: var(--fibre), oklch(0.968 0.014 82);
+  box-shadow:
+    0 0 0 1px oklch(0.205 0.01 45 / 0.05),
+    0 1px 2px oklch(0.25 0.03 45 / 0.12),
+    -12px 16px 26px -16px oklch(0.25 0.03 45 / 0.42);
+  transform: rotate(-1deg);
+  transform-origin: 85% 0%;
+}
+
+.note__intro {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  line-height: 1.5;
+  color: var(--ink);
+  text-wrap: pretty;
+}
+
+.note__action {
+  display: grid;
+  justify-items: start;
   gap: var(--space-xs);
 }
 
-.reach__label {
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-}
-
-.reach__row {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: var(--space-2xs) var(--space-md);
-}
-
-.reach__address {
-  min-width: 0;
+/* "Let’s chat": the note's heading, smaller than the panel title. */
+.note__title {
+  margin: 0;
   font-family: var(--font-display);
-  font-weight: 450;
-  font-size: var(--text-xl);
-  line-height: 1.15;
-  letter-spacing: -0.01em;
+  font-weight: 500;
+  font-size: calc(var(--text-xl) * 0.82);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
   color: var(--ink);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-decoration-color: var(--rule-card-strong);
-  text-underline-offset: 0.18em;
-  overflow-wrap: anywhere;
-  transition: text-decoration-color var(--dur-quick) ease;
 }
 
-.reach__address:hover {
-  text-decoration-color: var(--spot-ink);
-}
-
-/* "Copy address" swaps to "Copied" in place: a 6px vertical cross-fade. */
-.copy-button {
-  display: inline-grid;
-  align-items: center;
-  min-height: 44px;
-  padding: 0;
-  background: none;
-  border: 0;
-  font-family: var(--font-sans);
-  font-size: 0.9375rem;
-  color: var(--ink-2);
-  cursor: pointer;
-  transition: transform 160ms var(--ease-out);
-}
-
-.copy-button:active {
-  transform: scale(0.96);
-}
-
-.copy-button > span {
-  display: inline-flex;
-  grid-area: 1 / 1;
-  align-items: center;
-  gap: 0.4em;
-  transition:
-    opacity 180ms ease,
-    transform var(--dur-soft) var(--ease-out);
-}
-
-.copy-button__idle {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-decoration-color: var(--spot-ink);
-  text-underline-offset: 0.25em;
-}
-
-.copy-button__done {
-  opacity: 0;
-  transform: translateY(6px);
-  color: var(--spot-ink);
-}
-
-.copy-button[data-done] .copy-button__idle {
-  opacity: 0;
-  transform: translateY(-6px);
-}
-
-.copy-button[data-done] .copy-button__done {
-  opacity: 1;
-  transform: none;
-}
-
-.copy-button svg {
-  width: 0.95em;
-  height: 0.95em;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .copy-button > span,
-  .copy-button[data-done] .copy-button__idle {
-    transform: none;
-  }
-}
-
-.reach__links {
+/* Two equal actions: an icon and a plain label; the label inks a vermilion line only on hover or focus. */
+.note__acts {
   display: grid;
+  justify-items: start;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.reach__links a {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3xs) var(--space-sm);
-  padding: var(--space-sm) 0;
-  border-top: 1px solid var(--rule-card);
-  text-decoration: none;
-  color: var(--ink);
-}
-
-.reach__links li:first-child a {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.reach__link-label {
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: 1.15rem;
-  letter-spacing: -0.01em;
-}
-
-.reach__link-display {
+.note__act {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65em;
+  min-height: 44px;
   font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-  transition: color var(--dur-quick) ease;
+  font-size: 1.0625rem;
+  color: var(--ink);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms var(--ease-out);
 }
 
-.reach__links a:hover .reach__link-display {
-  color: var(--spot-ink);
+.note__act:active {
+  transform: scale(0.98);
+}
+
+.note__act .social-icon {
+  width: 1.1em;
+  height: 1.1em;
+  flex: none;
+  color: var(--ink-2);
+}
+
+.note__act-label {
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-decoration-color: transparent;
+  text-underline-offset: 0.3em;
+  transition: text-decoration-color var(--dur-quick) ease;
+}
+
+.note__act:focus-visible .note__act-label {
+  text-decoration-color: var(--spot-ink);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .note__act:hover .note__act-label {
+    text-decoration-color: var(--spot-ink);
+  }
+}
+
+/* The mug fills its column (its own width or the column's height, whichever is smaller) and stands at the foot. */
+.note__mugcol {
+  container-type: size;
+}
+
+.note-mug {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  align-items: center;
+}
+
+.note-mug__art {
+  display: block;
+  /* the illustration is 646 × 1020 */
+  width: min(100cqw, 100cqh * 0.6333);
+}
+
+.note-mug__art img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Its steam rests and barely drifts while an action is hovered or focused. */
+.note-mug__steam {
+  opacity: 0.85;
+  transform-origin: 50% 100%;
+}
+
+.note-mug[data-steam='rising'] .note-mug__steam {
+  animation: mug-steam 4.8s ease-in-out infinite;
+}
+
+@keyframes mug-steam {
+  0%,
+  100% {
+    opacity: 0.8;
+    transform: translateY(1px);
+  }
+  50% {
+    opacity: 1;
+    transform: translateY(-4px) scaleY(1.02);
+  }
+}
+
+.note-desk__board {
+  margin-top: var(--space-md);
+}
+
+/* Arrival: the mug settles, then the note slides out from under the coaster and turns to its angle. */
+.panel__page[data-enter] .note-mug {
+  animation: note-mug-in 380ms var(--ease-out) 160ms both;
+}
+
+.panel__page[data-enter] .note__card::before {
+  animation: note-slide 450ms var(--ease-out) 320ms both;
+}
+
+.panel__page[data-enter] .note__card > * {
+  animation: note-text 300ms var(--ease-out) 560ms both;
+}
+
+@keyframes note-mug-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes note-slide {
+  from {
+    opacity: 0;
+    transform: translate(1.75rem, -1.25rem) rotate(0.5deg) scale(0.96);
+  }
+}
+
+@keyframes note-text {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .panel__page[data-enter] .note-mug,
+  .panel__page[data-enter] .note__card::before,
+  .panel__page[data-enter] .note__card > * {
+    animation: note-text 150ms ease both;
+  }
+
+  .note-mug[data-steam='rising'] .note-mug__steam {
+    animation: none;
+  }
+
+  .note__act:active {
+    transform: none;
+  }
+}
+
+/*
+ * Phones: the card turns half as much and a smaller mug rests on its corner. The intro's first
+ * lines step around the coaster (a float), so the mug can sit on the paper without covering text.
+ */
+@media (max-width: 639px) {
+  .note-desk {
+    --mug-w: 6rem;
+    --mug-sink: calc(var(--mug-h) * 0.12);
+    --mug-right: 0.75rem;
+    --u: 1.1px;
+  }
+
+  /* One column: the mug rests on the note's top-right corner instead. */
+  .note {
+    display: block;
+    padding-top: calc(var(--mug-h) - var(--mug-sink));
+  }
+
+  .note__mugcol {
+    position: absolute;
+    top: 0;
+    right: var(--mug-right);
+    z-index: 2;
+    width: var(--mug-w);
+    height: var(--mug-h);
+  }
+
+  .note__card {
+    gap: var(--space-md);
+    padding: var(--space-md);
+  }
+
+  .note__card::before {
+    transform: rotate(-0.5deg);
+  }
+
+  .note__intro {
+    padding-right: 0;
+    font-size: 1.125rem;
+  }
+
+  .note__intro::before {
+    content: '';
+    float: right;
+    width: calc(var(--mug-w) * 0.9 + var(--mug-right) - var(--space-md));
+    height: 0.6rem;
+  }
 }
 
 .reach__pending {
@@ -397,9 +595,283 @@
   color: var(--ink-3);
 }
 
+/* ── Experience, set like a CV ── */
+/* The opening statement: wider and a step smaller than other ledes, so it settles in two or three lines. */
+.section--folio .cv-lede {
+  max-width: 46ch;
+  font-size: clamp(1.15rem, 1.05rem + 0.4vw, 1.35rem);
+  line-height: 1.5;
+  hyphens: manual;
+}
+
+.cv-desk {
+  container-type: inline-size;
+  display: grid;
+  gap: calc(var(--rhythm-section) * 1.5);
+}
+
+/* The company beside its books: two columns on one baseline, stacking when there's no room. */
+.cv-pile--beside {
+  display: grid;
+  grid-template-columns: minmax(0, 0.62fr) minmax(0, 1fr);
+  align-items: end;
+  column-gap: var(--space-lg);
+}
+
+.cv-pile--beside > .cv-page {
+  grid-column: 1 / -1;
+}
+
+.cv-pile--beside .xp-desk {
+  justify-self: end;
+}
+
+/* Role books at a scale that fits their column; supporting books at about two thirds of it. */
+.cv-pile--beside .xp-pile,
+.cv-pile--beside .xp-desk__board {
+  --u: 1.2px;
+}
+
+.cv-pile--small .xp-pile,
+.cv-pile--small .xp-desk__board {
+  --u: 1.05px;
+}
+
+@container (max-width: 34rem) {
+  .cv-pile--beside {
+    grid-template-columns: minmax(0, 1fr);
+    row-gap: var(--space-md);
+  }
+
+  .cv-pile--beside .xp-desk {
+    justify-self: start;
+  }
+
+  .cv-pile--beside .xp-pile,
+  .cv-pile--beside .xp-desk__board {
+    --u: 1.08px;
+  }
+
+  .cv-pile--small .xp-pile,
+  .cv-pile--small .xp-desk__board {
+    --u: 0.95px;
+  }
+}
+
+/* Each board is only as wide as its books, with a short overhang. (Not a size container
+   here, or fit-content would collapse it; the desk above sets the scale instead.) */
+.cv-desk .xp-desk {
+  container-type: normal;
+  width: fit-content;
+  max-width: 100%;
+  margin-block: var(--space-md) 0;
+}
+
+.cv-desk .xp-desk__board {
+  width: calc(100% + 12 * var(--u));
+  margin-left: calc(-6 * var(--u));
+}
+
+.cv-company {
+  display: grid;
+  gap: var(--space-2xs);
+  padding-bottom: var(--space-xs);
+}
+
+.cv-company__when {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+.cv-company__name {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: clamp(1.45rem, 1.2rem + 0.6vw, 1.65rem);
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+
+.cv-company__focus {
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.45;
+  color: var(--ink-2);
+}
+
+/* The interaction cue, quiet. */
+.cv-company__hint {
+  margin-top: var(--space-xs);
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+/* The lighter heading over the supporting books. */
+.cv-background__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+/*
+ * The open book's page, directly under the desk. Its top rule and chapter
+ * number take the chosen book's colour (--book), so the page reads as the
+ * book it came from.
+ */
+.cv-page {
+  display: grid;
+  gap: var(--rhythm-inline);
+  padding-top: var(--space-lg);
+  margin-top: var(--space-lg);
+  border-top: 2px solid var(--book, var(--rule-card-strong));
+}
+
+.cv-page[hidden] {
+  display: none;
+}
+
+/* Chosen by pointer: a short cross-fade, softened with a touch of blur. By keyboard: instant. */
+.cv-page:not([data-instant]) {
+  animation: cv-page-in 220ms var(--ease-out) both;
+}
+
+@keyframes cv-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-page:not([data-instant]) {
+    animation: cv-page-fade 160ms ease both;
+  }
+
+  @keyframes cv-page-fade {
+    from {
+      opacity: 0;
+    }
+  }
+}
+
+.cv-page__chapter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em 0.75em;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  color: var(--ink-3);
+}
+
+.cv-page__n {
+  font-variant-numeric: tabular-nums;
+  color: var(--book, var(--spot-ink));
+}
+
+.cv-page__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  line-height: 1.15;
+  letter-spacing: -0.005em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.cv-page__period {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-3);
+}
+
+/* The skills a role used: a quiet line under what was done. */
+.cv-page__skills {
+  margin-top: var(--space-xs);
+}
+
+.cv-page__skills .topics {
+  font-size: var(--text-sm);
+}
+
+.cv-points {
+  display: grid;
+  gap: var(--space-xs);
+  max-width: 58ch;
+  margin: var(--space-xs) 0 0;
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+.cv-points li {
+  position: relative;
+  padding-left: 1.1em;
+  text-wrap: pretty;
+}
+
+/* A small ink dot, hung in the margin and centred on the first line. */
+.cv-points li::before {
+  content: '';
+  position: absolute;
+  left: 0.15em;
+  top: 0.72em;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: var(--ink-3);
+}
+
+.cv-facts {
+  display: grid;
+  gap: var(--space-sm);
+  margin: var(--space-xs) 0 0;
+}
+
+.cv-facts > div {
+  display: grid;
+  grid-template-columns: 6.5rem minmax(0, 1fr);
+  gap: var(--space-sm);
+  align-items: baseline;
+}
+
+.cv-facts dt {
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.6;
+  color: var(--ink-3);
+}
+
+.cv-facts dd {
+  margin: 0;
+}
+
+.cv-facts .topics {
+  color: var(--ink-2);
+}
+
 /* ── Phones ── */
 @media (max-width: 639px) {
   .entry {
     grid-template-columns: 2rem minmax(0, 1fr);
+  }
+
+  .cv-facts > div {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3xs);
   }
 }

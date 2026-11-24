@@ -20,8 +20,18 @@
   -webkit-backdrop-filter: var(--glass-blur, blur(22px) saturate(170%));
   box-shadow: var(--glass-shadow, 0 10px 24px -12px oklch(0.05 0.01 45 / 0.7));
   translate: -50% 0;
-  opacity: 0;
-  animation: hint-in 700ms var(--ease-out) 2.4s both;
+  /* When it arrives, after the room has settled. The glint below keys off it too. */
+  --hint-delay: 2.4s;
+  /* It rests visible: the backwards fill keeps it hidden through the delay (and while the
+     entrance gate holds it paused), and nothing is held once it has arrived. */
+  animation: hint-in 700ms var(--ease-out) var(--hint-delay) backwards;
+}
+
+/* The footer's stagger (.credits > :nth-child(3), SiteFooter.css) weighs the same and loads
+   later, so it would bring the chip in with the player. The extra :nth-child(n) lets the
+   chip's own delay win. */
+.credits > .discovery-hint:nth-child(n) {
+  animation-delay: var(--hint-delay);
 }
 
 /* the same liquid rim as the player */
@@ -40,14 +50,22 @@
   pointer-events: none;
 }
 
-/* A small sparkle that glints now and then. */
+/* A small sparkle that glints once, just as the chip finishes arriving. A cue in the chrome
+   plays once; only the painting loops. */
 .discovery-hint__spark {
   flex: none;
   width: 0.8rem;
   height: 0.8rem;
   fill: var(--lamp-wash, oklch(0.88 0.08 75));
   filter: drop-shadow(0 0 4px oklch(0.88 0.08 75 / 0.55));
-  animation: hint-glint 4.8s ease-in-out 3.2s infinite;
+  opacity: 0.85;
+  animation: hint-glint 900ms ease-in-out calc(var(--hint-delay, 2.4s) + 700ms);
+}
+
+/* The chip waits for the entrance gate (HeroScene.css); its glint waits with it, so the one
+   glint isn't spent while the chip is still hidden. */
+:root:not([data-entered]) .discovery-hint__spark {
+  animation-play-state: paused;
 }
 
 .discovery-hint__title {
@@ -103,15 +121,30 @@
 }
 
 .discovery-hint__dismiss:focus-visible {
-  outline: 1.5px solid var(--spot);
+  outline: 2px solid var(--spot);
   outline-offset: 1px;
   opacity: 1;
 }
 
-/* Reachable by keyboard before its fade-in finishes: show it at once when focused. */
-.discovery-hint:focus-within {
-  animation: none;
-  opacity: 1;
+/* Reachable by keyboard before its fade-in finishes: show it at once when focused. Only the
+   arrival's timing is zeroed (it then counts as finished, at its resting opacity of 1), not the
+   animation itself: removing it would restart it when focus leaves, and the chip would vanish
+   for its whole delay, or fade out from nothing when the cross is pressed. */
+.credits > .discovery-hint:focus-within {
+  animation-delay: 0s;
+  animation-duration: 0s;
+}
+
+/* Leaving (DiscoveryHint.tsx keeps it mounted until this ends): it drops 4px on the exit curve
+   while the fade runs evenly over the whole 200ms, so it is still visible while it moves. The
+   fade starts from wherever the arrival had got to (--hint-from), so a chip dismissed before it
+   appeared stays unseen. */
+.discovery-hint[data-leaving],
+.credits > .discovery-hint[data-leaving] {
+  pointer-events: none;
+  animation:
+    hint-out-drop 200ms var(--ease-exit, cubic-bezier(0.4, 0, 1, 1)) forwards,
+    hint-out-fade 200ms linear forwards;
 }
 
 .discovery-hint__dismiss svg {
@@ -145,14 +178,28 @@
   }
 }
 
+@keyframes hint-out-drop {
+  to {
+    transform: translateY(4px);
+  }
+}
+
+@keyframes hint-out-fade {
+  from {
+    opacity: var(--hint-from, 1);
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes hint-glint {
   0%,
-  80%,
   100% {
     opacity: 0.85;
     transform: scale(1) rotate(0deg);
   }
-  88% {
+  40% {
     opacity: 1;
     transform: scale(1.25) rotate(20deg);
   }
@@ -185,5 +232,11 @@
 
   .discovery-hint__spark {
     animation: none;
+  }
+
+  /* Leaving is a short fade only, with no drop. */
+  .discovery-hint[data-leaving],
+  .credits > .discovery-hint[data-leaving] {
+    animation: hint-out-fade 120ms linear forwards;
   }
 }

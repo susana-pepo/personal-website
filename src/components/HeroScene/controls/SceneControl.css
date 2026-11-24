@@ -152,7 +152,7 @@
 
 /* Keyboard focus: the site's vermilion ring, drawn just inside the pill's curve. */
 .time-control__option:focus-visible {
-  outline: 1.5px solid var(--spot);
+  outline: 2px solid var(--spot);
   outline-offset: -2px;
   border-radius: 999px;
 }

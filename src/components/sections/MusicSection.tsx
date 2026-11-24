@@ -105,6 +105,7 @@ export default function MusicSection() {
       {music.intro && <p className="lede">{music.intro}</p>}
       <Listening />
       <SpotifyCollection />
+      <SpotifyCollection variant="podcasts" />
       {music.cards.length > 0 && (
         <ul className="music-grid" role="list">
           {music.cards.map((card) => (

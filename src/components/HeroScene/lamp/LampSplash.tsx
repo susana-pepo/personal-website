@@ -1,8 +1,16 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type Ref } from 'react'
 import { pctX, pctY } from '../../../scene/layout'
+import { BULB } from '../../../scene/lampGeometry'
+
+/*
+ * The spots were drawn round the shade when its bulb was at (1030, 472); they move with the
+ * bulb, so they stay round the shade wherever the lamp is placed.
+ */
+const SHIFT = { x: BULB.x - 1030, y: BULB.y - 472 }
+const moved = <T extends { x: number; y: number }>(p: T): T => ({ ...p, x: p.x + SHIFT.x, y: p.y + SHIFT.y })
 
 /** The lampshade's middle, on the canvas: every spot below is measured from here. */
-const ORIGIN = { x: 1028, y: 420 }
+const ORIGIN = moved({ x: 1028, y: 420 })
 /**
  * Spots around the shade where a burst (or a twitch) can appear, each with the
  * direction its marks fan out in (deg; 0 = right, -90 = up), always away from
@@ -14,7 +22,7 @@ const SPOTS = [
   { x: 1112, y: 446, facing: 6 }, // right
   { x: 1080, y: 494, facing: 58 }, // below the rim, right
   { x: 990, y: 497, facing: 118 }, // below the rim, left
-] as const
+].map(moved)
 const LIFETIME_MS = 2000
 
 export interface LampSplashHandle {

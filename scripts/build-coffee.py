@@ -1,6 +1,8 @@
 """Build the steaming coffee's web animation from the original transparent export.
 
 Usage: python3 scripts/build-coffee.py [--width 180] [--quality 82]   (or: npm run scene:coffee)
+       python3 scripts/build-coffee.py --width 272 --out public/media/contact --prefix mug --split 0.5 --light
+         (Contact's larger mug: the cup alone, sharp; the steam as its own lighter crop, see --split)
 Requires Pillow and numpy. Reads (never changes):
   portfolio-website-assets/public/media/coffee-transparent.webp
 Writes public/media/scene/coffee/coffee-steam.webp and coffee-still.webp.
@@ -60,7 +62,7 @@ def fill_transparent(rgba):
     return np.dstack([rgb, a]).round().clip(0, 255).astype(np.uint8)
 
 
-def build(width, quality):
+def build(width, quality, out_dir=OUT, prefix='coffee', split=None, light=False):
     raw = [f.convert('RGBA') for f in ImageSequence.Iterator(Image.open(SOURCE))]
     box = None
     for f in raw:
@@ -87,20 +89,36 @@ def build(width, quality):
     r = len(k) // 2
     loop = [sum(loop[(i + j - r) % L] * k[j] for j in range(len(k))) for i in range(L)]
     slow = []
+    inbetweens = 0 if light else INBETWEENS
     for i in range(L):
         a, b = loop[i], loop[(i + 1) % L]
         slow.append(a)
-        for n in range(1, INBETWEENS + 1):
+        for n in range(1, inbetweens + 1):
             t = n / (INBETWEENS + 1)
             slow.append(a * (1 - t) + b * t)
     loop = slow
     out = [Image.fromarray(fill_transparent(unpremul(x))) for x in loop]
-    OUT.mkdir(parents=True, exist_ok=True)
-    anim = OUT / 'coffee-steam.webp'
-    out[0].save(anim, save_all=True, append_images=out[1:], duration=FRAME_MS, loop=0, lossless=False,
+    frame_ms = FRAME_MS * (INBETWEENS + 1) if light else FRAME_MS  # same pace with fewer frames
+    out_dir.mkdir(parents=True, exist_ok=True)
+    if split is not None:
+        # The cup alone (sharp, still) and the steam above it as its own layer, so only the steam
+        # animates and the cup never softens. `split` is the rim's height as a fraction of the box.
+        W, H = out[0].size
+        y = round(H * split)
+        out[0].crop((0, y, W, H)).save(out_dir / f'{prefix}-cup.webp', quality=92, alpha_quality=100, method=6, exact=True)
+        steam = [f.crop((0, 0, W, y)) for f in out]
+        steam[0].save(out_dir / f'{prefix}-steam-still.webp', quality=88, alpha_quality=100, method=6, exact=True)
+        anim = out_dir / f'{prefix}-steam.webp'
+        steam[0].save(anim, save_all=True, append_images=steam[1:], duration=frame_ms, loop=0, lossless=False,
+                      quality=quality, alpha_quality=100, method=6, exact=True)
+        print(f'{out_dir}: cup {W}x{H - y}, steam {W}x{y}, {len(steam)} frames, '
+              f'{os.path.getsize(anim) / 1e6:.2f} MB, crop {crop}')
+        return
+    anim = out_dir / f'{prefix}-steam.webp'
+    out[0].save(anim, save_all=True, append_images=out[1:], duration=frame_ms, loop=0, lossless=False,
                 quality=quality, alpha_quality=100, method=6, exact=True)
-    out[0].save(OUT / 'coffee-still.webp', quality=92, alpha_quality=100, method=6, exact=True)
-    print(f'{anim}: {len(out)} frames, {len(out) * FRAME_MS / 1000:.1f} s, {os.path.getsize(anim) / 1e6:.2f} MB, '
+    out[0].save(out_dir / f'{prefix}-still.webp', quality=92, alpha_quality=100, method=6, exact=True)
+    print(f'{anim}: {len(out)} frames, {len(out) * frame_ms / 1000:.1f} s, {os.path.getsize(anim) / 1e6:.2f} MB, '
           f'{out[0].width}x{out[0].height}, crop {crop}')
 
 
@@ -108,5 +126,9 @@ if __name__ == '__main__':
     ap = argparse.ArgumentParser()
     ap.add_argument('--width', type=int, default=180)
     ap.add_argument('--quality', type=int, default=82)
+    ap.add_argument('--out', type=Path, default=OUT, help='output folder (default: the room\'s coffee folder)')
+    ap.add_argument('--prefix', default='coffee', help='file name prefix (default: coffee)')
+    ap.add_argument('--split', type=float, default=None, help='write the cup and the steam as separate layers, split at this height fraction')
+    ap.add_argument('--light', action='store_true', help='no in-between frames: a much smaller loop at the same pace')
     a = ap.parse_args()
-    build(a.width, a.quality)
+    build(a.width, a.quality, ROOT / a.out if not a.out.is_absolute() else a.out, a.prefix, a.split, a.light)

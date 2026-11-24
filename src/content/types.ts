@@ -104,11 +104,37 @@ export interface ExperienceEntry {
   focus: string[]
 }
 
+/** One role on the CV. */
+export interface ExperienceRole {
+  id: string
+  /** The chapter this role was in my path, as on my portfolio, e.g. "Owning the learning experience". */
+  stage: string
+  title: string
+  /** e.g. "August 2023 to October 2026". No dashes. */
+  period: string
+  /** What I did, from my CV. No figures until they can be backed up. */
+  points: string[]
+  /** The skills this role used, as tagged on my portfolio. */
+  skills: string[]
+}
+
+export interface Employer {
+  name: string
+  location: string
+  period: string
+  /** One line on what the work there spanned, e.g. "Product, learning content and licensing". */
+  focus?: string
+}
+
 export interface EducationEntry {
   id: string
   qualification: string
   institution: string
   period?: string
+  /** Short form for a book's spine, e.g. "Therapy and Educational Sciences". */
+  spine?: string
+  /** Second line on the spine, e.g. "MA". */
+  spineNote?: string
 }
 
 export interface MusicCard {
@@ -185,15 +211,21 @@ export interface Book {
 export interface ContactLink {
   label: string
   href: string
-  /** Visible handle or address, e.g. "linkedin.com/in/…" */
+  /** The handle or address, e.g. "linkedin.com/in/…" (kept for reference; not shown on the note). */
   display: string
+  /** The visible action on the contact note, e.g. "Connect on LinkedIn". Falls back to the label. */
+  action?: string
 }
 
 export interface ContactContent {
   heading: string
   intro: string
+  /** The note's heading, e.g. "Let’s chat"; also the subject of the email it opens. */
+  cta: string
   /** Public email address. Leave empty until approved for publishing. */
   email: string
+  /** The visible email action, e.g. "Send me an email". The address itself is never printed. */
+  emailAction: string
   links: ContactLink[]
   /** Shown when no email or links are configured yet. */
   pendingNote: string
@@ -210,13 +242,35 @@ export interface SiteContent {
     paragraphs: string[]
     /** A quieter last word, below a hairline. */
     closing: string
+    /** My photo, set as a small warm-toned print beside the intro. Omit to show none. */
+    portrait?: { src: string; srcSmall: string; alt: string }
   }
-  experience: { intro: string; entries: ExperienceEntry[]; education: EducationEntry[]; cvLabel: string }
+  experience: {
+    /** One line from my CV's profile, set as the lede. */
+    intro: string
+    employer: Employer | null
+    /** Newest first. */
+    roles: ExperienceRole[]
+    /** The cue beside the role books, e.g. "Choose a book to read about each role." */
+    pileHint: string
+    /** Heading of the smaller pile at the end, the things outside any one job. */
+    beyondTitle: string
+    /** The notebook on top of that pile: its spine title, e.g. "Languages and tools". */
+    toolkitTitle: string
+    languages: string[]
+    tools: string[]
+    /** The earlier "books on the desk" threads. Set aside for now and not shown. */
+    entries: ExperienceEntry[]
+    education: EducationEntry[]
+    cvLabel: string
+  }
   bookshelf: { intro: string; shelves: Shelf[]; books: Book[]; emptyNote: string }
   music: {
     intro: string
     listening: { heading: string; description: string; liveLabel: string; recentLabel: string }
     collection: { heading: string; description: string; items: SpotifyPick[] }
+    /** Podcasts: Spotify show (or episode) links, on their own shelf. */
+    podcasts: { heading: string; description: string; items: SpotifyPick[] }
     cards: MusicCard[]
     closing: string
   }

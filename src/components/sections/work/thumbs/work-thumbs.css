@@ -43,13 +43,14 @@
 
   @media (hover: hover) and (pointer: fine) {
     .wtile:hover .wthumb {
-      transform: translateY(-3px);
+      transform: translateY(-2px);
     }
   }
 
-  /* Chord builder: the chord is played, C, then E, then G. */
+  /* Chord builder: the chord is played, C, then E, then G: each note gives a small pulse and
+     settles. It starts and ends on the finished drawing, so nothing vanishes first. */
   :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-note {
-    animation: wt-note 420ms var(--ease-out, ease-out) both;
+    animation: wt-note 360ms var(--ease-in-out, ease-in-out);
     animation-delay: calc(var(--i) * 110ms);
   }
 
@@ -90,13 +91,8 @@
 }
 
 @keyframes wt-note {
-  0% {
-    transform: scale(0.2);
-    opacity: 0;
-  }
-  60% {
-    transform: scale(1.25);
-    opacity: 1;
+  50% {
+    transform: scale(1.06);
   }
 }
 

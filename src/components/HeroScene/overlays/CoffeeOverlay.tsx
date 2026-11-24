@@ -1,4 +1,5 @@
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { useEntered } from '../../../hooks/useEntered'
 import { COFFEE_MEDIA, overlay } from '../../../scene/layout'
 import { SceneObject } from './SceneObject'
 
@@ -22,10 +23,11 @@ interface CoffeeOverlayProps {
 export function CoffeeOverlay({ motionAllowed, highlighted, discoveryIndex }: CoffeeOverlayProps) {
   const reducedMotion = usePrefersReducedMotion()
   const moving = motionAllowed && !reducedMotion
+  const entered = useEntered() // the steam waits for the page's entrance
   return (
     <SceneObject overlay={COFFEE} highlighted={highlighted} discoveryIndex={discoveryIndex} className="coffee">
       <img
-        src={moving ? COFFEE_MEDIA.animated : COFFEE_MEDIA.still}
+        src={moving && entered ? COFFEE_MEDIA.animated : COFFEE_MEDIA.still}
         alt=""
         width={Math.round(COFFEE.width)}
         height={Math.round(COFFEE.height)}

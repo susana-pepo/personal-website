@@ -2,7 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { content } from '../../content/content'
 import type { SpotifyPick } from '../../content/types'
 import { fetchSpotifyMeta, kindLabel, parseSpotifyUrl, type SpotifyMeta, type SpotifyRef } from '../../lib/spotify'
-import { RecordCrate } from './music/RecordCrate'
+import { RecordCrate, type CrateVariant } from './music/RecordCrate'
 import type { CrateRecord } from './music/types'
 import './music/music.css'
 
@@ -36,11 +36,12 @@ function useSpotifyMeta(items: CollectionItem[]): Record<string, SpotifyMeta> {
 }
 
 /**
- * "On my shelf of records": the albums and playlists in content.ts, as a crate
- * of sleeves. Spotify's player (and its cookies) loads only when asked for.
+ * A shelf of Spotify links from content.ts: "On my shelf of records" (albums and
+ * playlists) or the podcast shelf. Spotify's player (and its cookies) loads only
+ * when asked for.
  */
-export function SpotifyCollection() {
-  const { collection } = content.music
+export function SpotifyCollection({ variant = 'records' }: { variant?: CrateVariant }) {
+  const collection = variant === 'podcasts' ? content.music.podcasts : content.music.collection
   const items = useMemo<CollectionItem[]>(
     () =>
       collection.items.flatMap((pick) => {
@@ -71,9 +72,9 @@ export function SpotifyCollection() {
   if (records.length === 0) {
     return CratePreview ? (
       <Suspense fallback={null}>
-        <CratePreview />
+        <CratePreview variant={variant} />
       </Suspense>
     ) : null
   }
-  return <RecordCrate records={records} heading={collection.heading} description={collection.description} />
+  return <RecordCrate records={records} heading={collection.heading} description={collection.description} variant={variant} />
 }

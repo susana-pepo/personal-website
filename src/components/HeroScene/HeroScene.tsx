@@ -2,6 +2,7 @@ import { lazy, Suspense, useCallback, useEffect, useRef, useState, type RefObjec
 import { createPortal } from 'react-dom'
 import { content } from '../../content/content'
 import { useCoverFit } from '../../hooks/useCoverFit'
+import { useEntered } from '../../hooks/useEntered'
 import { useCoarsePointer, usePrefersReducedMotion } from '../../hooks/useMediaQuery'
 import type { ScenePlayback } from '../../hooks/useScenePlayback'
 import type { CatPhase, PetStyle } from '../../scene/catReaction'
@@ -27,6 +28,7 @@ import { WindowLife } from './window/WindowLife'
 import { WindowView } from './window/WindowView'
 import { SceneControl } from './controls/SceneControl'
 import { timeAt, type TimeOfDay } from '../../scene/windowViews'
+import { ENTRANCE_MAX_WAIT_MS, ENTRANCE_SETTLE_MS, entranceImages, sceneReady, whenEntered, whenSettled } from '../../scene/entrance'
 import { WeatherLayer, WeatherSky } from './window/WeatherLayer'
 import { DEFAULT_WEATHER, WEATHER_CHOICES, WEATHER_WORDS, isWeather, type Weather } from '../../scene/weather'
 import './HeroScene.css'
@@ -77,6 +79,9 @@ const lampName = (step: number) => {
 }
 /** How often the window checks the visitor's clock (a new hour may bring a new view). */
 const CLOCK_CHECK_MS = 60_000
+/** Her greeting on a first visit: how long into the entrance it rises in, and how long it stays. */
+const GREETING_IN_MS = 550
+const GREETING_FOR_MS = 4700 // as long as its float (HotspotSpeech.css: greet-float)
 const OVERLAY_OF = new Map(HOTSPOTS.flatMap((h) => (h.overlay ? [[h.id, h.overlay] as const] : [])))
 
 interface HeroSceneProps {
@@ -95,6 +100,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   const catRef = useRef<CatHandle>(null)
   const announcementTimer = useRef<number | undefined>(undefined)
   const sceneStyle = useCoverFit(stageRef)
+  const entered = useEntered() // the room's video waits for the page's entrance (the poster shows till then)
   const seamRef = useRef<HTMLCanvasElement>(null)
   const blendARef = useRef<HTMLCanvasElement>(null)
   const blendBRef = useRef<HTMLCanvasElement>(null)
@@ -107,12 +113,19 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
     enabled: playback.shouldLoad && !playback.unavailable && ROOM_PLAYBACK_RATE < 1,
     frameRate: 24,
   })
-  // A one-time, staggered glow across the objects after the room loads.
+  // A one-time, staggered glow across the objects, once the page's entrance has settled.
   const [discovery, setDiscovery] = useState<'pending' | 'running' | 'done'>('pending')
   useEffect(() => {
     if (discovery !== 'pending' || reducedMotion) return
-    const start = window.setTimeout(() => setDiscovery('running'), DISCOVERY_DELAY_MS)
-    return () => window.clearTimeout(start)
+    let start: number | undefined
+    let live = true
+    void whenSettled().then(() => {
+      if (live) start = window.setTimeout(() => setDiscovery('running'), DISCOVERY_DELAY_MS)
+    })
+    return () => {
+      live = false
+      window.clearTimeout(start)
+    }
   }, [discovery, reducedMotion])
   useEffect(() => {
     if (discovery !== 'running') return
@@ -125,6 +138,26 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   const section = useSection()
   // Until the visitor first hovers, focuses or taps an object (used by the optional invitation pulse).
   const [explored, setExplored] = useState(false)
+  // First visit: her greeting ("Hey there, I'm Susana") is part of the entrance: it rises in
+  // as the room arrives, stays a few seconds, then fades away (sooner if the visitor touches
+  // the room). After that it shows on hover, like every object's line.
+  const [greetingOn, setGreetingOn] = useState(false)
+  useEffect(() => {
+    let live = true
+    let on: number | undefined
+    let off: number | undefined
+    void whenEntered().then(() => {
+      if (!live) return
+      on = window.setTimeout(() => setGreetingOn(true), GREETING_IN_MS)
+      off = window.setTimeout(() => setGreetingOn(false), GREETING_IN_MS + GREETING_FOR_MS)
+    })
+    return () => {
+      live = false
+      window.clearTimeout(on)
+      window.clearTimeout(off)
+    }
+  }, [])
+  const greeting = greetingOn && !explored
   useEffect(() => {
     if (active) setExplored(true)
   }, [active])
@@ -161,6 +194,27 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
     return () => {
       window.clearInterval(timer)
       document.removeEventListener('visibilitychange', follow)
+    }
+  }, [])
+
+  // The entrance: the room waits, unseen, until its pictures and fonts are ready (never more
+  // than a few seconds), then the whole page is revealed at once (see scene/entrance.ts).
+  useEffect(() => {
+    const root = document.documentElement
+    if (root.dataset.entered !== undefined) return
+    let cancelled = false
+    void sceneReady(entranceImages(timeAt(new Date())), ENTRANCE_MAX_WAIT_MS).then(() => {
+      if (cancelled) return
+      // two frames, so the decoded pictures are painted before the fade starts
+      requestAnimationFrame(() =>
+        requestAnimationFrame(() => {
+          root.dataset.entered = ''
+          window.setTimeout(() => (root.dataset.settled = ''), ENTRANCE_SETTLE_MS)
+        }),
+      )
+    })
+    return () => {
+      cancelled = true
     }
   }, [])
 
@@ -253,7 +307,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
             ref={videoRef}
             className="stage__video"
             style={ROOM_BOX}
-            src={playback.shouldLoad ? ROOM_VIDEO_SRC : undefined}
+            src={playback.shouldLoad && entered ? ROOM_VIDEO_SRC : undefined}
             width={1920}
             height={1080}
             muted
@@ -332,7 +386,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
         <LampColour tone={lampTone} />
         <LampSplash ref={lampSplash} />
 
-        <HotspotLayer onActiveChange={setActive} onAction={onAction} lampTone={lampName(lampTone)} />
+        <HotspotLayer onActiveChange={setActive} onAction={onAction} lampTone={lampName(lampTone)} greeting={greeting} />
 
         {/* Drawn in the masthead above the room (after the menu in the tab order). */}
         {controlSlot &&

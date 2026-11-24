@@ -25,9 +25,9 @@ export const content: SiteContent = {
     work: {
       id: 'work',
       navLabel: 'Work',
-      title: 'Selected work',
+      title: 'Things I’ve built',
       summary: 'Where music, learning and rights meet product.',
-      roomLabel: 'Selected work',
+      roomLabel: 'Things I’ve built',
       objectName: 'the laptop',
     },
     about: {
@@ -75,7 +75,7 @@ export const content: SiteContent = {
 
   work: {
     intro:
-      'Most of my work sits where music meets the systems around it: how people learn it, how it is licensed, and how products can make both feel simpler than they are.',
+      'A little collection of tools, experiments, and ideas I’ve turned into something real. Some started with a problem I wanted to solve, others simply because I was curious to see if I could make them work.',
     // The map: each area of focus fills one quadrant (see `place` below). The axis
     // words come from the intro above; change them freely.
     map: {
@@ -121,10 +121,10 @@ export const content: SiteContent = {
         topics: ['Music pedagogy', 'Notation systems', 'Content design', 'Interactive technology'],
       },
     ],
-    // Things I've made, each drawn as a small object (thumb). `area` ties a project to
-    // a quadrant of the map above. Only link things that are live and public.
+    // Things I've built: files on the laptop's desktop, each drawn as a small object
+    // (thumb). `area` is kept for reference but no longer shown. Only link things that are live and public.
     projects: {
-      label: 'Things I’ve made',
+      label: 'Things I’ve built',
       items: [
         {
           id: 'chord-builder',
@@ -153,7 +153,7 @@ export const content: SiteContent = {
         {
           id: 'licensing-engine',
           title: 'Licensing engine',
-          line: 'Rights clearance for a song catalogue, with the business rules kept as data.',
+          line: 'A tool to help figure out which songs can be used, where, and under which licensing conditions.',
           summary:
             'An in-house rights-clearance system for a music-learning catalogue. The business rules, from how publisher shares map to rights groups to deal terms and restricted writers, live in data files rather than code, so they can be changed without a developer and every change can be reviewed. A dashboard on top shows coverage, scenarios and a plan of action.',
           status: 'Internal tool',
@@ -185,6 +185,8 @@ export const content: SiteContent = {
   },
 
   about: {
+    // From my PM portfolio (headshot.jpg), toned to the room's ink and paper.
+    portrait: { src: '/media/about/headshot.webp', srcSmall: '/media/about/headshot-280.webp', alt: 'Susana Pérez' },
     intro: 'Music has always been a big part of my life, and somehow it keeps finding its way into everything I do.',
     paragraphs: [
       'I work on products that bring music, learning and technology together. Most of all, I try to make complicated experiences feel a bit easier and more enjoyable.',
@@ -197,8 +199,55 @@ export const content: SiteContent = {
   },
 
   experience: {
+    // A condensed version of my CV, without the figures (not yet backed up in the evidence bank).
     intro:
-      'The threads that run through my work so far, across product, music licensing and music education.',
+      'I’ve spent the last few years working on the many pieces that make music-learning products possible, from the learning experience itself to the music behind it.',
+    employer: {
+      name: 'Learnfield GmbH',
+      location: 'Berlin, Germany',
+      period: 'April 2022 to October 2026',
+      // From the three role titles below; licensing was part of the content manager role.
+      focus: 'Product, learning content and licensing',
+    },
+    roles: [
+      {
+        id: 'product-owner',
+        stage: 'Owning the learning experience',
+        title: 'Product Owner, Learning Experience & Content',
+        period: 'August 2023 to October 2026',
+        points: [
+          'Owned learning experience and content strategy across two learning products.',
+          'Validated a step-by-step learning format that raised completion and retention, and was adopted at scale.',
+          'Prototyped practice tools and short video formats with AI and low-code tools before committing engineering time.',
+        ],
+        skills: ['Learning experience design', 'Learner research', 'Learning analytics', 'AI prototyping', 'Localisation'],
+      },
+      {
+        id: 'content-manager',
+        stage: 'Scaling the content system',
+        title: 'Education Content Manager & License Manager',
+        period: 'October 2022 to July 2023',
+        points: [
+          'Ran learning content end to end, from scope through localisation, QA and release.',
+          'Shipped a large quarterly module release, plus a separate release for Japan and Korea.',
+        ],
+        skills: ['Content operations', 'Localisation', 'Onboarding', 'Quality assurance'],
+      },
+      {
+        id: 'content-creator',
+        stage: 'Making the learning',
+        title: 'Educational Content Creator',
+        period: 'April 2022 to October 2022',
+        points: ['Designed and scripted self-paced courses and interactive lessons with educators and subject experts.'],
+        skills: ['Instructional design', 'Course design', 'Video-based learning'],
+      },
+    ],
+    pileHint: 'Choose a book to read about each role.',
+    beyondTitle: 'A little more background',
+    toolkitTitle: 'Languages and tools',
+    languages: ['Spanish, native', 'English, C1+', 'German, B2+'],
+    tools: ['Claude', 'ChatGPT', 'Lovable', 'Google Stitch', 'Figma', 'Mixpanel', 'Jira', 'Confluence'],
+    // Set aside for now: the earlier "books on the desk" threads. Not shown.
     entries: [
       {
         id: 'product',
@@ -229,7 +278,15 @@ export const content: SiteContent = {
         focus: ['Musicianship', 'Practice', 'Listening'],
       },
     ],
-    education: [],
+    education: [
+      {
+        id: 'ma-srh',
+        qualification: 'Master of Arts in Therapy and Educational Sciences',
+        institution: 'SRH Heidelberg University',
+        spine: 'Education',
+        spineNote: 'MA',
+      },
+    ],
     cvLabel: 'Download CV (PDF)',
   },
 
@@ -259,9 +316,9 @@ export const content: SiteContent = {
       { title: 'La perra', author: 'Pilar Quintana', shelf: 'loved' },
       { title: 'Los abismos', author: 'Pilar Quintana', shelf: 'loved' },
       { title: 'Lo que no tiene nombre', author: 'Piedad Bonnet', shelf: 'loved' },
-      // Han is the family name, so the spine shows the full name rather than "Kang".
-      { title: 'La clase de griego', author: 'Han Kang', shelf: 'loved', spineAuthor: 'Han Kang' },
-      { title: 'La vegetariana', author: 'Han Kang', shelf: 'loved', spineAuthor: 'Han Kang' },
+      // Han is the family name, so the spine shows the full name rather than "Kang". The two lie in a pile.
+      { title: 'La clase de griego', author: 'Han Kang', shelf: 'loved', spineAuthor: 'Han Kang', pose: 'flat' },
+      { title: 'La vegetariana', author: 'Han Kang', shelf: 'loved', spineAuthor: 'Han Kang', pose: 'flat' },
       { title: 'La ridícula idea de no volver a verte', author: 'Rosa Montero', shelf: 'loved' },
     ],
     emptyNote: 'The shelf is being arranged. Books will be here soon.',
@@ -281,6 +338,55 @@ export const content: SiteContent = {
       // e.g. { url: 'https://open.spotify.com/album/…', subtitle: 'Artist name', note: 'Why I love it.' }
       items: [],
     },
+    podcasts: {
+      heading: 'On my podcast shelf',
+      description: 'Shows I keep coming back to.',
+      // Spotify show links (Share → Copy link). Set title and cover for shows: Spotify's public
+      // lookup returns the latest episode instead of the show. Optional: note, startWith, length.
+      items: [
+        {
+          url: 'https://open.spotify.com/show/3skDSKvB1twtAxgLh0645y',
+          title: 'El hilo',
+          subtitle: 'Radio Ambulante Studios',
+          cover: 'https://i.scdn.co/image/ab6765630000ba8ab34d1f3c49dbd604425b04d2',
+        },
+        {
+          url: 'https://open.spotify.com/show/0J74zdNxUVWHq4gLoq8MqX',
+          title: 'Radio Ambulante',
+          subtitle: 'Radio Ambulante Studios',
+          cover: 'https://i.scdn.co/image/ab6765630000ba8a1b0770711d6778f62714ec83',
+        },
+        {
+          url: 'https://open.spotify.com/show/07H1d02UXSbKcQ8NQPn9h7',
+          title: 'Presunto',
+          cover: 'https://i.scdn.co/image/ab6765630000ba8a1a4b86dfab6db62ea6d30397',
+        },
+        {
+          url: 'https://open.spotify.com/show/5KhMVavoTzH3ssVZTVJNwI',
+          title: 'The Way Out Is In',
+          subtitle: 'Plum Village',
+          cover: 'https://i.scdn.co/image/ab6765630000ba8a94c31759a1c100471cdbec52',
+        },
+        {
+          url: 'https://open.spotify.com/show/5MMXYd6TL3cTtbHNnCdeLG',
+          title: 'El Topo',
+          subtitle: 'La No Ficción',
+          cover: 'https://i.scdn.co/image/ab6765630000ba8af5f8c2b9450fcad27be0d729',
+        },
+        {
+          url: 'https://open.spotify.com/show/3xIalu2XhZ2EjSbOcTg0U8',
+          title: 'DianaUribe.fm',
+          subtitle: 'Diana Uribe',
+          cover: 'https://i.scdn.co/image/ab6765630000ba8afaf77eb827242ed2816bda82',
+        },
+        {
+          url: 'https://open.spotify.com/show/08F60fHBihlcqWZTr7Thzc',
+          title: 'On Being with Krista Tippett',
+          subtitle: 'On Being Studios',
+          cover: 'https://i.scdn.co/image/ab6765630000ba8a41fbb5a24e3b3595e3221203',
+        },
+      ],
+    },
     intro: '',
     cards: [],
     closing: '',
@@ -289,18 +395,26 @@ export const content: SiteContent = {
   contact: {
     heading: 'Say hello',
     intro:
-      'Whether it’s about music learning, licensing, product work, or a piece of music you think I’d love, I’m always glad to hear from thoughtful people.',
-    // Add a public address once you're happy to publish it, e.g. 'hello@example.com'.
-    email: '',
-    // e.g. { label: 'LinkedIn', href: 'https://www.linkedin.com/in/…', display: 'linkedin.com/in/…' }
-    links: [],
+      'I’d love to hear from you if you’d like to chat about music, learning, licensing, or product ideas. And if you have a song you think I’d enjoy, I’m always happy to discover something new.',
+    // The note's heading; "Send me an email" opens an email to this address with it as the subject.
+    cta: 'Let’s chat',
+    email: 'susipp93@gmail.com',
+    emailAction: 'Send me an email',
+    links: [
+      {
+        label: 'LinkedIn',
+        href: 'https://www.linkedin.com/in/susana-pepo-pm',
+        display: 'linkedin.com/in/susana-pepo-pm',
+        action: 'Connect on LinkedIn',
+      },
+    ],
     pendingNote: 'Direct contact details will be added here very soon.',
   },
 
   objectTooltips: {
     vinyl: 'What I’m listening to',
     books: 'My booklist',
-    laptop: 'My work',
+    laptop: 'Things I’ve built',
     deskbooks: 'My experience',
     woman: 'Hey there, I’m Susana',
     coffee: 'Let’s chat',

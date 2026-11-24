@@ -10,6 +10,7 @@ later and needs a host you choose (see the last section).
 > **The record crate doesn't need any of this.** "On my shelf of records" only needs Spotify
 > share links (Share → Copy link) pasted into `music.collection.items` in
 > `src/content/content.ts`. Covers, titles and players load from those links, with no keys.
+> The podcast shelf works the same way: paste show links into `music.podcasts.items`.
 
 ## How it fits together
 

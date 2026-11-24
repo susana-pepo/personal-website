@@ -3,9 +3,9 @@ import type { Overlay, OverlayId } from './layout'
 
 /**
  * Development-only overrides of overlay positions, used by the placement
- * sandbox (?sandbox=1). They're kept in this browser's storage so a page reload
- * (e.g. the dev server picking up an edit) doesn't lose what you've placed;
- * "Reset all" clears them. Nothing reaches the real layout: copy the numbers
+ * sandbox (?sandbox=1), and applied only while it's open. They're kept in this
+ * browser's storage so a page reload (e.g. the dev server picking up an edit)
+ * doesn't lose what you've placed; "Reset all" clears them. Nothing reaches the real layout: copy the numbers
  * the sandbox shows into src/scene/scene-layout.json.
  */
 export interface Placement {
@@ -16,8 +16,12 @@ export interface Placement {
 
 const STORAGE_KEY = 'scene-sandbox-placements'
 
+/** Only while the sandbox is open (?sandbox=1): any other view shows the saved layout as it is. */
+const sandboxOpen = () =>
+  import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sandbox') === '1'
+
 function load(): Map<OverlayId, Placement> {
-  if (!import.meta.env.DEV) return new Map()
+  if (!sandboxOpen()) return new Map()
   try {
     const saved = JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? '{}') as Record<string, Placement>
     return new Map(Object.entries(saved) as [OverlayId, Placement][])

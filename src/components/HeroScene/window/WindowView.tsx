@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEntered } from '../../../hooks/useEntered'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
 import { TIMES, WINDOW_GLASS_STYLE, WINDOW_VIEWS, WINDOW_VIEW_MASK, type TimeOfDay } from '../../../scene/windowViews'
 
@@ -43,6 +44,7 @@ interface WindowViewProps {
 export function WindowView({ time, motionAllowed, onReady }: WindowViewProps) {
   const reducedMotion = usePrefersReducedMotion()
   const moving = motionAllowed && !reducedMotion
+  const entered = useEntered() // the loop waits for the page's entrance (its still shows till then)
   const layers = useRef<Partial<Record<TimeOfDay, HTMLSpanElement | null>>>({})
   // The stack on screen, bottom first: order[0] is the settled view (opacity 1).
   const order = useRef<TimeOfDay[]>([time])
@@ -166,7 +168,7 @@ export function WindowView({ time, motionAllowed, onReady }: WindowViewProps) {
       {TIMES.map((t) => {
         const media = WINDOW_VIEWS[t]
         // the chosen loop, and a loop already playing in a layer that's still on screen
-        const loop = moving && (t === loopFor || (onScreen.includes(t) && arrived[t] === true))
+        const loop = moving && entered && (t === loopFor || (onScreen.includes(t) && arrived[t] === true))
         return (
           <span
             key={t}

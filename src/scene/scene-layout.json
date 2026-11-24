@@ -77,24 +77,24 @@
       "id": "lamp",
       "src": "/media/scene/lamp.webp",
       "intrinsic": [
-        274,
-        494
+        430,
+        774
       ],
-      "x": 889.4,
-      "y": 339.9,
-      "width": 211.0,
+      "x": 889,
+      "y": 411,
+      "width": 188,
       "z": 5
     },
     {
       "id": "vase",
       "src": "/media/scene/vase.webp",
       "intrinsic": [
-        207,
-        317
+        360,
+        509
       ],
-      "x": 1053.3,
-      "y": 477.8,
-      "width": 163.3,
+      "x": 1706,
+      "y": 510,
+      "width": 187,
       "z": 5
     },
     {
@@ -104,8 +104,8 @@
         1536,
         1024
       ],
-      "x": 946,
-      "y": 642,
+      "x": 975,
+      "y": 655,
       "width": 209,
       "z": 6,
       "glow": {
@@ -122,16 +122,17 @@
         980,
         686
       ],
-      "x": 1093,
-      "y": 516,
-      "width": 420,
+      "x": 1138,
+      "y": 570,
+      "width": 341,
       "glow": {
         "rest": 0.6,
         "invite": 0,
         "hover": 0.9,
         "lift": 1.0
       },
-      "z": 7
+      "z": 7,
+      "haloSpread": 0.35
     },
     {
       "id": "woman",
@@ -152,8 +153,8 @@
         480,
         311
       ],
-      "x": 1520,
-      "y": 638,
+      "x": 1472,
+      "y": 652,
       "width": 357,
       "z": 8
     },
@@ -164,8 +165,8 @@
         180,
         385
       ],
-      "x": 1423,
-      "y": 684,
+      "x": 1391,
+      "y": 686,
       "width": 117,
       "z": 9,
       "glow": {
@@ -254,5 +255,20 @@
       "src": "/media/scene/woman/woman-breath.webp",
       "ms": 4533
     }
+  },
+  "lampParts": {
+    "$comment": "Where the lamp picture's bulb and the two ends of its shade's open rim are, as fractions of the picture (x, y): the lamp's light is placed from these and the lamp's box, so it follows the lamp wherever it is put.",
+    "bulb": [
+      0.635,
+      0.3535
+    ],
+    "rimLeft": [
+      0.3371,
+      0.4172
+    ],
+    "rimRight": [
+      0.9776,
+      0.3333
+    ]
   }
 }

@@ -15,6 +15,7 @@ import {
 } from '../../../scene/catReaction'
 import { CAT_MEDIA, overlay } from '../../../scene/layout'
 import { arrivedClipFile, fetchClipFile, fetchLater } from '../../../scene/clipFiles'
+import { whenSettled } from '../../../scene/entrance'
 import { SceneObject } from './SceneObject'
 
 export interface CatHandle {
@@ -164,7 +165,9 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       const img = new Image()
       img.alt = ''
       img.draggable = false
-      img.decoding = 'async'
+      // decoded before it's drawn: an animated picture this large would otherwise be drawn blank
+      // (the whole figure blinking out) while the browser catches up with its first frames
+      img.decoding = 'sync'
       img.dataset.clip = clip.name
       img.src = url
       try {
@@ -180,14 +183,16 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       const previous = current
       current = { img, url }
       host.appendChild(img)
-      setPlaying(true)
+      // the still (or the last clip, in the same pose) stays underneath a moment, until this one
+      // has surely been drawn: never a blank frame while the browser gets the clip ready
+      window.setTimeout(() => !stopped && setPlaying(true), 300)
       const letGo = () => {
         if (!previous) return
         previous.img.remove()
         URL.revokeObjectURL(previous.url)
       }
       if (entrance === 'cut') {
-        requestAnimationFrame(() => requestAnimationFrame(letGo)) // same pose underneath: never a blank frame
+        window.setTimeout(letGo, 300) // same pose underneath, kept until the new clip is surely drawn
       } else {
         const ms = entrance === 'dissolve' ? DISSOLVE_MS : RECOVER_FADE_MS
         img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: EASE })
@@ -215,7 +220,10 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
     }
     let reacting = false
     let waitingForVisible = false
-    void sleepOn('cut')
+    // once the page's entrance has settled (the still, its first frame, holds its place till then)
+    void whenSettled().then(() => {
+      if (!stopped) void sleepOn('cut')
+    })
     // The variation and the reactions load later, one after another (sleep comes first);
     // a hover before they've arrived simply finds it staying asleep, with its purr.
     const moreTimer = fetchLater(

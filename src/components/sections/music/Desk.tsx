@@ -22,11 +22,13 @@ interface DeskProps {
   /** The sleeve on the desk is drawn (hidden while the flying copy is on its way). */
   sleeveShown: boolean
   sleeveRef: Ref<HTMLDivElement>
+  /** False for podcasts: the cover comes out on its own, with no record. */
+  disc?: boolean
   onPutBack: () => void
 }
 
 /** The record taken out of the crate: sleeve, vinyl, liner notes, and an opt-in player. */
-export function Desk({ record, out, sleeveShown, sleeveRef, onPutBack }: DeskProps) {
+export function Desk({ record, out, sleeveShown, sleeveRef, disc = true, onPutBack }: DeskProps) {
   const reduced = usePrefersReducedMotion()
   const playerId = useId()
   const playerRef = useRef<HTMLDivElement>(null)
@@ -63,12 +65,14 @@ export function Desk({ record, out, sleeveShown, sleeveRef, onPutBack }: DeskPro
       style={record.tint ? ({ '--player-tint': record.tint } as CSSProperties) : undefined}
     >
       <div className="desk__object" aria-hidden="true">
-        <div className="desk__vinyl">
-          <div className="desk__disc">
-            <Vinyl cover={record.cover} art={record.art} />
-            <span className="vinyl__sheen" />
+        {disc && (
+          <div className="desk__vinyl">
+            <div className="desk__disc">
+              <Vinyl cover={record.cover} art={record.art} />
+              <span className="vinyl__sheen" />
+            </div>
           </div>
-        </div>
+        )}
         <div className="desk__sleeve" ref={sleeveRef} data-hidden={sleeveShown ? undefined : ''}>
           <CoverArt cover={record.cover} art={record.art} />
         </div>

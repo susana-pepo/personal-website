@@ -24,6 +24,24 @@
   isolation: isolate;
 }
 
+/*
+ * ── The entrance ──
+ * Until the room's pictures and the fonts are ready (scene/entrance.ts sets data-entered on
+ * the root), the page's arrival animations (room-in on the room, rise-in on the header and
+ * the row beneath: SiteFooter.css, Masthead.css) wait, unseen, on their first frame. Behind
+ * them every object takes its place without its own fade, so when the entrance plays the
+ * whole room (every object in it already there) settles into view as one picture, then the
+ * header and the player rise in. Nothing arrives on its own.
+ */
+:root:not([data-entered]) :is(.cover, .masthead, .credits > *) {
+  animation-play-state: paused;
+}
+
+:root:not([data-entered]) .scene-object,
+:root:not([data-entered]) .scene-object.cat {
+  transition: none;
+}
+
 /* Layer order: room 1, objects 3–9, lamp light 10, outlines 11, tags 12, debug 13. */
 .stage__poster,
 .stage__video,
@@ -140,6 +158,7 @@
 .woman__clips > img {
   display: block;
   object-fit: contain;
+  will-change: transform; /* its own layer */
 }
 
 /* The woman is the largest figure in the room: she only leans in slightly. */
@@ -473,10 +492,13 @@
   }
 }
 
-/* Hover growth only where there is a real pointer; touch gets the light alone. */
+/* Hover growth only where there is a real pointer; touch gets the light alone.
+   The cat is named on its own: its lean (further down) has the same weight as
+   .scene .scene-object and comes later, so it would otherwise win. */
 @media (hover: none), (pointer: coarse) {
   .scene,
-  .scene .scene-object {
+  .scene .scene-object,
+  .scene .scene-object.cat {
     --hover-scale: 1;
   }
 }
@@ -488,8 +510,21 @@
   }
 
   .scene,
-  .scene .scene-object {
+  .scene .scene-object,
+  .scene .scene-object.cat {
     --hover-scale: 1;
+  }
+
+  /* Nothing grows here, so a highlighted object needs neither its transform
+     transition nor its own layer. The cat's rule (further down) carries its own
+     transition, so it is named here with more weight. */
+  .scene .scene-object[data-highlighted],
+  .scene .scene-object.cat {
+    transition: none;
+  }
+
+  .scene .scene-object[data-highlighted] {
+    will-change: auto;
   }
 
   .scene-object__halo,
@@ -557,6 +592,13 @@
 
 .hotspot[data-active] .hotspot__glow {
   opacity: 0.85;
+}
+
+/* Reduced motion: the wash still answers, as a short fade. */
+@media (prefers-reduced-motion: reduce) {
+  .hotspot__glow {
+    transition-duration: 120ms;
+  }
 }
 
 /* Keyboard focus: a fine vermilion line traced around the object, on a dark halo so it reads on any part of the painting. */
@@ -733,6 +775,21 @@
 .hotspot-label[data-visible][data-placement] {
   --settle-x: 0px;
   --settle-y: 0px;
+}
+
+/* Reduced motion: a tag appears in place, with no 4px settle, and only fades.
+   Longhands, so the hover wait and the immediate case keep their delays. */
+@media (prefers-reduced-motion: reduce) {
+  .hotspot-label,
+  .hotspot-label[data-placement] {
+    --settle-x: 0px;
+    --settle-y: 0px;
+  }
+
+  .hotspot-label {
+    transition-property: opacity;
+    transition-duration: 120ms;
+  }
 }
 
 /* ── Touch markers: a small, steady dot on each object (tablets) ── */
@@ -1279,7 +1336,8 @@
 
 .laptop-terminal__window {
   position: absolute;
-  inset: 31% 30% 21% 17%;
+  /* wide enough for the longest typed line ("Things I’ve built") at the font size below */
+  inset: 31% 8% 21% 12%;
   border-radius: 8px;
   /* glass: a touch lighter at the top, translucent so the wallpaper glows through */
   background: linear-gradient(180deg, oklch(0.27 0.02 50 / 0.84), oklch(0.18 0.02 40 / 0.86));
@@ -1336,7 +1394,7 @@
 .laptop-terminal__body {
   /* sized to read at about 11–12 px once the plane is scaled onto the screen */
   padding: 16px 16px;
-  font: 500 24px/1.35 ui-monospace, 'SF Mono', Menlo, monospace;
+  font: 500 21px/1.35 ui-monospace, 'SF Mono', Menlo, monospace;
   letter-spacing: -0.01em;
   text-shadow: 0 0 8px oklch(0.86 0.06 70 / 0.35);
   color: var(--lt-ink);

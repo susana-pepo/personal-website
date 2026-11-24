@@ -156,7 +156,7 @@ def crop_box(paths):
 # Where the cat sits in the room (canvas px), as placed with the sandbox (?sandbox=1), and the
 # crop of the exports that box shows. If a new clip widens the crop, the cat stays exactly where
 # it is, at the same scale, and only its box grows (all the exports share one framing).
-PLACED = {'crop': (60, 115, 1684, 1168), 'x': 1520, 'y': 638, 'width': 357}
+PLACED = {'crop': (60, 115, 1684, 1168), 'x': 1472, 'y': 652, 'width': 357}
 
 
 def prepare(frame, crop, width):

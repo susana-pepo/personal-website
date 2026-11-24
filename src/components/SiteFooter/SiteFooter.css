@@ -305,11 +305,13 @@ a.player__title:hover {
 }
 
 /* ── First arrival: the room settles in, then the row beneath it. ── */
+/* opacity and a hair of scale only: a blur over the whole room (its video, the lamp's light,
+   every animated object) is too heavy for the graphics card on a large Retina screen, which
+   then drops parts of the picture for a frame (a flicker) */
 @keyframes room-in {
   from {
     opacity: 0;
-    transform: scale(0.985);
-    filter: blur(6px);
+    transform: scale(0.99);
   }
 }
 
@@ -320,12 +322,15 @@ a.player__title:hover {
   }
 }
 
+/* backwards, not both: both keyframes only give a `from`, so they end on the resting state,
+   and holding it afterwards would block the transitions that follow (the room's lean while a
+   page is out, SectionPanel.css) */
 .cover {
-  animation: room-in 900ms var(--ease-out) both;
+  animation: room-in 900ms var(--ease-out) backwards;
 }
 
 .credits > * {
-  animation: rise-in 600ms var(--ease-out) both;
+  animation: rise-in 600ms var(--ease-out) backwards;
 }
 
 .credits > :nth-child(1) {
@@ -351,6 +356,21 @@ a.player__title:hover {
     from {
       opacity: 0;
     }
+  }
+
+  /* With nothing moving, the room's first fade only needs to be long enough to read as one. */
+  .cover {
+    animation-duration: 400ms;
+  }
+
+  /* Play and pause simply cross-fade: no scale, no blur. */
+  .player__icon {
+    transition: opacity 160ms ease;
+  }
+  .player__icon--pause,
+  .player__button[data-playing] .player__icon--play {
+    transform: none;
+    filter: none;
   }
 }
 

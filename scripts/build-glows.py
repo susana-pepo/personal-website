@@ -50,9 +50,12 @@ def halo(item):
     alpha = Image.new('L', (art.width + 2 * m, art.height + 2 * m), 0)
     alpha.paste(source, (m, m))
     # A defined rim of light that hugs the silhouette, with a moderate soft glow beyond it.
-    near = alpha.filter(ImageFilter.MaxFilter(3 * RES + 1)).filter(ImageFilter.GaussianBlur(3.5 * RES))
-    far = alpha.filter(ImageFilter.MaxFilter(4 * RES + 1)).filter(ImageFilter.GaussianBlur(14 * RES))
-    a = np.maximum(np.asarray(near, np.float32), np.asarray(far, np.float32) * 0.75)
+    # `haloSpread` (layout, default 1) narrows it: a crisp device (the laptop) keeps only a
+    # close, soft rim; a wide glow round it reads cheap.
+    spread = float(item.get('haloSpread', 1.0))
+    near = alpha.filter(ImageFilter.MaxFilter(max(1, round(3 * spread)) * RES + 1)).filter(ImageFilter.GaussianBlur(max(1.5, 3.5 * spread) * RES))
+    far = alpha.filter(ImageFilter.MaxFilter(4 * RES + 1)).filter(ImageFilter.GaussianBlur(max(2.0, 14 * spread) * RES))
+    a = np.maximum(np.asarray(near, np.float32), np.asarray(far, np.float32) * 0.75 * spread)
     # warm highlight close to the edge, amber further out
     t = np.clip(np.asarray(near, np.float32) / 255.0, 0, 1)[..., None]
     rgb = np.array(AMBER, np.float32) * (1 - t) + np.array(HIGHLIGHT, np.float32) * t

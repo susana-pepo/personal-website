@@ -3,12 +3,15 @@ import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
 import { WOMAN_MEDIA, overlay } from '../../../scene/layout'
 import { HOME_CLIP, WOMAN_BREATH, WOMAN_CLIPS, nextClip, restAfter, stillRest, type WomanClip } from '../../../scene/womanClips'
 import { arrivedClipFile, fetchClipFile, fetchLater } from '../../../scene/clipFiles'
+import { whenSettled } from '../../../scene/entrance'
 import { SceneObject } from './SceneObject'
 
 const WOMAN = overlay('woman')
 
 /** Used only when a clip may have been paused mid-way (the tab was hidden): the next one fades in over it. */
 const RECOVER_FADE_MS = 450
+/** How long the picture underneath stays after a new clip goes on top (same pose: unseen). */
+const SETTLE_MS = 300
 /** Her breath (played at rest) is fetched this soon after the first clip starts. */
 const BREATH_AFTER_MS = 1500
 
@@ -69,7 +72,9 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
       const img = new Image()
       img.alt = ''
       img.draggable = false
-      img.decoding = 'async'
+      // decoded before it's drawn: an animated picture this large would otherwise be drawn blank
+      // (the whole figure blinking out) while the browser catches up with its first frames
+      img.decoding = 'sync'
       img.dataset.clip = clip.name
       img.src = url
       try {
@@ -86,7 +91,9 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
       current = { img, url }
       hiddenDuringClip = document.hidden
       host.appendChild(img) // on top of the last clip, which shows the same pose
-      setPlaying(true)
+      // the still (or the last clip, in the same pose) stays underneath a moment, until this one
+      // has surely been drawn: never a blank frame while the browser gets a large clip ready
+      window.setTimeout(() => !stopped && setPlaying(true), SETTLE_MS)
       const letGo = () => {
         if (!previous) return
         previous.img.remove()
@@ -96,7 +103,7 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
         img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: RECOVER_FADE_MS, easing: 'cubic-bezier(0.45, 0, 0.55, 1)' })
         window.setTimeout(letGo, RECOVER_FADE_MS + 50)
       } else {
-        requestAnimationFrame(() => requestAnimationFrame(letGo))
+        window.setTimeout(letGo, SETTLE_MS)
       }
       return true
     }
@@ -161,10 +168,16 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
     }
     document.addEventListener('visibilitychange', onVisibility)
 
-    void show(HOME_CLIP, false)
+    // once the page's entrance has settled (the still, her first frame, holds her place till then)
+    void whenSettled().then(() => {
+      if (!stopped) void show(HOME_CLIP, false)
+    })
     // Her breath comes next (it's needed at the first rest), then the other clips, one after another.
     const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true
-    const breathTimer = saveData ? undefined : window.setTimeout(() => void fetchClipFile(WOMAN_BREATH.src), BREATH_AFTER_MS)
+    let breathTimer: number | undefined
+    if (!saveData) void whenSettled().then(() => {
+      if (!stopped) breathTimer = window.setTimeout(() => void fetchClipFile(WOMAN_BREATH.src), BREATH_AFTER_MS)
+    })
     const moreTimer = fetchLater(
       WOMAN_CLIPS.filter((c) => c !== HOME_CLIP).map((c) => c.src),
       () => stopped,

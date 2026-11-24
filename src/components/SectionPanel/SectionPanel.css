@@ -16,9 +16,13 @@ html:has(.panel[open]) {
 .panel {
   /* Motion (panel-local, so the room's timings are untouched) */
   --folio-open: 460ms;
-  --folio-exit: 240ms;
+  /* The sheet is solid well before it lands, so the slide is never spent invisible. */
+  --folio-fade-in: 200ms;
+  /* SectionPanel.tsx reads this as the backup for removing the dialog. */
+  --folio-exit: 260ms;
   --folio-stagger: 45ms;
-  --ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  /* Gentle exit: moves from the first frame instead of hanging before it goes. */
+  --folio-ease-exit: var(--ease-exit, cubic-bezier(0.4, 0, 1, 1));
 
   /* Paper */
   --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -51,27 +55,41 @@ html:has(.panel[open]) {
 @media (prefers-reduced-motion: reduce) {
   .panel {
     --folio-open: 180ms;
+    --folio-fade-in: 180ms;
     --folio-exit: 120ms;
     --folio-stagger: 0ms;
   }
 }
 
+/*
+ * The dimmed room fades by opacity at one fixed colour, so the compositor can
+ * run it instead of repainting the whole screen each frame. Literal timings:
+ * ::backdrop can't be relied on to inherit the panel's custom properties.
+ * On open it trails the sheet a little; on close it must finish no later than
+ * the sheet, because dialog.close() removes the backdrop at once.
+ */
 .panel::backdrop {
-  background: oklch(0.12 0.008 45 / 0);
-  transition: background-color 460ms ease;
+  background: oklch(0.12 0.008 45 / 0.52);
+  opacity: 0;
+  transition: opacity 460ms ease 40ms;
 }
 
 .panel[data-state='open']::backdrop {
-  background: oklch(0.12 0.008 45 / 0.52);
+  opacity: 1;
 }
 
 .panel[data-state='closing']::backdrop {
   transition-duration: 240ms;
+  transition-delay: 0ms;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .panel::backdrop {
     transition-duration: 180ms;
+  }
+
+  .panel[data-state='closing']::backdrop {
+    transition-duration: 120ms;
   }
 }
 
@@ -116,7 +134,7 @@ html[data-panel='closing'] .cover {
   opacity: 0;
   transform: translateX(3rem);
   transition:
-    opacity var(--folio-open) ease,
+    opacity var(--folio-fade-in) var(--ease-out),
     transform var(--folio-open) var(--ease-drawer);
 }
 
@@ -125,11 +143,13 @@ html[data-panel='closing'] .cover {
   transform: none;
 }
 
-/* Leaving is quicker than arriving, and accelerates away. */
+/* Leaving is quicker than arriving and moves from the first frame. The fade runs
+   evenly over the whole exit, so the sheet is still seen while it travels; the
+   dialog is removed when this transition ends (SectionPanel.tsx). */
 .panel[data-state='closing'] .panel__sheet {
-  transition-duration: var(--folio-exit);
-  transition-timing-function: var(--ease-in);
-  transition-delay: 0ms;
+  transition:
+    opacity var(--folio-exit) linear,
+    transform var(--folio-exit) var(--folio-ease-exit);
 }
 
 /* Reduced motion: no sliding sheet, only a fade. */
@@ -266,7 +286,8 @@ html[data-panel='closing'] .cover {
   right: 0;
   bottom: -1px;
   height: 1px;
-  background: var(--spot-ink);
+  /* Quiet ink, not vermilion, so it never reads as a second active tab. */
+  background: var(--ink-3);
   opacity: 0;
   transform: scaleX(0);
   transform-origin: 0 50%;
@@ -345,9 +366,12 @@ html[data-panel='closing'] .cover {
   --i: 6;
 }
 
+/* Backwards only: the keyframes below have just a `from`, so each block rests on
+   its own styles afterwards instead of the animation holding them, and its own
+   transitions stay free to run. */
 .panel__page[data-enter] > .panel__header,
 .panel__page[data-enter] > .section > * {
-  animation-fill-mode: both;
+  animation-fill-mode: backwards;
   animation-timing-function: var(--ease-out);
 }
 
@@ -475,8 +499,16 @@ html[data-panel='closing'] .cover {
   outline: none;
 }
 
+/* Only a slow, cold load ever shows the word: a short one is over before it fades in. */
 .panel__loading {
   color: var(--ink-3);
+  animation: folio-wait 240ms ease 400ms backwards;
+}
+
+@keyframes folio-wait {
+  from {
+    opacity: 0;
+  }
 }
 
 /* ── Smaller screens ── */
@@ -536,6 +568,15 @@ html[data-panel='closing'] .cover {
 
   .panel__page {
     padding-top: var(--space-lg);
+  }
+}
+
+/* The rise from below is a longer trip, so it fades in sooner and leaves a little
+   slower. Kept out of reduced motion, whose shorter timings stay in charge. */
+@media (max-width: 639px) and (prefers-reduced-motion: no-preference) {
+  .panel {
+    --folio-fade-in: 140ms;
+    --folio-exit: 320ms;
   }
 }
 

@@ -9,8 +9,13 @@ interface HotspotLayerProps {
   /** Reports which object is lit (pointer over it, or keyboard focus on it). */
   onActiveChange: (id: string | null) => void
   onAction: (action: HotspotAction) => void
-  /** The lamp's current light, spoken with its control (e.g. "Rose light"). */
+  /** The lamp's current light, spoken with its control (e.g. "Lamp light on"). */
   lampTone?: string
+  /**
+   * First visit, before the visitor has touched the room: the woman greets them on her own
+   * ("Hey there, I'm Susana") until they hover or open something.
+   */
+  greeting?: boolean
 }
 
 const PATHS = new Map(HOTSPOTS.map((h) => [h.id, toPathData(h.polygons)]))
@@ -42,7 +47,7 @@ export function accessibleLabelFor(hotspot: Hotspot): string {
  * outline, plus the small tooltips. Hover state changes only on enter/leave,
  * never on pointer movement, so moving inside an object doesn't re-render.
  */
-export function HotspotLayer({ onActiveChange, onAction, lampTone }: HotspotLayerProps) {
+export function HotspotLayer({ onActiveChange, onAction, lampTone, greeting = false }: HotspotLayerProps) {
   const uid = useId().replace(/:/g, '')
   const [hovered, setHovered] = useState<string | null>(null)
   const [focused, setFocused] = useState<string | null>(null)
@@ -138,14 +143,17 @@ export function HotspotLayer({ onActiveChange, onAction, lampTone }: HotspotLaye
           if (hotspot.action === 'pet') return null
           // Objects that show their own label in the painting (the laptop's terminal types it).
           if (hotspot.overlay && LABELLED_IN_SCENE.has(hotspot.overlay)) return null
-          const shown = active === hotspot.id && hushed !== hotspot.id
+          const greets = hotspot.overlay === 'woman'
+          const greetingNow = greets && greeting && active === null
+          const shown = (active === hotspot.id && hushed !== hotspot.id) || greetingNow
           return (
             <span
               key={hotspot.id}
-              className={`hotspot-label${hotspot.section ? ' hotspot-label--speech' : ''}`}
+              className={`hotspot-label${hotspot.section ? ' hotspot-label--speech' : ''}${greets ? ' hotspot-label--greeting' : ''}`}
               data-placement={hotspot.label.placement}
               data-visible={shown ? '' : undefined}
               data-immediate={shown && viaFocus ? '' : undefined}
+              data-greeting={greetingNow ? '' : undefined}
               style={{ left: pctX(hotspot.label.x), top: pctY(hotspot.label.y) }}
               onPointerEnter={() => shown && enter(hotspot.id)}
               onPointerLeave={() => leave(hotspot.id)}
@@ -158,7 +166,7 @@ export function HotspotLayer({ onActiveChange, onAction, lampTone }: HotspotLaye
           <span
             key={`marker-${hotspot.id}`}
             className="hotspot-marker"
-            data-hidden={active === hotspot.id ? '' : undefined}
+            data-hidden={active === hotspot.id || (greeting && active === null && hotspot.overlay === 'woman') ? '' : undefined}
             style={{ left: pctX(hotspot.label.x), top: pctY(hotspot.label.y) }}
           />
         ))}

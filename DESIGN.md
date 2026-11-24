@@ -108,16 +108,32 @@ surfaces or text. No purple, blue or neon. No glows.
   face-out sleeve. On hover the cover lifts 3px and a 36px Vermilion Ink play disc appears in its
   corner. Choosing a cover opens Spotify's own player (12px corners) above the grid; the chosen
   cover gets a 2px vermilion ring.
-- **Work map and things I've made (Work):** the four areas of focus sit in the quadrants of two
-  hairline axes (Music to Product, People to Systems). Choosing an area moves the crossing point to
-  give it room and unfolds its summary; the other areas recede to their titles. Below, a grid of
-  things Susana has made, the one deliberate exception to "never cards": each is a **drawn
-  thumbnail** (an object seen from above on a room-coloured ground, 4:3, 6px corners, the record
-  covers' shadow, one vermilion detail, no text inside) with its caption on the paper below, never
-  a box. Two columns in the panel; on phones the drawing sits beside its caption. A tile opens in
-  place; hovering it lights its area on the map, and an open area links to what was made there.
-  Each drawing has one small motion, played once on hover or focus, never looping and none under
-  reduced motion. No screenshots: their own UI colours fight the room.
+- **Things I've built (Work): her tablet.** A tablet in landscape, drawn front-on in CSS (no
+  photo): a thin matte champagne aluminium edge with a highlight on its right side (the lamp is
+  upper right), an even ink bezel with a camera dot on the long top edge, resting in a small walnut
+  stand on the shared walnut board, shadows falling down-left. The screen is at least about 4:3
+  and grows if its content needs more. It is a warm dark desktop (never black or violet) with a
+  low band of three flat hills in walnut, terracotta and rose, the painted wallpaper translated
+  into room colours with no gradient. The tablet is exactly as wide as the text column (the board reaches a
+  little past it) and sits 48px under the intro. Files at the top, the info centred beneath them,
+  the browse control centred at the foot of the screen. Three equal files are in view at a
+  time: the drawing and the title in Newsreader, titles always given two lines' room so nothing
+  shifts. Choosing a file selects it: a thin warm ring round its drawing (a 180ms change, never an
+  underline); choosing the selected file again opens its window. Keyboard focus also selects. Hover
+  only lifts and brightens a file a touch. Below the files, one compact fixed-height info area shows
+  the selected project's one-line description (no repeated title) and "Explore project": a link
+  with ↗ to the live project where one exists, otherwise a button that opens its window. Below it,
+  the browse control: two round chevron buttons (clearer on hover) and a dot per position. No status
+  tags anywhere. Area-of-focus names are not shown. Opening a file pours a
+  cream paper window out of it (a short, transform-only genie, ~0.45s, width leading height;
+  reversed in ~0.3s, reversible mid-way): three muted dots, the title and "Put it back" in its bar;
+  the drawing on the left, title, line, summary, topics and link on the right. The screen
+  grows to fit; nothing scrolls inside it. The other files fade and are unreachable while it is
+  open. Escape puts it back before the panel closes; focus returns to the file; arrows, Home and End
+  move between files. On phones the stand and board drop away, the tablet frames one column with the
+  drawing beside each title, the hills become a thin strip, and a file unfolds in place beneath
+  itself. Reduced motion: no travel or scale; the window cross-fades (~0.15s). No filters or
+  backdrop-filter on large areas.
 - **Links and buttons:** text-first. Underline in Vermilion Ink at 1px with a 0.25em offset. No
   boxed outline buttons, no pills, no filled CTAs except the player disc.
 - **Empty and loading states:** a missing feature hides itself on the live site rather than

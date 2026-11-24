@@ -28,11 +28,18 @@ interface DeskState {
   sleeveShown: boolean
 }
 
+export type CrateVariant = 'records' | 'podcasts'
+
 interface RecordCrateProps {
   records: CrateRecord[]
   heading: string
   description: string
+  /** Podcasts are covers only: no record slides out of them. */
+  variant?: CrateVariant
 }
+
+const countLabel = (n: number, variant: CrateVariant) =>
+  variant === 'podcasts' ? (n === 1 ? '1 show' : `${n} shows`) : n === 1 ? '1 record' : `${n} records`
 
 const describe = (r: CrateRecord) =>
   [r.title || 'Untitled', r.artist, r.kind.toLowerCase()].filter(Boolean).join(', ') + (r.sample ? ' (sample)' : '')
@@ -42,7 +49,8 @@ const describe = (r: CrateRecord) =>
  * through with the pointer, a finger or the arrow keys. Choosing one takes it
  * out to the desk below, with its liner notes and an opt-in Spotify player.
  */
-export function RecordCrate({ records, heading, description }: RecordCrateProps) {
+export function RecordCrate({ records, heading, description, variant = 'records' }: RecordCrateProps) {
+  const disc = variant === 'records'
   const reduced = usePrefersReducedMotion()
   const baseId = useId()
   const deskId = `${baseId}-desk`
@@ -160,7 +168,7 @@ export function RecordCrate({ records, heading, description }: RecordCrateProps)
       setSlotOut(i)
     })
     outRef.current = i
-    setAnnouncement(`${record.title || 'The record'} is out on the desk.`)
+    setAnnouncement(`${record.title || (disc ? 'The record' : 'The podcast')} is out on the desk.`)
 
     const sleeve = deskSleeveRef.current
     if (!reduced && face && from && sleeve) {
@@ -180,7 +188,7 @@ export function RecordCrate({ records, heading, description }: RecordCrateProps)
     if (busy.current || i == null) return
     busy.current = true
     await stow(true)
-    setAnnouncement(`${records[i]?.title || 'The record'} is back in the crate.`)
+    setAnnouncement(`${records[i]?.title || (disc ? 'The record' : 'The podcast')} is back on the shelf.`)
     focusSleeve(i)
     busy.current = false
   }
@@ -230,7 +238,13 @@ export function RecordCrate({ records, heading, description }: RecordCrateProps)
   }
 
   return (
-    <section ref={sectionRef} className="crate-section" aria-labelledby={`${baseId}-heading`} onKeyDown={onSectionKeyDown}>
+    <section
+      ref={sectionRef}
+      className="crate-section"
+      data-variant={variant}
+      aria-labelledby={`${baseId}-heading`}
+      onKeyDown={onSectionKeyDown}
+    >
       <div className="music-head">
         <h3 id={`${baseId}-heading`} className="music-head__title">
           {heading}
@@ -240,7 +254,7 @@ export function RecordCrate({ records, heading, description }: RecordCrateProps)
 
       <div>
         <p className="visually-hidden" id={`${baseId}-hint`}>
-          Use the arrow keys to flip through, Enter to take a record out.
+          Use the arrow keys to flip through, Enter to take {disc ? 'a record' : 'one'} out.
         </p>
         <ul
           ref={listRef}
@@ -288,9 +302,11 @@ export function RecordCrate({ records, heading, description }: RecordCrateProps)
                 aria-controls={deskId}
                 onClick={() => onSleeveClick(i)}
               >
-                <span className="sleeve__disc">
-                  <Vinyl cover={record.cover} art={record.art} />
-                </span>
+                {disc && (
+                  <span className="sleeve__disc">
+                    <Vinyl cover={record.cover} art={record.art} />
+                  </span>
+                )}
                 <span className="sleeve__face">
                   <CoverArt cover={record.cover} art={record.art} />
                 </span>
@@ -305,7 +321,7 @@ export function RecordCrate({ records, heading, description }: RecordCrateProps)
               <span>{[captionRecord.artist, captionRecord.kind].filter(Boolean).join(' · ')}</span>
             </>
           ) : (
-            <span>{count === 1 ? '1 record' : `${count} records`}</span>
+            <span>{countLabel(count, variant)}</span>
           )}
         </p>
       </div>
@@ -317,7 +333,13 @@ export function RecordCrate({ records, heading, description }: RecordCrateProps)
         data-settled={desk?.settled ? '' : undefined}
         inert={!desk?.open}
       >
-        <div id={deskId} className="desk" role="region" aria-label="Record on the desk" data-out={desk?.out ? '' : undefined}>
+        <div
+          id={deskId}
+          className="desk"
+          role="region"
+          aria-label={disc ? 'Record on the desk' : 'Podcast on the desk'}
+          data-out={desk?.out ? '' : undefined}
+        >
           {desk && deskRecord && (
             <Desk
               key={deskRecord.key}
@@ -325,6 +347,7 @@ export function RecordCrate({ records, heading, description }: RecordCrateProps)
               out={desk.out}
               sleeveShown={desk.sleeveShown}
               sleeveRef={deskSleeveRef}
+              disc={disc}
               onPutBack={() => void putBack()}
             />
           )}

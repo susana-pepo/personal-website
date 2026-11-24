@@ -7,6 +7,7 @@
  */
 .bookshelf {
   --u: 1px;
+  container: bookshelf / inline-size;
 }
 
 .bs-defs {
@@ -18,16 +19,137 @@
 
 .bs-shelves {
   display: grid;
-  gap: var(--space-xl);
-  container-type: inline-size;
+  row-gap: var(--space-lg);
+  container: shelves / inline-size;
+}
+
+/*
+ * With room, Reading now and Books for work sit side by side and Books I love
+ * runs the full width beneath. The two upper shelves share rows (a subgrid),
+ * so their headings line up and their boards stand at the same height.
+ */
+@container bookshelf (min-width: 34rem) {
+  .bs-shelves {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    column-gap: var(--space-xl);
+    row-gap: 0;
+  }
+
+  .bs-shelf[data-shelf='reading'],
+  .bs-shelf[data-shelf='work'] {
+    display: grid;
+    grid-row: 1 / span 4;
+    grid-template-rows: subgrid;
+    align-content: start;
+  }
+
+  .bs-shelf[data-shelf='reading'] .bs-feature,
+  .bs-shelf[data-shelf='work'] .bs-plain {
+    display: contents;
+  }
+
+  .bs-shelf[data-shelf='reading'] .bs-bay,
+  .bs-shelf[data-shelf='work'] .bs-bay {
+    align-self: end;
+  }
+
+  .bs-shelf[data-shelf='loved'] {
+    grid-column: 1 / -1;
+    margin-top: var(--space-md);
+  }
+
+  /* Alone on its row, either upper shelf takes the full width. */
+  .bs-shelf[data-shelf='reading']:only-child,
+  .bs-shelf[data-shelf='work']:first-child,
+  .bs-shelf[data-shelf='reading']:has(+ [data-shelf='loved']) {
+    grid-column: 1 / -1;
+  }
+
+  .bs-shelf[data-shelf='loved']:first-child {
+    margin-top: 0;
+  }
+
+  /* In a half-width column, an opened book stacks its cover above its note. */
+  [data-shelf='reading'] .bs-detail,
+  [data-shelf='work'] .bs-detail {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-sm);
+  }
+
+  [data-shelf='reading'] .bs-stage,
+  [data-shelf='work'] .bs-stage {
+    justify-self: start;
+  }
 }
 
 .bs-shelf__title {
-  margin-bottom: var(--space-xs);
+  margin-bottom: var(--space-2xs);
   font-family: var(--font-display);
   font-weight: 500;
   font-size: var(--text-lg);
   letter-spacing: -0.015em;
+}
+
+/* Reading now: the cover, larger, on a short board, its title and author beside it. */
+.bs-feature {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-xl);
+  row-gap: var(--space-sm);
+}
+
+.bs-feature .bs-bay {
+  --u: 1.25px;
+  flex: none;
+}
+
+.bs-feature .bs-row {
+  padding-right: calc(44 * var(--u));
+}
+
+.bs-feature__text {
+  flex: 1 1 10rem;
+  max-width: 24rem;
+}
+
+.bs-feature__title {
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-lg);
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.bs-feature__author {
+  margin-top: 0.3rem;
+  font-family: var(--font-sans);
+  font-size: 0.9375rem;
+  color: var(--ink-3);
+}
+
+.bs-feature__note {
+  max-width: 40ch;
+  margin-top: var(--space-sm);
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--ink-2);
+}
+
+/* The book under the pointer or focus, named in full beneath the board. */
+.bs-caption {
+  min-height: 1.5em;
+  margin-top: var(--space-2xs);
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: var(--text-sm);
+  line-height: 1.5;
+  color: var(--ink-3);
+}
+
+.bs-caption__title {
+  color: var(--ink-2);
 }
 
 .bs-empty {
@@ -36,10 +158,32 @@
   color: var(--ink-3);
 }
 
-/* The bay: books, the lamp's light, and the board they stand on. */
+/* The bay: books, the lamp's light, and the board they stand on.
+   Each board is cut to its collection: short for the current read, longer for
+   work, the full width for the books I love. Books stand at the centre of it. */
 .bs-bay {
   position: relative;
   isolation: isolate;
+  width: fit-content;
+  max-width: 100%;
+}
+
+/* Books for work: a little larger, so the spines read, on a board fitted to them and centred in the column. */
+[data-shelf='work'] .bs-bay {
+  --u: 1.15px;
+  margin-inline: auto;
+}
+
+[data-shelf='work'] .bs-row {
+  padding-inline: calc(20 * var(--u));
+}
+
+[data-shelf='loved'] .bs-bay {
+  min-width: 100%;
+}
+
+.bs-plain .bs-row {
+  justify-content: safe center;
 }
 
 .bs-row {
@@ -50,7 +194,7 @@
   gap: calc(1 * var(--u));
   margin: 0;
   /* Room above for lifting, and to the right for shadows. */
-  padding: calc(30 * var(--u)) calc(18 * var(--u)) 0 calc(10 * var(--u));
+  padding: calc(14 * var(--u)) calc(18 * var(--u)) 0 calc(10 * var(--u));
   list-style: none;
   /* A long shelf scrolls sideways inside itself, never the page. */
   overflow-x: auto;
@@ -76,6 +220,8 @@
   z-index: 0;
   display: block;
   width: 100%;
+  /* An svg is 300px wide by default; this lets the board take the width of its books instead. */
+  contain: inline-size;
   height: calc(18 * var(--u));
   margin-top: calc(-4 * var(--u));
   border-radius: 1.5px;
@@ -202,7 +348,7 @@
 /* Hover: the book comes a little off the shelf, tips toward the lamp, its shadow loosens. */
 @media (hover: hover) and (pointer: fine) {
   .bs-book:hover {
-    transform: translateY(calc(-6 * var(--u))) rotate(1deg);
+    transform: translateY(calc(-5 * var(--u))) rotate(1deg);
   }
 
   .bs-slot:has(> .bs-book:hover)::before {
@@ -229,7 +375,7 @@
 }
 
 .bs-book:focus-visible {
-  transform: translateY(calc(-6 * var(--u))) rotate(1deg);
+  transform: translateY(calc(-5 * var(--u))) rotate(1deg);
 }
 
 .bs-book:active {
@@ -559,15 +705,69 @@
 }
 
 /* ── Sizes: the book unit follows the width of the panel ── */
-@container (min-width: 34rem) {
+@container shelves (min-width: 34rem) {
   .bs-bay {
+    --u: 1px;
+  }
+
+  [data-shelf='work'] .bs-bay {
     --u: 1.1px;
+  }
+
+  .bs-feature .bs-bay {
+    --u: 1.1px;
+  }
+
+  /* Side by side, the current read's title and author sit under its board. */
+  .bs-feature__text {
+    max-width: none;
+    margin-top: var(--space-2xs);
+  }
+
+  .bs-feature__title {
+    font-size: var(--text-md);
+  }
+
+  .bs-feature__author {
+    margin-top: 0.15rem;
+    font-size: var(--text-sm);
   }
 }
 
-@container (max-width: 30rem) {
+@container shelves (max-width: 30rem) {
   .bs-bay {
     --u: 0.84px;
+  }
+
+  /* On a phone the title and author stay beside the cover. */
+  .bs-feature {
+    column-gap: var(--space-md);
+    flex-wrap: nowrap;
+  }
+
+  .bs-feature .bs-bay {
+    --u: 0.95px;
+  }
+
+  .bs-feature__text {
+    flex: 1 1 auto;
+    min-width: 0;
+  }
+
+  .bs-feature__title {
+    font-size: var(--text-md);
+  }
+
+  [data-shelf='work'] .bs-bay {
+    --u: 0.95px;
+  }
+
+  [data-shelf='work'] .bs-row {
+    padding-inline: calc(14 * var(--u));
+  }
+
+  .bs-feature .bs-row {
+    padding-right: calc(18 * var(--u));
   }
 }
 

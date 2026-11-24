@@ -1,17 +1,19 @@
 /*
  * The books on the desk: the same drawn books as the bookshelf, lying in a pile.
- * Sizes are book units (--u). Chosen and hovered books slide out to the right.
+ * Sizes are book units (--u). The pile is a tab list: the chosen book sits slid
+ * out to the right, and a hovered one peeks out a little.
  */
 .xp-desk {
-  --u: 1.25px;
+  /* Large enough that the spine titles read at a glance. */
+  --u: 1.5px;
   container-type: inline-size;
   margin-block: var(--space-sm) var(--space-lg);
 }
 
-@container (max-width: 30rem) {
+@container (max-width: 34rem) {
   .xp-pile,
   .xp-desk__board {
-    --u: 0.95px;
+    --u: 1.15px;
   }
 }
 
@@ -43,7 +45,7 @@
   filter: blur(calc(3 * var(--u)));
   opacity: 0.22;
   transform: translate(calc(-4 * var(--u)), calc(2 * var(--u)));
-  transition: transform 320ms var(--ease-out);
+  transition: transform 240ms var(--ease-out);
 }
 
 .xp-book {
@@ -55,7 +57,8 @@
   border: 0;
   background: none;
   cursor: pointer;
-  transition: transform 320ms var(--ease-out);
+  /* A transition, not keyframes, so a quick second choice retargets mid-slide. */
+  transition: transform 240ms var(--ease-out);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -76,22 +79,27 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .xp-book:hover,
-  .xp-book[data-peek] {
+  .xp-book[aria-selected='false']:hover {
     transform: translateX(calc(8 * var(--u)));
   }
 }
 
-.xp-book:active {
+/* Keyboard focus gets the same peek as a hover, whatever the pointer. */
+.xp-book[aria-selected='false']:focus-visible {
+  transform: translateX(calc(8 * var(--u)));
+}
+
+.xp-book[aria-selected='false']:active {
   transform: translateX(calc(5 * var(--u)));
   transition-duration: var(--dur-quick);
 }
 
-.xp-book[aria-pressed='true'] {
+.xp-book[aria-selected='true'] {
   transform: translateX(calc(18 * var(--u)));
+  cursor: default;
 }
 
-.xp-pile__item:has(> .xp-book[aria-pressed='true'])::before {
+.xp-pile__item:has(> .xp-book[aria-selected='true'])::before {
   transform: translate(calc(14 * var(--u)), calc(4 * var(--u)));
 }
 
@@ -124,14 +132,19 @@
     transition-duration: 140ms;
   }
 
-  .xp-book:hover,
-  .xp-book[data-peek],
-  .xp-book:active,
-  .xp-book[aria-pressed='true'] {
+  .xp-book[aria-selected='false']:hover,
+  .xp-book[aria-selected='false']:focus-visible,
+  .xp-book[aria-selected='false']:active {
     transform: none;
   }
 
-  .xp-pile__item:has(> .xp-book[aria-pressed='true'])::before {
+  /* Still marked, without sliding: the chosen book is simply further out from the start. */
+  .xp-book[aria-selected='true'] {
+    transform: translateX(calc(18 * var(--u)));
+    transition: none;
+  }
+
+  .xp-pile__item:has(> .xp-book[aria-selected='true'])::before {
     transform: translate(calc(-4 * var(--u)), calc(2 * var(--u)));
   }
 

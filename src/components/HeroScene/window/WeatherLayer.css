@@ -12,6 +12,16 @@
   --weather-ease: cubic-bezier(0.45, 0, 0.55, 1);
 }
 
+/* On the glass itself, over everything outside: frost on the lower panes in the
+   snow (see FrostLayer; drawn small and stretched, it's soft anyway) and drops in the rain (GlassDrops). */
+.frost,
+.glass-drops {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
 .weather-snow {
   position: absolute;
   inset: 0;

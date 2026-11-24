@@ -390,10 +390,11 @@ def steady_pen(frames, ref):
     k /= k.sum()
     tr = np.array(trust)
     trust = np.convolve(np.pad(np.minimum.accumulate(tr) * 0 + tr, 6, mode='edge'), k, mode='valid')
-    out = []
+    out, masks = [], []
     for f, cr, (dx, dy, deg), w_t in zip(frames, crops, poses, trust):
         if w_t < 0.01:
             out.append(f)
+            masks.append(None)
             continue
         wp = np.dstack([_turn(pm[..., i], deg, c, dx, dy) for i in range(4)])
         w = _turn(cap_soft, deg, c, dx, dy) * (1 - _blurred(_skin(cr), 0.8)) * (1 - _blurred(_turn(ref_skin, deg, c, dx, dy), 0.8))
@@ -407,8 +408,11 @@ def steady_pen(frames, ref):
         g = f.copy()
         g.paste(patch, (x0, y0))
         out.append(g)
+        full = np.zeros((f.height, f.width), np.float32)
+        full[y0:y1, x0:x1] = w[..., 0]
+        masks.append(full)
     print(f'  pen steadied in {sum(1 for w in trust if w > 0.5)}/{len(frames)} frames', flush=True)
-    return out
+    return out, masks
 
 
 def hold_light(frames, ref):
@@ -435,7 +439,7 @@ def hold_light(frames, ref):
     return out, gains
 
 
-def calm_shimmer(frames):
+def calm_shimmer(frames, keep=None):
     """frames (straight RGBA uint8 arrays) with the generated video's shimmer calmed: each blended
     with its flow-followed matches in the CALM_REACH frames either side, only where the match is
     confirmed forward and back and the colours agree."""
@@ -488,7 +492,11 @@ def calm_shimmer(frames):
         p = acc / wsum[..., None]
         a = p[..., 3:4]
         rgb = np.where(a > 0.5, p[..., :3] * 255.0 / np.maximum(a, 1e-6), frames[t][..., :3])
-        out.append(np.dstack([rgb, a]).round().clip(0, 255).astype(np.uint8))
+        calmed = np.dstack([rgb, a])
+        if keep is not None and keep[t] is not None:  # the clean pen is steady already: kept as it is
+            k_ = keep[t][..., None]
+            calmed = calmed * (1 - k_) + frames[t].astype(np.float32) * k_
+        out.append(calmed.round().clip(0, 255).astype(np.uint8))
         if t % 30 == 0:
             print(f'  calmed {t}/{n}', flush=True)
     return out
@@ -550,25 +558,32 @@ def build_clip(name, width, quality):
 
     room = room_in_box(box, (W, H))
 
-    def finished(img):  # the source frame is already prepared (pen, light, hair, shimmer)
-        return edge_finish(np.asarray(to_box(img, WOMAN), np.float32), k, room, WRAP['woman'])
+    def finished(img, pen=None):  # the source frame is already prepared (pen, light, hair, shimmer)
+        raw = np.asarray(to_box(img, WOMAN), np.float32)
+        done_ = edge_finish(raw, k, room, WRAP['woman'])
+        if pen is None:
+            return done_
+        # the clean pen goes through untouched: the edge clean-up would repaint its gold cap
+        m = np.asarray(to_box(Image.fromarray((np.clip(pen, 0, 1) * 255).astype(np.uint8)).convert('RGBA'), WOMAN).getchannel('R'), np.float32)[..., None] / 255
+        return (done_.astype(np.float32) * (1 - m) + raw * m).round().clip(0, 255).astype(np.uint8)
 
     layers = source_layers(CLIPS[name])
     holds_src = [h for _, h in layers]
     home_src = source_layers(CLIPS[HOME])[0][0]
     # the home frame itself, prepared the same way (steady pen and hair; it's its own light)
-    home_ready = np.asarray(fill_hair_gaps(steady_pen([home_src], home_src)[0]))
-    srcs = steady_pen([f for f, _ in layers], home_src)  # 1. one clean pen
+    home_steady, home_pen = steady_pen([home_src], home_src)
+    home_ready = np.asarray(fill_hair_gaps(home_steady[0]))
+    srcs, pens = steady_pen([f for f, _ in layers], home_src)  # 1. one clean pen
     srcs, gains = hold_light([np.asarray(f) for f in srcs], home_ready)  # 2. the light held to the home frame
     print(f'  light held: gains {gains.min():.3f}-{gains.max():.3f}', flush=True)
     srcs = [np.asarray(fill_hair_gaps(Image.fromarray(f))) for f in srcs]  # 3. hair gaps filled
-    srcs = calm_shimmer(srcs)  # 4. the shimmer calmed
-    layers = [(Image.fromarray(f), h) for f, h in zip(srcs, holds_src)]
+    srcs = calm_shimmer(srcs, keep=pens)  # 4. the shimmer calmed (not the clean pen)
+    layers = [(Image.fromarray(f), h, m) for f, h, m in zip(srcs, holds_src, pens)]
     del srcs
-    home = finished(Image.fromarray(home_ready)) if name != HOME else None
+    home = finished(Image.fromarray(home_ready), home_pen[0]) if name != HOME else None
     out, holds = [], []
-    for i, (img, hold) in enumerate(layers):
-        out.append(finished(img))
+    for i, (img, hold, pen) in enumerate(layers):
+        out.append(finished(img, pen))
         holds.append(hold)
         if i % 30 == 0:
             print(f'{name}: {i}/{len(layers)} frames finished', flush=True)

@@ -262,16 +262,19 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false }: LampLiq
     return () => cancelAnimationFrame(frame)
   }, [tone])
 
-  // Hover: the bulb warms up a touch, gently.
+  // Hover: the bulb warms up a touch, gently. With reduced motion it is a short,
+  // even fade (120 ms), like the rest of the room's answers.
   useEffect(() => {
     const l = light.current
     const from = l.hover
     const to = hovered ? HOVER_GAIN : 1
+    const calm = reducedRef.current
+    const duration = calm ? 120 : hovered ? 280 : 360
     const start = performance.now()
     let frame = 0
     const step = (now: number) => {
-      const t = Math.min(1, (now - start) / (hovered ? 280 : 360))
-      l.hover = from + (to - from) * easeOutCubic(t)
+      const t = Math.min(1, (now - start) / duration)
+      l.hover = from + (to - from) * (calm ? t : easeOutCubic(t))
       draw.current?.(timeRef.current)
       if (t < 1) frame = requestAnimationFrame(step)
     }
