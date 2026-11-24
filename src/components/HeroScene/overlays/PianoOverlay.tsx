@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { content } from '../../../content/content'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
-import { listenTo, setLandscape, setLoop, setVolume, settings } from '../../../audio/pianoEngine'
+import { listenTo, loopOn, onLoopChange, setLandscape, setLoop, setVolume, settings, toggleLoop } from '../../../audio/pianoEngine'
 import { overlay, pctX, pctY } from '../../../scene/layout'
 import { KEYBOARD_NOTES, PIANO_ATLAS, PIANO_CLOSE_SRC, PIANO_KEYS, PIANO_KNOBS, PIANO_SCREEN, PIANO_SHELF, PIANO_SHELF_SHEAR, PIANO_SIZE, piano, type PianoKnob } from '../../../scene/piano'
 import { TITLE_H, TITLE_W, paintName, type Put } from '../../../scene/pianoTitle'
@@ -179,32 +179,102 @@ function Knob({ knob, label, name, value, invite, onChange }: KnobProps) {
   )
 }
 /**
- * Its name on the walnut rail above the keys, where a piano carries its maker's: PIXEL JAM PIANO in
- * gold-foil pixel letters (the screen's own font), each pixel a tiny square with a dark edge below.
+ * Its name on the walnut rail above the keys, where a piano carries its maker's: a small brass plate
+ * with PIXEL JAM PIANO engraved in the screen's own pixel letters (dark, with a hair of light below
+ * each, as engraving catches it), held by a tiny screw at each end.
  */
 const NAME = 'PIXEL JAM PIANO'
 const NAME_PX = 3.1
 const NAME_AT = { cx: 502, top: 787.5 } // on the rail's face, centred over the keys
-const NAMEPLATE = (() => {
-  const left = NAME_AT.cx - (textWidth(NAME) * NAME_PX) / 2
+const PLATE = (() => {
+  const w = textWidth(NAME) * NAME_PX
+  const left = NAME_AT.cx - w / 2
   const at = textPixels(NAME).map(([x, y]) => [left + x * NAME_PX, NAME_AT.top + y * NAME_PX] as const)
+  const square = (dy: number) => at.map(([x, y]) => `M${x.toFixed(2)} ${(y + dy).toFixed(2)}h${NAME_PX}v${NAME_PX}h-${NAME_PX}z`).join('')
   return {
-    shade: at.map(([x, y]) => `M${x.toFixed(2)} ${(y + 0.9).toFixed(2)}h${NAME_PX}v${NAME_PX}h-${NAME_PX}z`).join(''),
-    foil: at.map(([x, y]) => `M${x.toFixed(2)} ${y.toFixed(2)}h${NAME_PX - 0.15}v${NAME_PX - 0.15}h-${NAME_PX - 0.15}z`).join(''),
+    letters: square(0),
+    shine: square(0.8),
+    x: left - 16,
+    y: NAME_AT.top - 3.4,
+    w: w + 32,
+    h: 5 * NAME_PX + 6.8,
   }
 })()
 function Nameplate() {
+  const { x, y, w, h } = PLATE
+  const screws = [x + 7, x + w - 7]
   return (
     <g aria-hidden="true">
       <defs>
-        <linearGradient id="piano-foil" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#f6dc9a" />
-          <stop offset="0.55" stopColor="#d8ad62" />
-          <stop offset="1" stopColor="#a97a3c" />
+        <linearGradient id="piano-brass" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f6dfa6" />
+          <stop offset="0.45" stopColor="#d9ae63" />
+          <stop offset="1" stopColor="#a9793a" />
         </linearGradient>
+        <radialGradient id="piano-screw" cx="0.35" cy="0.3" r="0.8">
+          <stop offset="0" stopColor="#fbe7b4" />
+          <stop offset="1" stopColor="#8a5f2b" />
+        </radialGradient>
       </defs>
-      <path d={NAMEPLATE.shade} fill="rgb(40 14 4 / 0.55)" />
-      <path d={NAMEPLATE.foil} fill="url(#piano-foil)" />
+      {/* the plate, set on the rail: a soft shadow under it, a bright top edge */}
+      <rect x={x} y={y + 0.8} width={w} height={h} rx={3} fill="rgb(30 12 4 / 0.45)" />
+      <rect x={x} y={y} width={w} height={h} rx={3} fill="url(#piano-brass)" stroke="rgb(90 52 20 / 0.7)" strokeWidth={0.7} />
+      <line x1={x + 3} y1={y + 0.9} x2={x + w - 3} y2={y + 0.9} stroke="rgb(255 245 215 / 0.7)" strokeWidth={0.8} />
+      {screws.map((cx) => (
+        <g key={cx}>
+          <circle cx={cx} cy={y + h / 2} r={2.3} fill="url(#piano-screw)" stroke="rgb(80 48 18 / 0.6)" strokeWidth={0.4} />
+          <line x1={cx - 1.4} y1={y + h / 2 + 0.6} x2={cx + 1.4} y2={y + h / 2 - 0.6} stroke="rgb(70 40 15 / 0.8)" strokeWidth={0.5} />
+        </g>
+      ))}
+      {/* the engraved letters */}
+      <path d={PLATE.shine} fill="rgb(255 240 200 / 0.55)" />
+      <path d={PLATE.letters} fill="#3a2312" />
+    </g>
+  )
+}
+
+/**
+ * The orange light, as the loop's play/pause: lit while the loop is on (from the start: the first
+ * key starts it), switched off when it's paused. Off, it's the painting's own lamp glass dimmed
+ * (its texture and curve kept, as an unlit lamp looks). A play/pause mark is printed on the cream
+ * above it, in the knobs' labels' ink (PrintedPlayPause). Its lit face, in the close-up's pixels.
+ */
+const LIGHT_BOX = [810, 315, 87, 72] as const
+const LIGHT_FACE: CSSProperties = boxStyle(LIGHT_BOX)
+const LIGHT_GLASS: CSSProperties = {
+  backgroundImage: `url(${PIANO_CLOSE_SRC})`,
+  backgroundSize: `${pct(W, LIGHT_BOX[2])} ${pct(H, LIGHT_BOX[3])}`,
+  backgroundPosition: `${pct(LIGHT_BOX[0], W - LIGHT_BOX[2])} ${pct(LIGHT_BOX[1], H - LIGHT_BOX[3])}`,
+}
+function LoopLight({ onToggle }: { onToggle: () => void }) {
+  const on = useSyncExternalStore(onLoopChange, loopOn)
+  return (
+    <button
+      type="button"
+      className="piano-close__light"
+      data-playing={on ? '' : undefined}
+      style={LIGHT_FACE}
+      aria-pressed={on}
+      aria-label={on ? content.piano.pauseLoop : content.piano.playLoop}
+      onPointerDown={(event) => event.stopPropagation()}
+      onClick={onToggle}
+    >
+      <span className="piano-close__light-glass" style={LIGHT_GLASS} aria-hidden="true" />
+    </button>
+  )
+}
+/** ▶❚❚ printed on the cream above the light, left of its brass screw (close-up pixels). */
+const MARK = { x: 815, y: 274, h: 17 }
+function PrintedPlayPause() {
+  const { x, y, h } = MARK
+  const shape = (dx: number, dy: number) =>
+    `M${x + dx} ${y + dy}v${h}l${h * 0.85} ${-h / 2}z` + // ▶
+    `M${x + dx + h * 0.85 + 6} ${y + dy}h${h * 0.3}v${h}h${-h * 0.3}z` + // ❚
+    `M${x + dx + h * 0.85 + 6 + h * 0.3 + h * 0.22} ${y + dy}h${h * 0.3}v${h}h${-h * 0.3}z` // ❚
+  return (
+    <g aria-hidden="true">
+      <path className="piano-close__print-edge piano-close__mark" d={shape(1.3, 0)} />
+      <path className="piano-close__print piano-close__mark" d={shape(0, 0)} />
     </g>
   )
 }
@@ -362,9 +432,42 @@ const DIALS = [
 
 const keyOf = (target: EventTarget) => (target as Element).closest?.<SVGElement>('[data-key]')?.dataset.key
 /** How long the piano takes to come close, and to go back. */
-const COME_MS = 560
-const GO_MS = 420
-const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
+const COME_MS = 760
+const GO_MS = 520
+/** One curve for the whole journey: a gentle start (it's lifted), a long, soft landing. */
+const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)'
+type Place = { dx: number; dy: number; scale: number; height: number }
+/**
+ * Its journey from the shelf to you, as keyframes along an arc: it rises off the shelf first (as if
+ * picked up), then glides down to the middle and settles, growing as it comes. Sampled finely so the
+ * path is a true curve; the animation's one easing paces it.
+ */
+function journey({ dx, dy, scale, height }: Place) {
+  const rise = Math.max(height * 0.6, window.innerHeight * 0.06) // how far above the straight path it arcs
+  const cx = dx * 0.55 // the arc's control point: past the start, above both ends
+  const cy = Math.min(dy, 0) - rise
+  return Array.from({ length: 25 }, (_, i) => {
+    const t = i / 24
+    const u = 1 - t
+    const x = u * u * dx + 2 * u * t * cx
+    const y = u * u * dy + 2 * u * t * cy
+    const k = scale + (1 - scale) * (1 - Math.pow(1 - t, 1.6)) // it grows a little ahead of its travel
+    return { transform: `translate(${x}px, ${y}px) scale(${k})`, offset: t }
+  })
+}
+/** Its shadow: small and close on the shelf, wide and soft in the air in front of the room. */
+const SHADOW_ON_SHELF = 'drop-shadow(0 0.15rem 0.25rem oklch(0.08 0.01 45 / 0.55))'
+const SHADOW_IN_AIR = 'drop-shadow(0 1.5rem 2.5rem oklch(0.08 0.01 45 / 0.45))'
+/** The shelf's three-quarter picture, dissolving into the front-on close-up as it turns to face you. */
+const TURN = [
+  { opacity: 1, offset: 0 },
+  { opacity: 1, offset: 0.14 },
+  { opacity: 0, offset: 0.58 },
+]
+const FROM_STYLE: CSSProperties = {
+  // the shelf picture at the close-up's height, centred (it's the wider of the two)
+  width: `${(PIANO.width / PIANO.height / (W / H)) * 100}%`,
+}
 
 interface PianoCloseUpProps {
   /** Brought close (the piano on the shelf was clicked). */
@@ -381,15 +484,32 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
   const reducedMotion = usePrefersReducedMotion()
   const down = useSyncExternalStore(piano.subscribe, piano.keys)
 
-  // The transform that puts the close-up exactly over the piano on the shelf.
-  const fromShelf = () => {
+  // Where the close-up would sit to lie exactly over the piano on the shelf.
+  const fromShelf = (): Place | null => {
     const shelf = document.querySelector('.scene-object--piano')?.getBoundingClientRect()
     const here = stage.current?.getBoundingClientRect()
     if (!shelf || !here || !here.width) return null
-    const scale = shelf.height / here.height // (handle to feet: the two pictures aren't the same shape)
-    const dx = shelf.left + shelf.width / 2 - (here.left + here.width / 2)
-    const dy = shelf.top + shelf.height / 2 - (here.top + here.height / 2)
-    return `translate(${dx}px, ${dy}px) scale(${scale})`
+    return {
+      scale: shelf.height / here.height, // (handle to feet: the two pictures aren't the same shape)
+      dx: shelf.left + shelf.width / 2 - (here.left + here.width / 2),
+      dy: shelf.top + shelf.height / 2 - (here.top + here.height / 2),
+      height: shelf.height,
+    }
+  }
+  /** The whole journey, forwards (coming close) or backwards (going back): path, picture, shadow. */
+  const travel = (place: Place, back: boolean) => {
+    const node = stage.current
+    if (!node) return null
+    const timing: KeyframeAnimationOptions = { duration: back ? GO_MS : COME_MS, easing: EASE, fill: back ? 'forwards' : 'none', direction: back ? 'reverse' : 'normal' }
+    const body = node.querySelector('.piano-close__body')
+    const from = node.querySelector('.piano-close__from')
+    const moves = [
+      node.animate(journey(place), timing),
+      node.animate([{ filter: SHADOW_ON_SHELF }, { filter: SHADOW_IN_AIR }], timing),
+      from?.animate(TURN, timing),
+      body?.animate(TURN.map((k) => ({ ...k, opacity: 1 - k.opacity })), timing),
+    ]
+    return moves[0]!
   }
 
   // Come close: open the dialog, and once its picture is ready, grow from the shelf.
@@ -400,7 +520,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     box.showModal()
     keysRef.current?.focus({ preventScroll: true })
     const from = reducedMotion ? null : fromShelf()
-    if (from) node.style.transform = from // waits on the shelf, unseen, until its picture is decoded
+    if (from) node.style.transform = `translate(${from.dx}px, ${from.dy}px) scale(${from.scale})` // waits on the shelf, unseen, until its picture is decoded
     let live = true
     const art = node.querySelector('img')
     void (art?.decode?.() ?? Promise.resolve())
@@ -409,7 +529,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
         if (!live) return
         node.style.transform = ''
         setState('open')
-        if (from) node.animate([{ transform: from }, { transform: 'none' }], { duration: COME_MS, easing: EASE })
+        if (from) travel(from, false)
       })
     return () => {
       live = false
@@ -433,7 +553,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     }
     const to = fromShelf()
     if (!to || reducedMotion) return void window.setTimeout(finish, reducedMotion ? 160 : 0)
-    const going = stage.current?.animate([{ transform: 'none' }, { transform: to }], { duration: GO_MS, easing: 'cubic-bezier(0.4, 0, 0.6, 1)', fill: 'forwards' })
+    const going = travel(to, true)
     if (!going) return finish()
     // (and never later than it should be: a tab in the background barely runs animations)
     const late = window.setTimeout(finish, GO_MS + 250)
@@ -442,7 +562,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
       .then(() => {
         window.clearTimeout(late)
         finish()
-        going.cancel()
+        for (const a of stage.current?.getAnimations({ subtree: true }) ?? []) a.cancel()
       })
   }
 
@@ -487,6 +607,10 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     setLoop(v)
     screen.current?.readout('loop', v)
     setKnobs(settings())
+  }
+  const toggleLight = () => {
+    toggleLoop()
+    screen.current?.readout('loopState', loopOn() ? 1 : 0)
   }
   const turnVolume = (which: 'loop' | 'keys', v: number) => {
     setVolume(which, v)
@@ -576,6 +700,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
           </button>
 
           <div ref={stage} className="piano-close__stage" style={STAGE}>
+            <div className="piano-close__body">
             <img className="piano-close__art" src={PIANO_CLOSE_SRC} alt="" width={W} height={H} draggable={false} />
             {SPRITES.map((sprite) => (
               <span key={sprite.id} className="piano-close__key" data-down={down.has(sprite.id) ? '' : undefined} style={sprite.style} />
@@ -608,8 +733,10 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
                 ))}
               </svg>
             </div>
+            <LoopLight onToggle={toggleLight} />
             <svg className="piano-close__knobs" viewBox={`0 0 ${W} ${H}`}>
               <Nameplate />
+              <PrintedPlayPause />
               {PIANO_KNOBS.length === 2 && (
                 <>
                   <Knob
@@ -631,6 +758,9 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
                 </>
               )}
             </svg>
+            </div>
+            {/* the shelf's picture, for the moment it turns to face you */}
+            <img className="piano-close__from" src={PIANO.src} alt="" style={FROM_STYLE} draggable={false} aria-hidden="true" />
           </div>
 
           {/* what to play over: the landscape on the screen and the loop, each stepped through with its arrows */}

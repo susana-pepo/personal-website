@@ -338,6 +338,9 @@ export interface SiteContent {
     /** The dials' arrows. */
     previous: string
     next: string
+    /** The orange light: the loop's play/pause. */
+    playLoop: string
+    pauseLoop: string
   }
   /** The sleeping cat on the desk: a small easter egg, not a section. */
   cat: {

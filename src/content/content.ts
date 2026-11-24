@@ -490,7 +490,7 @@ export const content: SiteContent = {
     hint: 'Play the Pixel Jam Piano',
     actionLabel: 'Bring the Pixel Jam Piano close, to play it',
     closeUpLabel: 'Pixel Jam Piano',
-    howTo: 'Play with the keys A to K, or tap them: a loop starts with your first note, and the keys always fit its key. The brass knobs set how loud the loop and the keys are.',
+    howTo: 'Play with the keys A to K, or tap them: a loop starts with your first note, and the keys always fit its key. The brass knobs set how loud the loop and the keys are, and the orange light pauses and plays the loop.',
     close: 'Close',
     landscape: 'Landscape',
     landscapeHelp: 'The scene on the screen',
@@ -501,6 +501,8 @@ export const content: SiteContent = {
     keysVolume: 'Keys volume',
     previous: 'Previous',
     next: 'Next',
+    playLoop: 'Play the loop',
+    pauseLoop: 'Pause the loop',
   },
 
   cat: {

@@ -79,7 +79,7 @@ export const TONES: readonly Tone[] = [
   { name: 'Glass', pad: [['sine', 1, 0, 0.22], ['triangle', 0.5, 0, 0.18], ['sine', 2, 3, 0.05]], air: 0.04, airQ: 6, strike: ['chime', 0, 0.55], loop: ['chime', 12, 0.5] },
   { name: 'Warm', pad: [['sawtooth', 1, -7, 0.15], ['sawtooth', 1, 7, 0.15], ['triangle', 0.5, 0, 0.24], ['sine', 1, 0, 0.22]], air: 0.07, airQ: 6, strike: ['vibes', 0, 0.5], loop: ['marimba', 0, 0.55] },
   { name: 'Music box', pad: [['sine', 1, 0, 0.1]], air: 0.02, airQ: 6, strike: ['glock', 12, 0.45], loop: ['kalimba', 12, 0.55] },
-  { name: 'Air', pad: [['sine', 1, 0, 0.16], ['sine', 2, 4, 0.05]], air: 0.24, airQ: 2.5, strike: null, loop: ['chime', 12, 0.3] },
+  { name: 'Air', pad: [['sine', 1, 0, 0.16], ['sine', 2, 4, 0.05]], air: 0.24, airQ: 2.5, strike: ['chime', 0, 0.45], loop: ['chime', 12, 0.3] },
 ]
 /** Each instrument's recordings and the note each was played at (public/media/piano/samples). */
 export const INSTRUMENTS: Readonly<Record<Instrument, Readonly<Record<string, string>>>> = {

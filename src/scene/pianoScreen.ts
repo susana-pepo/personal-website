@@ -68,7 +68,7 @@ interface Scene {
 }
 type Drum = 'kick' | 'snare' | 'hat'
 
-type Readout = 'landscape' | 'loop' | 'loopVolume' | 'keysVolume'
+type Readout = 'landscape' | 'loop' | 'loopVolume' | 'keysVolume' | 'loopState'
 export interface PianoScreen {
   start(): void
   stop(): void
@@ -1223,16 +1223,19 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
       // the knob's name, its choice and a dot for each option, inset from the glass's rounded corner
       const fade = Math.min(1, (osd.until - t) / 0.35)
       const volume = osd.kind === 'loopVolume' || osd.kind === 'keysVolume'
-      const title = { landscape: 'LANDSCAPE', loop: 'LOOP', loopVolume: 'LOOP VOLUME', keysVolume: 'KEYS VOLUME' }[osd.kind]
+      const state = osd.kind === 'loopState'
+      const title = { landscape: 'LANDSCAPE', loop: 'LOOP', loopVolume: 'LOOP VOLUME', keysVolume: 'KEYS VOLUME', loopState: 'LOOP' }[osd.kind]
       const names = osd.kind === 'landscape' ? LANDSCAPES.map((l) => l.name) : LOOPS.map((l) => l.name)
-      let value = volume ? `${Math.round(osd.value * 100)}` : names[osd.value]!.toUpperCase()
+      let value = state ? (osd.value ? 'PLAYING' : 'PAUSED') : volume ? `${Math.round(osd.value * 100)}` : names[osd.value]!.toUpperCase()
       while (textWidth(value) > W - 24) value = value.slice(0, -1) // a long song name, cut to the glass
       const marks = volume ? 10 : names.length
       const wide = Math.min(W - 16, Math.max(textWidth(title), textWidth(value), marks * (volume ? 5 : 6)) + 6)
       for (let y = 6; y < 26; y++) for (let x = 8; x < 8 + wide; x++) put(x, y, [0.02, 0.02, 0.04], 0.62 * fade)
       text(title, 11, 9, MOON, 0.55 * fade)
       text(value, 11, 9 + FONT_HEIGHT + 2, MOON, fade)
-      if (volume) for (let i = 0; i < 10; i++) for (let x = 0; x < 4; x++) for (let y = 22; y < 24; y++) put(11 + i * 5 + x, y, MOON, fade * (i < Math.round(osd.value * 10) ? 1 : 0.2))
+      if (state) {
+        // (no marks: just the word)
+      } else if (volume) for (let i = 0; i < 10; i++) for (let x = 0; x < 4; x++) for (let y = 22; y < 24; y++) put(11 + i * 5 + x, y, MOON, fade * (i < Math.round(osd.value * 10) ? 1 : 0.2))
       else for (let i = 0; i < names.length; i++) for (let x = 0; x < 4; x++) put(11 + i * 6 + x, 23, MOON, fade * (i === osd.value ? 1 : 0.3))
     }
     const d = img.data

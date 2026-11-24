@@ -150,7 +150,7 @@ function withTone(lib: typeof ToneLib) {
   transport.scheduleRepeat(step, '16n')
   if (listening) {
     transport.start()
-    if (held.size) startBacking() // a key went down while Tone was still on its way
+    if (held.size || playRequested) startBacking() // a key (or the play light) came while Tone was still on its way
   }
 }
 
@@ -353,11 +353,18 @@ function fadeOut(deck: Deck, time: number, over: number) {
   deck.player.stop(time + over + 0.02)
 }
 
+// The orange light: the loop's play/pause. Until it's pressed, the loop starts with the first key;
+// paused, it stays quiet (keys and all) until it's pressed again.
+let paused = false
+const loopListeners = new Set<() => void>()
+const told = () => loopListeners.forEach((l) => l())
+
 function startBacking() {
-  if (backing.on) return
+  if (backing.on || paused) return
   if (!deckOf(backingLoop())) return
   backing.on = true
   backing.starting = true
+  told()
   backing.deck = null
   backing.from = Math.ceil((stepN + 1) / 4) * 4 // on the next beat
 }
@@ -369,6 +376,7 @@ function stopBacking() {
   backing.next = null
   backing.deck = null
   backing.from = Infinity
+  told()
 }
 
 function backingStep(time: number, at: number) {
@@ -524,6 +532,31 @@ export const beat = () => lastBeat
 export const backingEvents = () => events.splice(0)
 /** Whether a backing loop is playing. */
 export const jamming = () => backing.on
+let playRequested = false
+/** Hear when the loop starts or stops (the orange light shows it). */
+export function onLoopChange(listener: () => void) {
+  loopListeners.add(listener)
+  return () => void loopListeners.delete(listener)
+}
+/** Whether the loop is on: playing, or about to start with the next key (the orange light is lit). */
+export const loopOn = () => !paused
+/** The orange light pressed: pause the loop (lit: it goes off), or play it again (off: it lights). */
+export function toggleLoop() {
+  if (!paused) {
+    paused = true
+    playRequested = false
+    stopBacking()
+    told()
+    return
+  }
+  paused = false
+  told()
+  playRequested = true
+  const c = audio()
+  if (c?.state === 'suspended') void c.resume()
+  void T?.start()
+  startBacking()
+}
 
 export const settings = () => ({ landscape: landscapeIndex, loop: backing.next ?? loopIndex, loopVolume, keysVolume })
 export function setLandscape(index: number) {
@@ -588,6 +621,8 @@ export function listenTo(piano: Piano): () => void {
     for (const vc of [...held.values()]) release(vc)
     setAmbience(null)
     stopBacking()
+    paused = false // (next time it's opened, the first key starts the loop again)
+    playRequested = false
     if (T) T.getTransport().stop()
     radio.duck(false)
   }
