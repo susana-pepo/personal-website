@@ -95,3 +95,80 @@
     width: calc(100% + 1.5rem);
   }
 }
+
+/*
+ * A phone held upright: the room is taller and pans sideways, so its objects are about twice
+ * the size. It shows the canvas at its full height and opens on her and the desk
+ * (ROOM_PAN in scene/layout.ts), with the record player and the bookshelf to the left and the
+ * cat to the right. The height is what the screen has left once the masthead and the player
+ * (about 20rem together) and a little air have their place, between three quarters of the
+ * room's width and 1.15 times it. Touch screens only: a narrow window with a mouse, which
+ * can't swipe, keeps the whole room in view.
+ */
+@media (max-width: 639px) and (orientation: portrait) and (pointer: coarse) {
+  .cover {
+    --room-w: calc(100vw - 1.5rem);
+  }
+
+  .cover .stage {
+    aspect-ratio: auto;
+    height: clamp(calc(var(--room-w) * 0.75), calc(100svh - 22rem), calc(var(--room-w) * 1.15));
+    overflow-x: auto;
+    overflow-y: hidden;
+    /* a swipe that reaches either end stops there: it never moves the page or goes back */
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+  }
+
+  .cover .stage::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Tags near the canvas's edges are clipped there, as before, rather than stretching the pan. */
+  .cover .scene {
+    overflow: clip;
+  }
+
+  /* Soft fades at the edges with more room beyond them (useRoomPan sets data-start and data-end). */
+  .stage-edges {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: var(--room-radius);
+    overflow: hidden;
+    pointer-events: none;
+  }
+
+  .stage-edges::before,
+  .stage-edges::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    width: 1.5rem;
+    opacity: 0;
+    transition: opacity 240ms var(--ease-out);
+  }
+
+  .stage-edges::before {
+    left: 0;
+    background: linear-gradient(to right, oklch(0.12 0.008 45 / 0.62), oklch(0.12 0.008 45 / 0));
+  }
+
+  .stage-edges::after {
+    right: 0;
+    background: linear-gradient(to left, oklch(0.12 0.008 45 / 0.62), oklch(0.12 0.008 45 / 0));
+  }
+
+  .stage-edges[data-start]::before,
+  .stage-edges[data-end]::after {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 639px) and (orientation: portrait) and (pointer: coarse) and (prefers-reduced-motion: reduce) {
+  .stage-edges::before,
+  .stage-edges::after {
+    transition-duration: 120ms;
+  }
+}

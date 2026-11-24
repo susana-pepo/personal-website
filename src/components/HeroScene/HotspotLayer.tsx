@@ -12,6 +12,8 @@ interface HotspotLayerProps {
   /** Reports which object a pointer is pressing on (null on release, cancel or leave). Not for keys. */
   onPressChange?: (id: string | null) => void
   onAction: (action: HotspotAction) => void
+  /** Keyboard focus has arrived on an object (a phone's panning room brings it into view). */
+  onFocusObject?: (id: string) => void
   /** The lamp's current light, spoken with its control (e.g. "Lamp light on"). */
   lampTone?: string
   /**
@@ -55,7 +57,7 @@ export function accessibleLabelFor(hotspot: Hotspot): string {
  * outline, plus the small tooltips. Hover state changes only on enter/leave,
  * never on pointer movement, so moving inside an object doesn't re-render.
  */
-export function HotspotLayer({ onActiveChange, onPressChange, onAction, lampTone, greeting = false }: HotspotLayerProps) {
+export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusObject, lampTone, greeting = false }: HotspotLayerProps) {
   const uid = useId().replace(/:/g, '')
   const reducedMotion = usePrefersReducedMotion()
   const [hovered, setHovered] = useState<string | null>(null)
@@ -130,13 +132,17 @@ export function HotspotLayer({ onActiveChange, onPressChange, onAction, lampTone
   }, [])
   useEffect(() => () => window.clearTimeout(leaveTimer.current), [])
   // Moving focus with the keyboard takes over from a resting mouse.
-  const focusChange = useCallback((id: string | null) => {
-    if (id) {
-      window.clearTimeout(leaveTimer.current)
-      setHovered(null)
-    }
-    setFocused(id)
-  }, [])
+  const focusChange = useCallback(
+    (id: string | null) => {
+      if (id) {
+        window.clearTimeout(leaveTimer.current)
+        setHovered(null)
+        onFocusObject?.(id)
+      }
+      setFocused(id)
+    },
+    [onFocusObject],
+  )
   const act = useCallback(
     (action: HotspotAction) => {
       dismissDiscoveryHint()

@@ -243,3 +243,59 @@ describe('room framing', () => {
     expect(roomFocus(1024, 768)).toEqual({ x: 0.7, y: 0.6 })
   })
 })
+
+describe('the panning room on a portrait phone', () => {
+  // A 390 x 844 phone: the room is 366 wide and 1.15 times as tall (App.css).
+  const width = 366
+  const height = 421
+
+  it('shows the whole canvas height, from its left edge', async () => {
+    const { panFit } = await import('../scene/layout')
+    const fit = panFit(width, height)
+    expect(fit.height).toBe(height)
+    expect(fit.width).toBeCloseTo((CANVAS_WIDTH * height) / CANVAS_HEIGHT, 6)
+    expect(fit.left).toBe(0)
+    expect(fit.top).toBe(0)
+  })
+
+  it('opens on her and the desk, with the record player and shelf to the left and the cat to the right', async () => {
+    const { ROOM_PAN, panFit, panScrollFor } = await import('../scene/layout')
+    const fit = panFit(width, height)
+    const scroll = panScrollFor(fit, width, ROOM_PAN.startX)
+    const from = scroll / fit.scale
+    const to = (scroll + width) / fit.scale
+    const span = (id: string) => {
+      const b = boundsOf(HOTSPOTS.find((h) => h.id === id)!.polygons)
+      return [b.x, b.x + b.width]
+    }
+    const [, vinylTo] = span('vinyl')
+    const [booksFrom] = span('books')
+    const [catFrom] = span('cat')
+    const [laptopFrom] = span('laptop')
+    const [deskbooksFrom, deskbooksTo] = span('deskbooks')
+    expect(vinylTo).toBeLessThan(from)
+    expect(booksFrom).toBeLessThan(from)
+    expect(catFrom).toBeGreaterThan(to)
+    expect(deskbooksFrom).toBeGreaterThan(from)
+    expect(deskbooksTo).toBeLessThan(to)
+    expect(laptopFrom).toBeGreaterThan(from)
+    // her greeting hangs from x 760, about 180 canvas px either side at this size
+    expect(760 - 180).toBeGreaterThan(from)
+  })
+
+  it('keeps the scroll within the canvas, and finds the centre again from it', async () => {
+    const { panCentreAt, panFit, panScrollFor } = await import('../scene/layout')
+    const fit = panFit(width, height)
+    expect(panScrollFor(fit, width, 0)).toBe(0)
+    expect(panScrollFor(fit, width, CANVAS_WIDTH)).toBeCloseTo(fit.width - width, 6)
+    const scroll = panScrollFor(fit, width, 1000)
+    expect(panCentreAt(fit, width, scroll)).toBeCloseTo(1000, 6)
+  })
+
+  it('does not pan a box as wide as the canvas', async () => {
+    const { panFit, panScrollFor } = await import('../scene/layout')
+    const fit = panFit(1440, 810)
+    expect(fit.width).toBe(1440)
+    expect(panScrollFor(fit, 1440, 990)).toBe(0)
+  })
+})

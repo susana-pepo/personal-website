@@ -1,5 +1,14 @@
 import { useLayoutEffect, useState, type CSSProperties, type RefObject } from 'react'
-import { coverFit, roomFocus } from '../scene/layout'
+import { coverFit, panFit, roomFocus, type CoverFit } from '../scene/layout'
+
+export interface RoomFit {
+  /** The scene box's size and place, or undefined while the frame has the canvas's own shape. */
+  style: CSSProperties | undefined
+  /** Set while the frame pans sideways (a portrait phone): the canvas's size in it. */
+  pan: CoverFit | null
+}
+
+const UNFIT: RoomFit = { style: undefined, pan: null }
 
 /**
  * Size the scene box so the 1920×1080 canvas covers `frameRef` as one unit.
@@ -8,11 +17,15 @@ import { coverFit, roomFocus } from '../scene/layout'
  *
  * The frame is wider than the canvas (ROOM_VIEW, 1.9:1), so the canvas fills
  * its width and a thin band above and below is hidden, split as ROOM_VIEW says
- * (see roomFocus). Returns `undefined` while the frame has the canvas's own
- * shape, so the CSS default of filling the frame applies.
+ * (see roomFocus). The style is `undefined` while the frame has the canvas's
+ * own shape, so the CSS default of filling the frame applies.
+ *
+ * On a portrait phone the frame is taller than that and scrolls sideways
+ * (App.css): the canvas then fills its height from the left edge, and the
+ * frame pans across it (useRoomPan).
  */
-export function useCoverFit(frameRef: RefObject<HTMLElement | null>): CSSProperties | undefined {
-  const [style, setStyle] = useState<CSSProperties | undefined>(undefined)
+export function useCoverFit(frameRef: RefObject<HTMLElement | null>): RoomFit {
+  const [fit, setFit] = useState<RoomFit>(UNFIT)
 
   useLayoutEffect(() => {
     const frame = frameRef.current
@@ -23,12 +36,21 @@ export function useCoverFit(frameRef: RefObject<HTMLElement | null>): CSSPropert
       const width = frame.clientWidth
       const height = frame.clientHeight
       if (!width || !height) return
-      const fit = coverFit(width, height, roomFocus(width, height))
+      const overflowX = getComputedStyle(frame).overflowX
+      const pans = overflowX === 'auto' || overflowX === 'scroll'
+      const fit = pans ? panFit(width, height) : coverFit(width, height, roomFocus(width, height))
       const exact = Math.abs(fit.width - width) < 0.5 && Math.abs(fit.height - height) < 0.5
-      setStyle(
-        exact
-          ? undefined
-          : { width: `${fit.width}px`, height: `${fit.height}px`, left: `${fit.left}px`, top: `${fit.top}px` },
+      const style = exact
+        ? undefined
+        : { width: `${fit.width}px`, height: `${fit.height}px`, left: `${fit.left}px`, top: `${fit.top}px` }
+      setFit((current) =>
+        current.style?.width === style?.width &&
+        current.style?.height === style?.height &&
+        current.style?.left === style?.left &&
+        current.style?.top === style?.top &&
+        (current.pan !== null) === (pans && !exact)
+          ? current
+          : { style, pan: pans && !exact ? fit : null },
       )
     }
     update()
@@ -38,5 +60,5 @@ export function useCoverFit(frameRef: RefObject<HTMLElement | null>): CSSPropert
     return () => observer.disconnect()
   }, [frameRef])
 
-  return style
+  return fit
 }

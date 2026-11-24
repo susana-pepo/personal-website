@@ -180,3 +180,30 @@ export function roomFocus(boxWidth: number, boxHeight: number, topShare: number 
   const hidden = height - boxHeight
   return { x: 0.7, y: hidden > 0 ? (boxHeight / 2 + hidden * topShare) / height : 0.6 }
 }
+
+/**
+ * A portrait phone: the room is taller than the canvas's 16:9 share of its width (App.css), so
+ * it shows the canvas at its full height and pans sideways. It opens centred on her and the
+ * desk, with the record player and the bookshelf off to the left and the cat to the right.
+ * On a tall phone about 940 canvas px show (x 520 to 1460): her greeting whole and clear of
+ * the edge fade, the laptop, and the shelf's edge and the coffee just in view as a hint that
+ * there's more.
+ */
+export const ROOM_PAN = { startX: 990 } as const
+
+/** The canvas at the full height of a box that pans sideways, from its left edge. */
+export function panFit(boxWidth: number, boxHeight: number): CoverFit {
+  const scale = Math.max(boxWidth / CANVAS_WIDTH, boxHeight / CANVAS_HEIGHT)
+  return { width: CANVAS_WIDTH * scale, height: CANVAS_HEIGHT * scale, left: 0, top: 0, scale }
+}
+
+/** The sideways scroll that puts canvas x `centreX` in the middle of the box, kept within the canvas. */
+export function panScrollFor(fit: CoverFit, boxWidth: number, centreX: number): number {
+  const max = Math.max(0, fit.width - boxWidth)
+  return Math.min(max, Math.max(0, centreX * fit.scale - boxWidth / 2))
+}
+
+/** The canvas x in the middle of the box at a given sideways scroll. */
+export function panCentreAt(fit: CoverFit, boxWidth: number, scrollLeft: number): number {
+  return (scrollLeft + boxWidth / 2) / fit.scale
+}
