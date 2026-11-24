@@ -12,8 +12,10 @@
   --weather-ease: cubic-bezier(0.45, 0, 0.55, 1);
 }
 
-/* On the glass itself, over everything outside: frost on the lower panes in the
-   snow (see FrostLayer; drawn small and stretched, it's soft anyway) and drops in the rain (GlassDrops). */
+/* The rain outside (RainLayer), and on the glass itself, over everything outside:
+   frost on the lower panes in the snow (see FrostLayer; drawn small and stretched,
+   it's soft anyway) and drops in the rain (GlassDrops). */
+.rain,
 .frost,
 .glass-drops {
   position: absolute;
@@ -31,36 +33,15 @@
   transition: opacity 1200ms var(--weather-ease);
 }
 
-/* The rain eases off (or sets in) with the weather; once gone it stops drawing. */
+/* The rain is drawn on a canvas (RainLayer); WindowLife's older CSS streaks
+   were too faint to see against a grey day, so they are kept off. */
 .scene[data-weather] .window-rain {
-  transition:
-    opacity var(--rain-fade, 2600ms) cubic-bezier(0.45, 0, 0.55, 1),
-    visibility 0s;
-}
-
-.scene[data-weather]:not([data-weather='rain']) .window-rain {
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity var(--rain-fade, 2600ms) cubic-bezier(0.45, 0, 0.55, 1),
-    visibility 0s linear var(--rain-fade, 2600ms);
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .weather-snow {
     transition-duration: 400ms;
-  }
-
-  .scene[data-weather] .window-rain {
-    --rain-fade: 400ms;
-  }
-}
-
-/* With reduced motion the rain holds still, so the weather the visitor picked
-   still shows (the snow holds still too). */
-@media (prefers-reduced-motion: reduce) {
-  .scene[data-weather] .window-rain__fall {
-    animation: none;
   }
 }
 
@@ -75,26 +56,4 @@
 
 .scene:has(.weather-sky[data-on]) .window-view {
   filter: url('#rainy-day');
-}
-
-/* The rain a little more present than WindowLife's own (0.2 / 0.26)… */
-.window-rain__fall {
-  transition: opacity 1800ms cubic-bezier(0.45, 0, 0.55, 1);
-}
-
-.scene[data-weather] .window-rain__fall--far {
-  opacity: 0.27;
-}
-
-.scene[data-weather] .window-rain__fall--near {
-  opacity: 0.35;
-}
-
-/* …and more again by day, against the grey sky. */
-.scene[data-time='midday'][data-weather='rain'] .window-rain__fall--far {
-  opacity: 0.4;
-}
-
-.scene[data-time='midday'][data-weather='rain'] .window-rain__fall--near {
-  opacity: 0.54;
 }

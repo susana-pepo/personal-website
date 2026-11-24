@@ -177,9 +177,9 @@ export interface OvercastLook {
 
 export const RAINY_DAY: OvercastLook = {
   saturation: 0.55,
-  brightness: 0.84,
+  brightness: 0.8,
   skyK: 0.5,
-  skyC: 0.27,
+  skyC: 0.2,
   skyTint: [-0.015, 0, 0.025],
   skyA: 3.2,
   skyB: -0.35,

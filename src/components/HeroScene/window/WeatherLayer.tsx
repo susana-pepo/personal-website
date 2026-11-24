@@ -19,6 +19,7 @@ import {
   type Weather,
 } from '../../../scene/weather'
 import { FrostLayer } from './FrostLayer'
+import { RainLayer } from './RainLayer'
 import { GlassDrops } from './GlassDrops'
 import './WeatherLayer.css'
 
@@ -151,8 +152,8 @@ interface WeatherLayerProps {
  * the snow starts or stops, the flakes thicken or thin out one by one where
  * they are. It draws only
  * while snow is falling, the room may move and the tab is visible (with reduced
- * motion or a paused room, it holds still). Rain is the CSS layer in WindowLife;
- * this layer fades it with the weather. Decorative only.
+ * motion or a paused room, it holds still). It also holds the
+ * rain (RainLayer), the frost (FrostLayer) and the drops on the glass (GlassDrops). Decorative only.
  */
 export function WeatherLayer({ weather, time, motionAllowed }: WeatherLayerProps) {
   const reducedMotion = usePrefersReducedMotion()
@@ -304,6 +305,7 @@ export function WeatherLayer({ weather, time, motionAllowed }: WeatherLayerProps
 
   return (
     <span className="weather-layer" aria-hidden="true" data-weather={weather} style={WINDOW_GLASS_STYLE}>
+      <RainLayer raining={weather === 'rain'} time={time} moving={moving} />
       <canvas
         ref={canvasRef}
         className="weather-snow"
