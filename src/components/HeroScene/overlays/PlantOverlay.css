@@ -1,0 +1,17 @@
+/* The hanging plant's sway (PlantOverlay): the clip sits over its still, from the top-left corner,
+   its box a touch larger than the plant's where the video is padded to an even size. */
+.plant__clip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.plant__clip > video {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: fill;
+}

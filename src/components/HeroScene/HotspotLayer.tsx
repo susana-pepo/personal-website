@@ -3,7 +3,7 @@ import { content } from '../../content/content'
 import { usePrefersReducedMotion } from '../../hooks/useMediaQuery'
 import { dismissDiscoveryHint } from '../../lib/discovery'
 import { hrefFor } from '../../lib/router'
-import { HOTSPOTS, SCENE_HEIGHT, SCENE_WIDTH, pctX, pctY, toPathData, type Hotspot, type HotspotAction } from '../../scene/hotspots'
+import { HOTSPOTS, HOVER_ZONES, SCENE_HEIGHT, SCENE_WIDTH, pctX, pctY, toPathData, type Hotspot, type HotspotAction } from '../../scene/hotspots'
 import { purrHover, purrPat, purrStroke } from '../../audio/purr'
 import { GlimmerCursor } from './GlimmerCursor'
 import './HotspotSpeech.css'
@@ -23,6 +23,8 @@ interface HotspotLayerProps {
    * ("Hey there, I'm Susana") until they hover or open something.
    */
   greeting?: boolean
+  /** A pointer has come onto a hover-only outline (the plant, which sways). */
+  onHoverZone?: (id: string) => void
 }
 
 const PATHS = new Map(HOTSPOTS.map((h) => [h.id, toPathData(h.polygons)]))
@@ -61,7 +63,7 @@ export function accessibleLabelFor(hotspot: Hotspot): string {
  * outline, plus the small tooltips. Hover state changes only on enter/leave,
  * never on pointer movement, so moving inside an object doesn't re-render.
  */
-export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusObject, lampTone, greeting = false }: HotspotLayerProps) {
+export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusObject, lampTone, greeting = false, onHoverZone }: HotspotLayerProps) {
   const uid = useId().replace(/:/g, '')
   const reducedMotion = usePrefersReducedMotion()
   const [hovered, setHovered] = useState<string | null>(null)
@@ -174,6 +176,14 @@ export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusO
             <feGaussianBlur stdDeviation="22" />
           </filter>
         </defs>
+
+        {/* Hover-only outlines (the plant's sway), drawn first of all: no click, no label, no keyboard
+            stop, and every object's own outline and reach wins over them where they overlap. */}
+        <g className="hotspots__hover" aria-hidden="true">
+          {HOVER_ZONES.map((zone) => (
+            <path key={zone.id} d={toPathData(zone.polygons)} data-zone={zone.id} onPointerEnter={() => onHoverZone?.(zone.id)} />
+          ))}
+        </g>
 
         {/* Extra reach for fingers, drawn first so every object's own shape wins over a neighbour's margin. */}
         <g className="hotspots__reach" aria-hidden="true">

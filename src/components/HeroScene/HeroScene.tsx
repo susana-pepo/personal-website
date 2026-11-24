@@ -14,6 +14,7 @@ import { useFrameBlend } from '../../hooks/useFrameBlend'
 import { useLoopSeam } from '../../hooks/useLoopSeam'
 import { CatOverlay, type CatHandle } from './overlays/CatOverlay'
 import { CoffeeOverlay } from './overlays/CoffeeOverlay'
+import { PlantOverlay } from './overlays/PlantOverlay'
 import { WomanOverlay } from './overlays/WomanOverlay'
 import { PianoArt, PianoCloseUp, PianoScreenGlow } from './overlays/PianoOverlay'
 import { HotspotLayer } from './HotspotLayer'
@@ -60,7 +61,7 @@ const SceneSandbox = import.meta.env.DEV ? lazy(() => import('./dev/SceneSandbox
 const sandboxRequested =
   import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sandbox') === '1'
 
-const OBJECTS = OVERLAYS.filter((o) => o.id !== 'cat' && o.id !== 'vinyl' && o.id !== 'coffee' && o.id !== 'woman' && o.id !== 'piano')
+const OBJECTS = OVERLAYS.filter((o) => o.id !== 'cat' && o.id !== 'vinyl' && o.id !== 'coffee' && o.id !== 'woman' && o.id !== 'piano' && o.id !== 'plant')
 /** The section objects that breathe now and then (their amber halo swells and settles) until
  * their section has been opened: every object with a section and a halo (src/scene/roomCues.ts). */
 const GLOWING = new Set(OVERLAYS.filter((o) => o.glow).map((o) => o.id))
@@ -292,6 +293,8 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   // tapping it finds it. With reduced motion there is no first look, and the hints are fades.
   // The piano computer on the shelf, brought close to be played (PianoCloseUp).
   const [pianoClose, setPianoClose] = useState(false)
+  // Bumped each time a pointer comes onto the hanging plant: its leaves sway once more (PlantOverlay).
+  const [plantStir, setPlantStir] = useState(0)
   // Glimmer hints and section breaths take turns on one clock (src/scene/roomCues.ts).
   const { tells, breath } = useRoomCues({
     moving: playback.motionAllowed,
@@ -451,6 +454,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
               highlighted={litOverlay === 'woman'}
               discoveryIndex={discoveryIndex('woman')}
             />
+            <PlantOverlay motionAllowed={playback.motionAllowed} stir={plantStir} />
             <CoffeeOverlay
               motionAllowed={playback.motionAllowed}
               highlighted={litOverlay === 'coffee'}
@@ -480,6 +484,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
 
           <HotspotLayer
             onActiveChange={setActive}
+            onHoverZone={(id) => id === 'plant' && setPlantStir((n) => n + 1)}
             onPressChange={setPressed}
             onAction={onAction}
             onFocusObject={revealObject}

@@ -19,14 +19,14 @@
   "overlays": [
     {
       "id": "plant",
-      "src": "/media/scene/plant.webp",
+      "src": "/media/scene/plant/plant-still.webp",
       "intrinsic": [
-        640,
-        696
+        320,
+        345
       ],
-      "x": 323,
-      "y": 408,
-      "width": 196,
+      "x": 320.3,
+      "y": 405.4,
+      "width": 200.8,
       "z": 3
     },
     {
@@ -289,5 +289,14 @@
       0.9776,
       0.3333
     ]
+  },
+  "plant": {
+    "$comment": "The hanging plant on the shelf: plant-still.webp, and a gentle sway of its leaves (plant-stir, one record turn long) played on its own at the room's pace and whenever it is hovered (src/scene/plantSway.ts), built by scripts/build-plant.py from portfolio-website-assets/public/media/plant-transparent.webp. The clip starts and ends exactly on the still.",
+    "stir": {
+      "name": "stir",
+      "src": "/media/scene/plant/plant-stir.webp",
+      "ms": 5067
+    },
+    "still": "/media/scene/plant/plant-still.webp"
   }
 }

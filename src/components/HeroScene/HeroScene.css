@@ -954,6 +954,13 @@
   cursor: pointer;
 }
 
+/* Hover-only outlines (the plant sways when a pointer comes onto it): not a control, so no pointer cursor. */
+.hotspots__hover path {
+  fill: transparent;
+  pointer-events: all;
+  cursor: default;
+}
+
 /* Fingers are bigger than cursors: widen the invisible hit area on touch screens. */
 /* Touch: a transparent margin of 14 CSS px around every object, at any scale, so even the
    smallest is at least ~44 px to a finger. Drawn beneath all the objects' own shapes. */

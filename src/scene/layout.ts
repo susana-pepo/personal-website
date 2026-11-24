@@ -1,4 +1,4 @@
-import { canvas, cat, coffee, media, overlays, vinyl, woman } from './scene-layout.json'
+import { canvas, cat, coffee, media, overlays, plant, vinyl, woman } from './scene-layout.json'
 
 /**
  * The scene is one 1920×1080 canvas. The static room, every transparent
@@ -107,6 +107,14 @@ export const COFFEE_MEDIA = {
   still: coffee.still,
   /** The steam loop's frame size in pixels (its videos are padded to an even size: LoopClip). */
   size: (overlays.find((o) => o.id === 'coffee')!.intrinsic as [number, number]) as readonly [number, number],
+} as const
+
+/** The hanging plant: its still, and the sway played once each time it's hovered (scripts/build-plant.py). */
+export const PLANT_MEDIA = {
+  stir: plant.stir,
+  still: plant.still,
+  /** The clip's frame size in pixels (its videos are padded to an even size). */
+  size: (overlays.find((o) => o.id === 'plant')!.intrinsic as [number, number]) as readonly [number, number],
 } as const
 
 /** The record player's moving parts (positions in the body image's own pixels). */

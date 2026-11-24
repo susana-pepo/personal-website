@@ -5,7 +5,7 @@ Requires Pillow (pip install pillow).
 
 Reads the overlay positions from src/scene/scene-layout.json and rewrites the
 `polygons` of every hotspot in src/scene/hotspot-geometry.json that has an
-`overlay` key. Run it after moving or resizing an overlay so the hit area
+`overlay` key, and of every hover-only outline (`hoverZones`). Run it after moving or resizing an overlay so the hit area
 follows the artwork. The PNGs themselves are only read, never changed.
 """
 import json
@@ -88,6 +88,11 @@ def main():
         polygon = trace(overlays[overlay_id], canvas_w, canvas_h)
         spot['polygons'] = [polygon]
         print(f"{spot['id']}: {len(polygon)} points from {overlays[overlay_id]['src']}")
+    # Hover-only outlines (no click, no label): the plant's sway.
+    for zone in geometry.get('hoverZones', []):
+        polygon = trace(overlays[zone['overlay']], canvas_w, canvas_h)
+        zone['polygons'] = [polygon]
+        print(f"{zone['id']} (hover): {len(polygon)} points from {overlays[zone['overlay']]['src']}")
     geometry_path.write_text(format_geometry(geometry))
 
 

@@ -1,4 +1,4 @@
-import { height, hotspots, width } from './hotspot-geometry.json'
+import { height, hotspots, hoverZones, width } from './hotspot-geometry.json'
 import { isSectionId, type SectionId } from '../content/types'
 import { CANVAS_HEIGHT, CANVAS_WIDTH, OVERLAY_IDS, type OverlayId } from './layout'
 
@@ -52,6 +52,20 @@ function toHotspot(raw: RawHotspot): Hotspot {
 }
 
 export const HOTSPOTS: readonly Hotspot[] = (hotspots as RawHotspot[]).map(toHotspot)
+
+/**
+ * Outlines that only answer a hover: no click, no label, no keyboard stop (the plant sways). Drawn
+ * under every object's own outline, so wherever they overlap the object on top keeps the pointer.
+ */
+export interface HoverZone {
+  id: OverlayId
+  polygons: Point[][]
+}
+
+export const HOVER_ZONES: readonly HoverZone[] = hoverZones.map((raw) => {
+  if (!OVERLAY_IDS.includes(raw.overlay as OverlayId)) throw new Error(`Hover zone ${raw.id}: unknown overlay`)
+  return { id: raw.overlay as OverlayId, polygons: raw.polygons.map((poly) => poly.map(([x, y]) => [x, y] as Point)) }
+})
 
 /** SVG path data for one or more closed polygons. */
 export function toPathData(polygons: Point[][]): string {

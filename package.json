@@ -22,6 +22,7 @@
     "scene:window": "python3 scripts/build-window-layers.py",
     "scene:windows": "python3 scripts/build-window-views.py",
     "scene:piano": "python3 scripts/build-piano.py",
+    "scene:plant": "python3 scripts/build-plant.py",
     "scene:landscapes": "python3 scripts/paint-landscapes.py"
   },
   "dependencies": {
