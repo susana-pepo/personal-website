@@ -616,6 +616,26 @@
   color: oklch(0.92 0.012 80 / 0.62);
 }
 
+/* The loop's credit, small and quiet under the instructions (its licence asks for it). */
+.piano-close__credit {
+  margin: 0;
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  letter-spacing: 0.01em;
+  color: oklch(0.92 0.012 80 / 0.58);
+}
+
+.piano-close__credit a {
+  color: inherit;
+  text-decoration: underline;
+  text-decoration-color: oklch(0.92 0.012 80 / 0.3);
+  text-underline-offset: 2px;
+}
+
+.piano-close__credit a:hover {
+  color: oklch(0.96 0.012 80 / 0.85);
+}
+
 /* How to play: one long line under it, light enough to read over the dimmed, blurred room. */
 .piano-close__how {
   margin: 0;
@@ -674,7 +694,8 @@
    going back, they leave first, all together and quickly. */
 .piano-close__close,
 .piano-close__dials,
-.piano-close__how {
+.piano-close__how,
+.piano-close__credit {
   opacity: 0;
   translate: 0 0.5rem;
   transition:
@@ -696,16 +717,22 @@
   --arrive: 980ms;
 }
 
+.piano-close__credit {
+  --arrive: 1040ms;
+}
+
 .piano-close[data-state='open'] .piano-close__close,
 .piano-close[data-state='open'] .piano-close__dials,
-.piano-close[data-state='open'] .piano-close__how {
+.piano-close[data-state='open'] .piano-close__how,
+.piano-close[data-state='open'] .piano-close__credit {
   opacity: 1;
   translate: 0 0;
 }
 
 .piano-close[data-state='closing'] .piano-close__close,
 .piano-close[data-state='closing'] .piano-close__dials,
-.piano-close[data-state='closing'] .piano-close__how {
+.piano-close[data-state='closing'] .piano-close__how,
+.piano-close[data-state='closing'] .piano-close__credit {
   transition-delay: 0ms;
   transition-duration: 150ms;
 }
@@ -751,7 +778,8 @@
 
   .piano-close__close,
   .piano-close__dials,
-  .piano-close__how {
+  .piano-close__how,
+  .piano-close__credit {
     translate: none;
     transition-delay: 0ms;
   }

@@ -503,6 +503,8 @@ export const content: SiteContent = {
     next: 'Next',
     playLoop: 'Play the loop',
     pauseLoop: 'Pause the loop',
+    loopCredit: 'Loop',
+    by: 'by',
   },
 
   cat: {

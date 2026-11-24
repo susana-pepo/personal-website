@@ -14,7 +14,7 @@ import { listenTo, loopOn, onLoopChange, setLandscape, setLoop, setVolume, setti
 import { overlay, pctX, pctY } from '../../../scene/layout'
 import { KEYBOARD_NOTES, PIANO_ATLAS, PIANO_CLOSE_SRC, PIANO_KEYS, PIANO_KNOBS, PIANO_SCREEN, PIANO_SHELF, PIANO_SHELF_SHEAR, PIANO_SIZE, piano, type PianoKnob } from '../../../scene/piano'
 import { TITLE_H, TITLE_W, paintName, type Put } from '../../../scene/pianoTitle'
-import { LANDSCAPES, LOOPS } from '../../../scene/pianoMusic'
+import { LANDSCAPES, LOOPS, LOOP_SOURCE } from '../../../scene/pianoMusic'
 import { textPixels, textWidth } from '../../../scene/pixelFont'
 import { createPianoScreen, type PianoScreen } from '../../../scene/pianoScreen'
 import { SceneObject } from './SceneObject'
@@ -920,6 +920,17 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
 
           <p id="piano-how-to" className="piano-close__how">
             {content.piano.howTo}
+          </p>
+          {/* the loop's credit, as its licence asks: the song, its composer, where it's from, the licence */}
+          <p className="piano-close__credit">
+            {content.piano.loopCredit} “{LOOPS[knobs.loop]?.name}” {content.piano.by} {LOOP_SOURCE.name} (
+            <a href={LOOP_SOURCE.url} target="_blank" rel="noreferrer">
+              incompetech.com
+            </a>
+            ),{' '}
+            <a href={LOOP_SOURCE.licenceUrl} target="_blank" rel="noreferrer">
+              {LOOP_SOURCE.licence}
+            </a>
           </p>
         </div>
       )}

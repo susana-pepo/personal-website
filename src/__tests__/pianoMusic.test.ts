@@ -45,9 +45,14 @@ describe('the piano computer’s music', () => {
     }
   })
 
-  it('has recorded loops to jam over, all CC0, each eight bars at its own exact tempo', () => {
-    expect(LOOP_SOURCE.licence).toMatch(/CC0/)
+  it('has recorded loops to jam over, credited as their licence asks, each eight bars at its own exact tempo', () => {
+    expect(LOOP_SOURCE.licence).toBe('CC BY 4.0')
+    expect(LOOP_SOURCE.licenceUrl).toMatch(/^https:\/\/creativecommons\.org\/licenses\/by\/4\.0/)
     expect(LOOPS.length).toBeGreaterThanOrEqual(6)
+    // three in major and three in minor, in simple keys (none more than one sharp or flat)
+    expect(LOOPS.filter((l) => l.key.endsWith('major'))).toHaveLength(3)
+    expect(LOOPS.filter((l) => l.key.endsWith('minor'))).toHaveLength(3)
+    for (const l of LOOPS) expect(['C major', 'G major', 'F major', 'A minor', 'E minor', 'D minor']).toContain(l.key)
     for (const l of LOOPS) {
       expect(publicFile(`media/piano/loops/${l.file}`)).toBe(true)
       expect(l.bpm).toBeGreaterThan(55)

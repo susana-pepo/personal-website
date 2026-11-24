@@ -110,8 +110,9 @@ export const LANDSCAPES: readonly Landscape[] = [
 
 // ── Backing loops (chosen on the Loop dial) ──
 //
-// Twelve recorded loops to jam over: eight bars each, cut seamlessly from songs in Open Lo-Fi (CC0,
-// public domain; github.com/btahir/open-lofi) by scripts/piano-loops, which also measured each one's
+// Six recorded loops to jam over (three in major, three in minor, in simple keys): eight bars each,
+// cut seamlessly from Kevin MacLeod's tracks (incompetech.com, CC BY 4.0: the close-up credits each
+// one as it plays) by scripts/piano-loops, which also measured each one's
 // tempo, key, tuning, chords and drum hits (piano-loops.json). The keyboard follows the loop's key
 // (its white keys play the loop's scale, so whatever you play fits) and its tuning (a few cents
 // off concert pitch, as recordings can be, so the two never beat against each other).

@@ -341,6 +341,9 @@ export interface SiteContent {
     /** The orange light: the loop's play/pause. */
     playLoop: string
     pauseLoop: string
+    /** The loop's credit, under the piano: "Loop “Title” by Kevin MacLeod (incompetech.com), CC BY 4.0". */
+    loopCredit: string
+    by: string
   }
   /** The sleeping cat on the desk: a small easter egg, not a section. */
   cat: {
