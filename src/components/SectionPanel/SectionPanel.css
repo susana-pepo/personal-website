@@ -69,7 +69,7 @@ html:has(.panel[open]) {
  * the sheet, because dialog.close() removes the backdrop at once.
  */
 .panel::backdrop {
-  background: oklch(0.12 0.008 45 / 0.52);
+  background: oklch(0.12 0.008 45 / 0.56);
   opacity: 0;
   transition: opacity 460ms ease 40ms;
 }
@@ -93,25 +93,11 @@ html:has(.panel[open]) {
   }
 }
 
-/* While a page is out, the room steps back a touch, as if you leaned toward the paper. */
-.cover {
-  transform-origin: 30% 50%;
-  transition: transform 460ms var(--ease-drawer);
-}
-
-html[data-panel='open'] .cover {
-  transform: scale(0.985);
-}
-
-html[data-panel='closing'] .cover {
-  transition-duration: 240ms;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  html[data-panel] .cover {
-    transform: none;
-  }
-}
+/* The room stays where it is while a page is out: the deeper backdrop sets the page apart.
+   (It used to step back a touch, scaled to 0.985. Scaling the whole room makes the browser
+   redraw all of it, rain filter included, on every frame of the lean, and on large Retina
+   screens it dropped whole layers for single frames: the page then flickered as it opened
+   and closed.) */
 
 /* ── The sheet ── */
 .panel__sheet {
