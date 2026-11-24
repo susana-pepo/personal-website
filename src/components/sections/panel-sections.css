@@ -290,294 +290,139 @@
 }
 
 /*
- * ── Contact: the note under the mug ──
- * The room's mug stands on the top-right corner of a small paper note, on the
- * walnut desk edge. Only the paper is turned; the text on it stays straight.
- * The lamp is upper right, so the note's shadow falls down and to the left.
+ * ── Contact: the last page of the insert ──
+ * Composed like About: the intro beside the mug (as About's lede sits beside the portrait),
+ * then a hairline, then "Let’s chat", set large, which is the email itself, with LinkedIn as a
+ * plain link across from it on the same baseline. No card, no tilt, no shadows of its own.
  */
-.note-desk {
-  --mug-w: 10rem;
-  /* the mug illustration is 646:1020 (steam above, mug and coaster below); --mug-sink is how far its coaster sits into the card on phones */
-  --mug-h: calc(var(--mug-w) * 1.579);
-  /* the coaster's back rim just inside the paper's top edge, so it reads as resting on it */
-  --mug-sink: calc(var(--mug-h) * 0.21);
-  --mug-right: 1rem;
-  --u: 1.4px;
+.chat-opening {
   display: grid;
-  /* the steam may rise a little into the space under the header rule; the group sits a touch lower than before */
-  margin-top: calc(var(--rhythm-section) * -0.25);
-}
-
-.note {
-  position: relative;
-  /* Two columns of one height: the note, and the mug standing beside it on the same desk edge. */
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) var(--mug-col);
-  column-gap: var(--space-md);
-  --mug-col: clamp(9rem, 41%, 16rem);
-}
-
-.note__card {
-  grid-column: 1;
-  grid-row: 1;
-  /* its own stacking context, so the paper (::before, z-index -1) sits just behind the text, not behind the panel */
-  isolation: isolate;
-}
-
-/* The mug's column takes the note's height; the drawing fills it and stands at its foot. */
-.note__mugcol {
-  position: relative;
-  grid-column: 2;
-  grid-row: 1;
-}
-
-.note__card {
-  position: relative;
-  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
   gap: var(--space-lg);
-  padding: var(--space-lg) var(--space-lg) var(--space-md);
 }
 
-/* The paper: a touch warmer than the panel, with grain, turned about -1°. */
-.note__card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  border-radius: 3px;
-  background: var(--fibre), oklch(0.968 0.014 82);
-  box-shadow:
-    0 0 0 1px oklch(0.205 0.01 45 / 0.05),
-    0 1px 2px oklch(0.25 0.03 45 / 0.12),
-    -12px 16px 26px -16px oklch(0.25 0.03 45 / 0.42);
-  transform: rotate(-1deg);
-  transform-origin: 85% 0%;
-}
-
-.note__intro {
-  font-family: var(--font-display);
-  font-size: 1.3rem;
-  line-height: 1.5;
-  color: var(--ink);
-  text-wrap: pretty;
-}
-
-.note__action {
-  display: grid;
-  justify-items: start;
-  gap: var(--space-xs);
-}
-
-/* "Let’s chat": the note's heading, smaller than the panel title. */
-.note__title {
+.chat-opening .lede {
   margin: 0;
-  font-family: var(--font-display);
-  font-weight: 500;
-  font-size: calc(var(--text-xl) * 0.82);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
-  color: var(--ink);
 }
 
-/* Two equal actions: an icon and a plain label; the label inks a vermilion line only on hover or focus. */
-.note__acts {
-  display: grid;
-  justify-items: start;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+/* The mug, standing on its coaster on the page (as the record player does in Music). */
+.chat__desk {
+  width: 10.5rem;
 }
 
-.note__act {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65em;
-  min-height: 44px;
-  font-family: var(--font-sans);
-  font-size: 1.0625rem;
-  color: var(--ink);
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 160ms var(--ease-out);
-}
-
-.note__act:active {
-  transform: scale(0.98);
-}
-
-.note__act .social-icon {
-  width: 1.1em;
-  height: 1.1em;
-  flex: none;
-  color: var(--ink-2);
-}
-
-.note__act-label {
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-decoration-color: transparent;
-  text-underline-offset: 0.3em;
-  transition: text-decoration-color var(--dur-quick) ease;
-}
-
-.note__act:focus-visible .note__act-label {
-  text-decoration-color: var(--spot-ink);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .note__act:hover .note__act-label {
-    text-decoration-color: var(--spot-ink);
-  }
-}
-
-/* The mug fills its column (its own width or the column's height, whichever is smaller) and stands at the foot. */
-.note__mugcol {
-  container-type: size;
-}
-
-.note-mug {
-  position: absolute;
-  inset: 0;
-  z-index: 2;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  align-items: center;
-}
-
-.note-mug__art {
-  display: block;
-  /* the illustration is 646 × 1020 */
-  width: min(100cqw, 100cqh * 0.6333);
-}
-
-.note-mug__art img {
+.chat-mug {
   display: block;
   width: 100%;
   height: auto;
+  overflow: visible;
 }
 
-/* Its steam rests and barely drifts while an action is hovered or focused. */
-.note-mug__steam {
-  opacity: 0.85;
-  transform-origin: 50% 100%;
+.chat__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-xs) var(--space-md);
+  margin-top: var(--space-lg);
+  padding-top: var(--space-lg);
+  border-top: 1px solid var(--rule-card);
 }
 
-.note-mug[data-steam='rising'] .note-mug__steam {
-  animation: mug-steam 4.8s ease-in-out infinite;
+/* "Let’s chat": the invitation and the email in one, in the display serif. */
+.chat__invite {
+  display: inline-block;
+  padding-block: 0.1em 0.15em;
+  font-family: var(--font-serif);
+  font-size: clamp(2.2rem, 1.7rem + 2vw, 3.1rem);
+  font-weight: 500;
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  text-decoration: none;
+  /* The vermilion underline draws in from the left on hover and focus. */
+  background: linear-gradient(var(--spot-ink), var(--spot-ink)) no-repeat 0 100% / 0% 2px;
+  transition:
+    background-size 200ms var(--ease-out),
+    color 200ms var(--ease-out);
 }
 
-@keyframes mug-steam {
-  0%,
-  100% {
-    opacity: 0.8;
-    transform: translateY(1px);
+.chat__invite:hover,
+.chat__invite:focus-visible {
+  background-size: 100% 2px;
+}
+
+.chat__invite:focus-visible {
+  outline: 2px solid var(--spot-ink);
+  outline-offset: 6px;
+  border-radius: 2px;
+}
+
+/* LinkedIn: the site's plain text link, tall enough to tap. */
+.chat__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 1rem;
+}
+
+/* The steam: three faint wisps, still at rest; reaching for an action sends them up once. */
+.chat-mug__steam {
+  opacity: 0.6;
+}
+
+.chat-mug[data-steam='rising'] .chat-mug__steam {
+  animation: chat-steam 2.4s var(--ease-out) both;
+}
+
+@keyframes chat-steam {
+  0% {
+    opacity: 0.6;
+    transform: translateY(0);
   }
-  50% {
+  45% {
     opacity: 1;
-    transform: translateY(-4px) scaleY(1.02);
+    transform: translateY(-4px);
   }
-}
-
-.note-desk__board {
-  margin-top: var(--space-md);
-}
-
-/* Arrival: the mug settles, then the note slides out from under the coaster and turns to its angle. */
-.panel__page[data-enter] .note-mug {
-  animation: note-mug-in 380ms var(--ease-out) 160ms both;
-}
-
-.panel__page[data-enter] .note__card::before {
-  animation: note-slide 450ms var(--ease-out) 320ms both;
-}
-
-.panel__page[data-enter] .note__card > * {
-  animation: note-text 300ms var(--ease-out) 560ms both;
-}
-
-@keyframes note-mug-in {
-  from {
-    opacity: 0;
-    transform: translateY(-6px);
-  }
-}
-
-@keyframes note-slide {
-  from {
-    opacity: 0;
-    transform: translate(1.75rem, -1.25rem) rotate(0.5deg) scale(0.96);
-  }
-}
-
-@keyframes note-text {
-  from {
-    opacity: 0;
+  100% {
+    opacity: 0.6;
+    transform: translateY(0);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .panel__page[data-enter] .note-mug,
-  .panel__page[data-enter] .note__card::before,
-  .panel__page[data-enter] .note__card > * {
-    animation: note-text 150ms ease both;
+  .chat__invite {
+    transition: none;
   }
 
-  .note-mug[data-steam='rising'] .note-mug__steam {
+  .chat-mug[data-steam='rising'] .chat-mug__steam {
     animation: none;
-  }
-
-  .note__act:active {
-    transform: none;
   }
 }
 
-/*
- * Phones: the card turns half as much and a smaller mug rests on its corner. The intro's first
- * lines step around the coaster (a float), so the mug can sit on the paper without covering text.
- */
+/* Phones: the mug above the intro (as About's portrait goes above), then the actions, stacked. */
 @media (max-width: 639px) {
-  .note-desk {
-    --mug-w: 6rem;
-    --mug-sink: calc(var(--mug-h) * 0.12);
-    --mug-right: 0.75rem;
-    --u: 1.1px;
-  }
-
-  /* One column: the mug rests on the note's top-right corner instead. */
-  .note {
-    display: block;
-    padding-top: calc(var(--mug-h) - var(--mug-sink));
-  }
-
-  .note__mugcol {
-    position: absolute;
-    top: 0;
-    right: var(--mug-right);
-    z-index: 2;
-    width: var(--mug-w);
-    height: var(--mug-h);
-  }
-
-  .note__card {
+  .chat-opening {
+    grid-template-columns: minmax(0, 1fr);
     gap: var(--space-md);
-    padding: var(--space-md);
   }
 
-  .note__card::before {
-    transform: rotate(-0.5deg);
+  .chat__desk {
+    order: -1;
+    width: 8.5rem;
+    margin-left: -1.6rem; /* the coaster's left edge, not the drawing's margin, lines up with the text */
   }
 
-  .note__intro {
-    padding-right: 0;
-    font-size: 1.125rem;
+  .chat__actions {
+    display: grid;
+    justify-items: start;
+    gap: 0.25rem;
+    margin-top: var(--space-md);
+    padding-top: var(--space-md);
   }
 
-  .note__intro::before {
-    content: '';
-    float: right;
-    width: calc(var(--mug-w) * 0.9 + var(--mug-right) - var(--space-md));
-    height: 0.6rem;
+  .chat__invite {
+    font-size: 2.4rem;
   }
 }
 
@@ -652,9 +497,21 @@
     --u: 1.08px;
   }
 
+  /* On a phone the supporting books are as large as the roles: at two thirds, the thin
+     notebook was a 28px target. */
   .cv-pile--small .xp-pile,
   .cv-pile--small .xp-desk__board {
-    --u: 0.95px;
+    --u: 1.08px;
+  }
+}
+
+/* Fingers: the book on top of each pile has nothing above it, so its target reaches up to
+   44px (the thin notebook most of all). The books beneath touch, and keep their own height. */
+@media (any-pointer: coarse) {
+  .cv-desk .xp-pile__item:first-child .xp-book::after {
+    content: '';
+    position: absolute;
+    inset: -14px 0 0;
   }
 }
 

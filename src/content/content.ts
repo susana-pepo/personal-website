@@ -442,7 +442,7 @@ export const content: SiteContent = {
     heading: 'Say hello',
     intro:
       'I’d love to hear from you if you’d like to chat about music, learning, licensing, or product ideas. And if you have a song you think I’d enjoy, I’m always happy to discover something new.',
-    // The note's heading; "Send me an email" opens an email to this address with it as the subject.
+    // The invitation, and the email action itself: it opens an email to this address with it as the subject.
     cta: 'Let’s chat',
     email: 'susipp93@gmail.com',
     emailAction: 'Send me an email',
@@ -451,7 +451,7 @@ export const content: SiteContent = {
         label: 'LinkedIn',
         href: 'https://www.linkedin.com/in/susana-pepo-pm',
         display: 'linkedin.com/in/susana-pepo-pm',
-        action: 'Connect on LinkedIn',
+        action: 'Or find me on LinkedIn',
       },
     ],
     pendingNote: 'Direct contact details will be added here very soon.',
