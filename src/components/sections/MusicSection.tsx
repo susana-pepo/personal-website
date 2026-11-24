@@ -6,19 +6,21 @@ import { playedAgo } from './music/crate'
 import { Turntable } from './music/Turntable'
 import './music/music.css'
 
-type DeckState = { status: 'loading' } | { status: 'ready'; track: NowPlayingTrack; sample?: boolean }
+/** featured: the chosen record on the turntable (no live feed), never presented as live listening. */
+type DeckState = { status: 'loading' } | { status: 'ready'; track: NowPlayingTrack; featured?: boolean }
 
 /** The deck itself: the room's record player with the track beside it, as one link to Spotify. */
 function Deck({ state, headingId }: { state: DeckState; headingId: string }) {
   const { listening } = content.music
-  const live = state.status === 'ready' && state.track.isPlaying
-  const ago = state.status === 'ready' && !live ? playedAgo(state.track.playedAt) : ''
+  const featured = state.status === 'ready' && Boolean(state.featured)
+  const live = state.status === 'ready' && !featured && state.track.isPlaying
+  const ago = state.status === 'ready' && !live && !featured ? playedAgo(state.track.playedAt) : ''
 
   return (
     <section
       className="deck"
       aria-labelledby={headingId}
-      data-state={state.status === 'loading' ? 'loading' : live ? 'live' : 'recent'}
+      data-state={state.status === 'loading' ? 'loading' : featured ? 'featured' : live ? 'live' : 'recent'}
     >
       <div className="music-head">
         <h3 id={headingId} className="music-head__title">
@@ -31,17 +33,11 @@ function Deck({ state, headingId }: { state: DeckState; headingId: string }) {
           <span className="visually-hidden">Loading</span>
         </div>
       ) : (
-        <a
-          className="deck__track"
-          href={state.track.url}
-          target="_blank"
-          rel="noreferrer"
-          onClick={state.sample ? (event) => event.preventDefault() : undefined}
-        >
-          <Turntable cover={state.track.imageUrl} playing={live} />
+        <a className="deck__track" href={state.track.url} target="_blank" rel="noreferrer">
+          <Turntable cover={state.track.imageUrl} playing={live || featured} />
           <span className="deck__text">
             <span className="deck__status">
-              {live ? listening.liveLabel : listening.recentLabel}
+              {featured ? listening.turntableLabel : live ? listening.liveLabel : listening.recentLabel}
               {ago ? ` · ${ago}` : ''}
             </span>
             <span className="deck__title">{state.track.title}</span>
@@ -59,20 +55,24 @@ function Deck({ state, headingId }: { state: DeckState; headingId: string }) {
   )
 }
 
-/** "What I'm listening to", from the Spotify feed. Hidden until one is connected. */
+/**
+ * "What I'm listening to": the live Spotify feed when there is one; otherwise (as on
+ * the published site, which has no feed) the record chosen in content.ts, labelled
+ * "On the turntable". Hidden only if neither exists.
+ */
 function Listening() {
   const state = useNowPlaying()
   const headingId = useId()
   const httpStatus = state.status === 'error' ? state.httpStatus : undefined
 
-  // In development, say in the console why the block is hidden. Visitors see nothing.
+  // In development, say in the console why the feed isn't showing. Visitors see nothing.
   useEffect(() => {
     if (import.meta.env.DEV && httpStatus !== undefined)
       console.info(`[music] Spotify feed unavailable: ${feedReason(httpStatus)}`)
   }, [httpStatus])
 
-  if (!nowPlayingConfigured) return import.meta.env.DEV ? <Deck state={SAMPLE_STATE} headingId={headingId} /> : null
-  if (state.status === 'error' || state.status === 'empty' || state.status === 'off') return null
+  const noFeed = !nowPlayingConfigured || state.status === 'error' || state.status === 'empty' || state.status === 'off'
+  if (noFeed) return ON_TURNTABLE ? <Deck state={ON_TURNTABLE} headingId={headingId} /> : null
   return <Deck state={state} headingId={headingId} />
 }
 
@@ -85,18 +85,14 @@ const feedReason = (status: number) =>
         ? `the feed answered ${status}.`
         : 'the feed could not be reached.'
 
-/** Development only, while no feed is connected: a sample track in the deck. */
-const SAMPLE_STATE: DeckState = {
-  status: 'ready',
-  sample: true,
-  track: {
-    isPlaying: true,
-    title: 'Sample track title',
-    artist: 'Placeholder Trio',
-    album: 'Sample album',
-    url: 'https://open.spotify.com/',
-  },
-}
+const chosen = content.music.listening.onTurntable
+const ON_TURNTABLE: DeckState | null = chosen
+  ? {
+      status: 'ready',
+      featured: true,
+      track: { isPlaying: false, title: chosen.title, artist: chosen.artist, imageUrl: chosen.cover, url: chosen.url },
+    }
+  : null
 
 export default function MusicSection() {
   const { music } = content

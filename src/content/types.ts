@@ -267,7 +267,16 @@ export interface SiteContent {
   bookshelf: { intro: string; shelves: Shelf[]; books: Book[]; emptyNote: string }
   music: {
     intro: string
-    listening: { heading: string; description: string; liveLabel: string; recentLabel: string }
+    listening: {
+      heading: string
+      description: string
+      liveLabel: string
+      recentLabel: string
+      /** Shown above the chosen record when there is no live feed (as on the published site). */
+      turntableLabel: string
+      /** A record from the shelf that sits on the turntable when there is no live feed. */
+      onTurntable?: { url: string; title: string; artist: string; cover?: string }
+    }
     collection: { heading: string; description: string; items: SpotifyPick[] }
     /** Podcasts: Spotify show (or episode) links, on their own shelf. */
     podcasts: { heading: string; description: string; items: SpotifyPick[] }

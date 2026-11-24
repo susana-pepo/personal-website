@@ -330,6 +330,14 @@ export const content: SiteContent = {
       description: '',
       liveLabel: 'Listening now',
       recentLabel: 'Last played',
+      turntableLabel: 'On the turntable',
+      // Plays on the record player whenever the live Spotify feed isn't available.
+      onTurntable: {
+        url: 'https://open.spotify.com/album/4SWs218VfFoKTFwbJOHdYK',
+        title: 'Beethoven: Emperor Concerto',
+        artist: 'Michal Mašek, Czech Chamber Philharmonic Orchestra Pardubice',
+        cover: 'https://i.scdn.co/image/ab67616d00001e02e045bffd3d9732d5c2116e0e',
+      },
     },
     collection: {
       heading: 'On my shelf of records',
