@@ -11,7 +11,7 @@ interface StationIconProps {
 /**
  * Each station's small animated drawing, in the site's cream line with one
  * touch of the spot colour:
- * - Lo-fi: a cassette whose reels turn slowly.
+ * - Lo-fi: headphones nodding gently to the beat, the sound pulsing beside each ear.
  * - Binaural: two waves, one per ear, a little apart in pitch, drifting in and out of step.
  * - Classical: a keyboard, its keys pressed in a slow arpeggio.
  */
@@ -26,32 +26,24 @@ export function StationIcon({ station, playing }: StationIconProps) {
       aria-hidden="true"
       focusable="false"
     >
-      {station === 'lofi' && <Cassette />}
+      {station === 'lofi' && <Headphones />}
       {station === 'binaural' && <Waves maskId={`${id}-fade`} />}
       {station === 'classical' && <Keys />}
     </svg>
   )
 }
 
-function Reel({ cx }: { cx: number }) {
-  return (
-    <g className="station-icon__reel">
-      <circle cx={cx} cy={14.5} r={2.7} />
-      <path d={`M${cx} 12.6v1.1M${cx + 1.65} 15.45l-.95-.55M${cx - 1.65} 15.45l.95-.55`} />
-    </g>
-  )
-}
-
-function Cassette() {
+function Headphones() {
   return (
     <>
-      <rect x={3.5} y={7} width={25} height={18} rx={2.4} />
-      <rect className="station-icon__fine" x={6.5} y={10} width={19} height={9} rx={1.4} />
-      <path className="station-icon__spot" d="M9 11.9h6.5" />
-      <Reel cx={11.6} />
-      <Reel cx={20.4} />
-      <path className="station-icon__fine" d="M14.3 14.5h3.4" />
-      <path d="M9.5 25l1.4-3.2h10.2l1.4 3.2" />
+      <g className="station-icon__bob">
+        <path d="M8 18.5v-3a8 8 0 0 1 16 0v3" />
+        <rect x={5.5} y={17.5} width={5} height={8.5} rx={2.2} />
+        <rect x={21.5} y={17.5} width={5} height={8.5} rx={2.2} />
+        <path className="station-icon__fine" d="M10.5 19.5v4.5M21.5 19.5v4.5" />
+      </g>
+      <path className="station-icon__beat" d="M3.2 19.8q-1.5 2.45 0 4.9" />
+      <path className="station-icon__beat station-icon__beat--late station-icon__spot" d="M28.8 19.8q1.5 2.45 0 4.9" />
     </>
   )
 }

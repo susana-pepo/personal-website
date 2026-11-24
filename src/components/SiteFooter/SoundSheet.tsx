@@ -1,4 +1,4 @@
-import { useEffect, useRef, type CSSProperties, type RefObject } from 'react'
+import { useEffect, useRef, type CSSProperties, type ReactNode, type RefObject } from 'react'
 import { STATIONS } from '../../audio/playlist'
 import { rainLevelOf, roomRadio } from '../../audio/radio'
 import { useRoomRadio } from '../../audio/useRoomRadio'
@@ -83,40 +83,81 @@ export function SoundSheet({ id, dockRef, onClose }: SoundSheetProps) {
       </ul>
 
       <p className="sound__heading">Mix</p>
-      <label className="sound__level">
+      <MixRow
+        label="Music"
+        level={radio.musicLevel}
+        onLevel={roomRadio().setMusicLevel}
+        onToggle={roomRadio().toggleMusic}
+        icon={
+          <>
+            <path d="M9 17.5V6l9-2v11.5" />
+            <circle cx="6.8" cy="17.5" r="2.3" />
+            <circle cx="15.8" cy="15.5" r="2.3" />
+          </>
+        }
+      />
+      <MixRow
+        label="Rain"
+        level={rain}
+        onLevel={roomRadio().setRainLevel}
+        onToggle={roomRadio().toggleRain}
+        icon={<path d="M8.6 4.5 7 9M13.6 4.5 12 9M18.6 4.5 17 9M7.1 12.5l-1.6 4.5M12.1 12.5l-1.6 4.5M17.1 12.5l-1.6 4.5" />}
+      />
+    </div>
+  )
+}
+
+interface MixRowProps {
+  label: string
+  /** 0 to 1; 0 is off. */
+  level: number
+  onLevel: (level: number) => void
+  onToggle: () => void
+  icon: ReactNode
+}
+
+/** Below this the slider counts as off, so the far left always means silence. */
+const OFF_BELOW = 0.04
+
+/**
+ * One layer of the mix: its icon is an on/off switch (crossed through when off, coming
+ * back at its last level), and the slider sets how loud it is.
+ */
+function MixRow({ label, level, onLevel, onToggle, icon }: MixRowProps) {
+  const off = level === 0
+  const percent = Math.round(level * 100)
+  return (
+    <div className="sound__level" data-off={off ? '' : undefined}>
+      <button
+        type="button"
+        className="sound__switch"
+        aria-pressed={!off}
+        aria-label={label}
+        title={off ? `Turn ${label.toLowerCase()} on` : `Turn ${label.toLowerCase()} off`}
+        onClick={onToggle}
+      >
         <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M9 17.5V6l9-2v11.5" />
-          <circle cx="6.8" cy="17.5" r="2.3" />
-          <circle cx="15.8" cy="15.5" r="2.3" />
+          {icon}
+          <path className="sound__slash" d="M4.5 19.5 19.5 4.5" />
         </svg>
-        <span>Music</span>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={Math.round(radio.musicLevel * 100)}
-          aria-valuetext={`${Math.round(radio.musicLevel * 100)}%`}
-          style={{ '--level': radio.musicLevel } as CSSProperties}
-          onChange={(event) => roomRadio().setMusicLevel(Number(event.target.value) / 100)}
-        />
-      </label>
-      <label className="sound__level">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M8.6 4.5 7 9M13.6 4.5 12 9M18.6 4.5 17 9M7.1 12.5l-1.6 4.5M12.1 12.5l-1.6 4.5M17.1 12.5l-1.6 4.5" />
-        </svg>
-        <span>Rain</span>
-        <input
-          type="range"
-          min={0}
-          max={100}
-          step={1}
-          value={Math.round(rain * 100)}
-          aria-valuetext={rain ? `${Math.round(rain * 100)}%` : 'Off'}
-          style={{ '--level': rain } as CSSProperties}
-          onChange={(event) => roomRadio().setRainLevel(Number(event.target.value) / 100)}
-        />
-      </label>
+      </button>
+      <span className="sound__label" aria-hidden="true">
+        {off ? 'Off' : label}
+      </span>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={1}
+        value={percent}
+        aria-label={`${label} volume`}
+        aria-valuetext={off ? 'Off' : `${percent}%`}
+        style={{ '--level': level } as CSSProperties}
+        onChange={(event) => {
+          const next = Number(event.target.value) / 100
+          onLevel(next < OFF_BELOW ? 0 : next)
+        }}
+      />
     </div>
   )
 }

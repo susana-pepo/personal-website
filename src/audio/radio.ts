@@ -129,6 +129,9 @@ class RoomRadio {
   private focusBanked = 0
   private focusSince: number | null = null
   private endTimer: number | undefined
+  /** The levels to come back to when music or rain is switched on again. */
+  private lastMusic = DEFAULT_PREFS.musicLevel
+  private lastRain = WINDOW_RAIN
 
   constructor() {
     let raw: string | null = null
@@ -209,6 +212,20 @@ class RoomRadio {
   setRainLevel = (rainLevel: number) => {
     this.set({ rainLevel: Math.min(1, Math.max(0, rainLevel)) })
     this.save()
+  }
+
+  /** Music on or off, coming back at the level it had. */
+  toggleMusic = () => {
+    const now = this.state.musicLevel
+    if (now > 0) this.lastMusic = now
+    this.setMusicLevel(now > 0 ? 0 : this.lastMusic || DEFAULT_PREFS.musicLevel)
+  }
+
+  /** Rain on or off, coming back at the level it had. */
+  toggleRain = () => {
+    const now = rainLevelOf(this.state)
+    if (now > 0) this.lastRain = now
+    this.setRainLevel(now > 0 ? 0 : this.lastRain || WINDOW_RAIN)
   }
 
   setRaining = (raining: boolean) => {

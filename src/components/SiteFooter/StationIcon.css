@@ -31,16 +31,40 @@
   stroke: var(--spot);
 }
 
-/* Lo-fi: the reels turn slowly, the speed of a tape, not a record. */
-.station-icon__reel {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: station-reel 3.6s linear infinite;
+/* Lo-fi: the headphones nod a hair with the beat (about 75 a minute) and the sound pulses
+   beside each ear, the right half a beat behind. */
+.station-icon__bob {
+  animation: station-bob 1.6s ease-in-out infinite;
 }
 
-@keyframes station-reel {
-  to {
-    transform: rotate(360deg);
+@keyframes station-bob {
+  50% {
+    transform: translateY(0.7px);
+  }
+}
+
+.station-icon__beat {
+  stroke-width: 1.3;
+  opacity: 0.35;
+  animation: station-beat 1.6s ease-in-out infinite;
+}
+
+.station-icon__beat--late {
+  animation-delay: 0.8s;
+}
+
+.station-icon:not([data-playing]) .station-icon__beat {
+  animation: none;
+  opacity: 0;
+}
+
+@keyframes station-beat {
+  0%,
+  100% {
+    opacity: 0.25;
+  }
+  50% {
+    opacity: 1;
   }
 }
 

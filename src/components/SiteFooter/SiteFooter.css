@@ -656,7 +656,37 @@ a.player__title:hover {
   color: var(--on-sleeve-2);
 }
 
-.sound__level svg {
+/* The icon is the layer's on/off switch; off, it is crossed through and the line goes quiet. */
+.sound__switch {
+  display: grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: -0.375rem;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--on-sleeve-2);
+  cursor: pointer;
+  transition:
+    color 200ms var(--ease-out),
+    background-color 200ms var(--ease-out);
+}
+
+.sound__switch:focus-visible {
+  outline: 2px solid var(--on-sleeve);
+  outline-offset: -2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .sound__switch:hover {
+    color: var(--on-sleeve);
+    background: oklch(1 0 0 / 0.08);
+  }
+}
+
+.sound__switch svg {
   width: 1rem;
   height: 1rem;
   fill: none;
@@ -664,6 +694,28 @@ a.player__title:hover {
   stroke-width: 1.4;
   stroke-linecap: round;
   stroke-linejoin: round;
+}
+
+.sound__slash {
+  stroke-dasharray: 22;
+  stroke-dashoffset: 22;
+  transition: stroke-dashoffset 240ms var(--ease-out);
+}
+
+.sound__level[data-off] .sound__slash {
+  stroke-dashoffset: 0;
+}
+
+.sound__level[data-off] .sound__switch {
+  color: var(--on-sleeve-3);
+}
+
+.sound__level[data-off] .sound__label {
+  color: var(--on-sleeve-3);
+}
+
+.sound__level[data-off] input {
+  opacity: 0.5;
 }
 
 .sound__level input {
