@@ -1,5 +1,5 @@
 {
-  "$comment": "glow: opacity of the precomputed amber halo at rest (always softly lit, so the objects read as interactive), how much it swells in an optional breathing pulse before the first interaction (0 = off), and on hover/focus (when the object also grows slightly), and lift = brightness of the artwork on hover (1 = none; the cat is a video and is never filtered). shadow (optional): a soft contact shadow under the object, as fractions of its box, so it sits on its surface. One 1920x1080 canvas shared by the room video and every overlay. x/y/width are the overlay's top-left corner and width in canvas pixels; height always follows the PNG's own aspect ratio (intrinsic). Layer order: room 1, plant 3, shelf books 4, record player 5, desk books 6, laptop 7, woman 8, cat 8, coffee 9 (the mug stands in front of the cat). Objects with `glow` are interactive (halo + hover); the others are plain layers to animate later. After moving an overlay, run `npm run scene:trace` so its clickable outline follows. Tune with ?debug=1 in development.",
+  "$comment": "glow: opacity of the precomputed amber halo at rest (always softly lit, so the objects read as interactive), how much it swells in an optional breathing pulse before the first interaction (0 = off), and on hover/focus (when the object also grows slightly), and lift = brightness of the artwork on hover (1 = none; the cat is a video and is never filtered). shadow (optional): a soft contact shadow under the object, as fractions of its box, so it sits on its surface. One 1920x1080 canvas shared by the room video and every overlay. x/y/width are the overlay's top-left corner and width in canvas pixels; height always follows the PNG's own aspect ratio (intrinsic). Layer order: room 1, plant 3, shelf books 4, piano 5, record player 5, desk books 6, laptop 7, woman 8, cat 8, coffee 9 (the mug stands in front of the cat). Objects with `glow` are interactive (halo + hover); the others are plain layers to animate later. After moving an overlay, run `npm run scene:trace` so its clickable outline follows. Tune with ?debug=1 in development.",
   "canvas": {
     "width": 1920,
     "height": 1080
@@ -46,6 +46,25 @@
         "lift": 1.08
       },
       "z": 4
+    },
+    {
+      "id": "piano",
+      "src": "/media/scene/piano/piano-shelf.webp",
+      "intrinsic": [
+        480,
+        464
+      ],
+      "x": 335.0,
+      "y": 72.0,
+      "width": 190,
+      "z": 5,
+      "shadow": {
+        "x": -0.021,
+        "y": 0.889,
+        "w": 1.046,
+        "h": 0.08,
+        "opacity": 0.6
+      }
     },
     {
       "id": "vinyl",

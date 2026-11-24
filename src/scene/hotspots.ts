@@ -12,11 +12,11 @@ if (width !== CANVAS_WIDTH || height !== CANVAS_HEIGHT) {
 
 export type Point = readonly [number, number]
 export type LabelPlacement = 'top' | 'bottom' | 'left' | 'right'
-export type HotspotAction = 'pet' | 'light'
+export type HotspotAction = 'pet' | 'light' | 'play'
 
 export interface Hotspot {
   id: string
-  /** Section this object opens, or null when it does something in place (the cat, the lamp). */
+  /** Section this object opens, or null when it does something in place (the cat, the lamp, the piano). */
   section: SectionId | null
   /** What an object without a section does when activated. */
   action: HotspotAction | null
@@ -28,7 +28,7 @@ export interface Hotspot {
 }
 
 const PLACEMENTS: readonly LabelPlacement[] = ['top', 'bottom', 'left', 'right']
-const ACTIONS: readonly HotspotAction[] = ['pet', 'light']
+const ACTIONS: readonly HotspotAction[] = ['pet', 'light', 'play']
 
 type RawHotspot = (typeof hotspots)[number] & { action?: string; overlay?: string }
 

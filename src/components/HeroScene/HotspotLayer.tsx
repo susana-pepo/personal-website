@@ -39,6 +39,7 @@ const WARM_COOL_MS = 480
 export function tooltipFor(hotspot: Hotspot): string {
   if (hotspot.action === 'pet') return content.cat.hint
   if (hotspot.action === 'light') return content.lamp.hint
+  if (hotspot.action === 'play') return content.piano.hint
   const tip = hotspot.overlay ? (content.objectTooltips as Record<string, string | undefined>)[hotspot.overlay] : undefined
   if (tip) return tip
   return hotspot.section ? content.sections[hotspot.section].roomLabel : ''
@@ -48,6 +49,7 @@ export function tooltipFor(hotspot: Hotspot): string {
 export function accessibleLabelFor(hotspot: Hotspot): string {
   if (hotspot.action === 'pet') return content.cat.actionLabel
   if (hotspot.action === 'light') return content.lamp.actionLabel
+  if (hotspot.action === 'play') return content.piano.actionLabel
   const meta = content.sections[hotspot.section!]
   // Starts with the visible tooltip, so voice control ("click Open laptop") works.
   const visible = tooltipFor(hotspot)
@@ -212,8 +214,9 @@ export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusO
 
       <div className="hotspot-labels" aria-hidden="true">
         {HOTSPOTS.map((hotspot) => {
-          // The cat is a playful extra, not a section: no hover tooltip.
-          if (hotspot.action === 'pet') return null
+          // Glimmers (the cat, the lamp, the piano) have no label: their cursor and their own
+          // answer say it (src/scene/glimmers.ts). Screen readers still get each one's name.
+          if (hotspot.action) return null
           // Objects that show their own label in the painting (the laptop's terminal types it).
           if (hotspot.overlay && LABELLED_IN_SCENE.has(hotspot.overlay)) return null
           const greets = hotspot.overlay === 'woman'

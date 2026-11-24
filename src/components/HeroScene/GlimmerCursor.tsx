@@ -4,7 +4,8 @@ import type { HotspotAction } from '../../scene/hotspots'
 
 /*
  * The glimmers' own cursors (src/scene/glimmers.ts): over the cat, a hand that strokes it;
- * over the lamp, a little bulb that flicks on now and then, with a small moonlight spark.
+ * over the lamp, a little bulb that flicks on now and then, with a small moonlight spark;
+ * over the piano, a pixel-art note (like its screen) that bobs on the beat.
  * Drawn in the room's ink (cream, with a warm-brown line), so they belong to the painting
  * rather than to the operating system, and nothing like the plain pointer the section
  * objects keep. Only for a real mouse; touch and keyboard never see them.
@@ -18,6 +19,7 @@ const SIZE = 40
 const HOTSPOT: Record<HotspotAction, readonly [number, number]> = {
   pet: [20, 20], // the middle of the palm
   light: [20, 15], // the middle of the bulb
+  play: [9, 3], // the top of the note's stem
 }
 
 /** The pointer's last position, kept even while no hand shows, so one appears where the pointer is. */
@@ -72,6 +74,66 @@ function Bulb() {
   )
 }
 
+/**
+ * The piano's: a single eighth note in pixel art, like the piano's own screen. Drawn from this
+ * grid (# a cream pixel), with a dark outline along its edges, 2 px a pixel, crisp.
+ */
+const NOTE_GRID = [
+  '...##...',
+  '...###..',
+  '...#.##.',
+  '...#..##',
+  '...#...#',
+  '...#...#',
+  '...#..#.',
+  '...#....',
+  '...#....',
+  '.###....',
+  '####....',
+  '####....',
+  '.##.....',
+]
+const NOTE_PX = 2
+const NOTE_FILL = NOTE_GRID.flatMap((row, y) => [...row].flatMap((c, x) => (c === '#' ? [[x + 1, y + 1] as const] : [])))
+const NOTE_EDGE = (() => {
+  const filled = new Set(NOTE_FILL.map(([x, y]) => `${x},${y}`))
+  const edge = new Map<string, readonly [number, number]>()
+  for (const [x, y] of NOTE_FILL)
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const key = `${x + dx},${y + dy}`
+      if (!filled.has(key)) edge.set(key, [x + dx, y + dy])
+    }
+  return [...edge.values()]
+})()
+const NOTE_W = NOTE_GRID[0]!.length + 2
+const NOTE_H = NOTE_GRID.length + 2
+
+function PixelNote() {
+  return (
+    <svg
+      className="glimmer-cursor__pixel"
+      viewBox={`0 0 ${NOTE_W + 4} ${NOTE_H}`}
+      width={(NOTE_W + 4) * NOTE_PX}
+      height={NOTE_H * NOTE_PX}
+      shapeRendering="crispEdges"
+    >
+      <g className="glimmer-cursor__note">
+        {NOTE_EDGE.map(([x, y]) => (
+          <rect key={`e${x},${y}`} className="glimmer-cursor__note-edge" x={x} y={y} width={1} height={1} />
+        ))}
+        {NOTE_FILL.map(([x, y]) => (
+          <rect key={`f${x},${y}`} className="glimmer-cursor__note-fill" x={x} y={y} width={1} height={1} />
+        ))}
+      </g>
+      {/* a little moonlight sparkle, blinking on the beat */}
+      <g className="glimmer-cursor__twinkle">
+        <rect x={NOTE_W + 1} y={0} width={1} height={3} />
+        <rect x={NOTE_W} y={1} width={3} height={1} />
+      </g>
+    </svg>
+  )
+}
+
 const GLASS =
   'M24 7.6C30.2 7.6 34 12 34 17C34 21 31.4 23.2 29.8 25.4C29 26.6 28.8 27.6 28.8 28.8L19.2 28.8C19.2 27.6 19 26.6 18.2 25.4C16.6 23.2 14 21 14 17C14 12 17.8 7.6 24 7.6Z'
 const FILAMENT = 'M21.6 28.4L21.6 22.4L22.8 19.6L24 22L25.2 19.6L26.4 22.4L26.4 28.4'
@@ -94,7 +156,8 @@ export function GlimmerCursor({ kind, pressed }: GlimmerCursorProps) {
     let frame = 0
     const place = () => {
       frame = 0
-      node.style.transform = `translate3d(${last.x - hx}px, ${last.y - hy}px, 0)`
+      // whole pixels, so the pixel note stays crisp
+      node.style.transform = `translate3d(${Math.round(last.x - hx)}px, ${Math.round(last.y - hy)}px, 0)`
     }
     place()
     const onMove = () => {
@@ -110,7 +173,7 @@ export function GlimmerCursor({ kind, pressed }: GlimmerCursorProps) {
   if (!kind || typeof document === 'undefined') return null
   return createPortal(
     <div ref={el} className="glimmer-cursor" data-kind={kind} data-pressed={pressed ? '' : undefined} aria-hidden="true">
-      <div className="glimmer-cursor__gesture">{kind === 'pet' ? <PetHand /> : <Bulb />}</div>
+      <div className="glimmer-cursor__gesture">{kind === 'pet' ? <PetHand /> : kind === 'light' ? <Bulb /> : <PixelNote />}</div>
     </div>,
     document.body,
   )

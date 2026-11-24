@@ -6,6 +6,7 @@ import './SceneSandbox.css'
 const NAMES: Record<OverlayId, string> = {
   plant: 'Hanging plant',
   books: 'Shelf books',
+  piano: 'Piano computer',
   vinyl: 'Record player',
   lamp: 'Desk lamp',
   vase: 'Flower vase',

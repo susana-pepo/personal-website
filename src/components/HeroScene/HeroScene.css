@@ -333,7 +333,9 @@
 .hotspots[data-hand='pet'] .hotspot[data-object='cat'],
 .hotspots[data-hand='pet'] .hotspot[data-object='cat'] .hotspot__hit,
 .hotspots[data-hand='light'] .hotspot[data-object='lamp'],
-.hotspots[data-hand='light'] .hotspot[data-object='lamp'] .hotspot__hit {
+.hotspots[data-hand='light'] .hotspot[data-object='lamp'] .hotspot__hit,
+.hotspots[data-hand='play'] .hotspot[data-object='piano'],
+.hotspots[data-hand='play'] .hotspot[data-object='piano'] .hotspot__hit {
   cursor: none;
 }
 
@@ -534,8 +536,70 @@
   opacity: 0.6;
 }
 
+/* The piano's pixel note: it moves like pixel art, in whole steps. On each beat it hops up one
+   pixel and a moonlight sparkle blinks beside it; a press holds it up. */
+.glimmer-cursor__note-fill {
+  fill: oklch(0.97 0.02 80);
+}
+
+.glimmer-cursor__note-edge {
+  fill: oklch(0.27 0.03 45);
+}
+
+.glimmer-cursor__twinkle {
+  fill: var(--moon);
+  opacity: 0;
+}
+
+.glimmer-cursor__note,
+.glimmer-cursor__twinkle {
+  animation: glimmer-hop 1.2s steps(1, end) infinite;
+}
+
+.glimmer-cursor__twinkle {
+  animation-name: glimmer-twinkle;
+}
+
+@keyframes glimmer-hop {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(-1px); /* one pixel of the drawing */
+  }
+  75% {
+    transform: none;
+  }
+}
+
+@keyframes glimmer-twinkle {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  50% {
+    opacity: 1;
+  }
+  75% {
+    opacity: 0;
+  }
+}
+
+.glimmer-cursor[data-kind='play'][data-pressed] .glimmer-cursor__note {
+  animation: none;
+  transform: translateY(-1px);
+}
+
+.glimmer-cursor[data-kind='play'][data-pressed] .glimmer-cursor__twinkle {
+  animation: none;
+  opacity: 1;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .glimmer-cursor svg,
+  .glimmer-cursor__note,
+  .glimmer-cursor__twinkle,
   .glimmer-cursor__gesture,
   .glimmer-cursor__on,
   .glimmer-cursor__glow,

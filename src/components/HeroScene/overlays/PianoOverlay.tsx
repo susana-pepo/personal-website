@@ -1,0 +1,676 @@
+import {
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+} from 'react'
+import { content } from '../../../content/content'
+import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { listenTo, setLandscape, setLoop, setVolume, settings } from '../../../audio/pianoEngine'
+import { overlay, pctX, pctY } from '../../../scene/layout'
+import { KEYBOARD_NOTES, PIANO_ATLAS, PIANO_CLOSE_SRC, PIANO_KEYS, PIANO_KNOBS, PIANO_SCREEN, PIANO_SHELF, PIANO_SHELF_SHEAR, PIANO_SIZE, piano, type PianoKnob } from '../../../scene/piano'
+import { TITLE_H, TITLE_W, paintName, type Put } from '../../../scene/pianoTitle'
+import { LANDSCAPES, LOOPS } from '../../../scene/pianoMusic'
+import { textPixels, textWidth } from '../../../scene/pixelFont'
+import { createPianoScreen, type PianoScreen } from '../../../scene/pianoScreen'
+import { SceneObject } from './SceneObject'
+import './PianoOverlay.css'
+
+/**
+ * The Pixel Jam Piano, a glimmer on the top shelf:
+ *  - PianoArt: small, on the shelf, with the room's objects (so the room's light falls on it).
+ *    Until it is found, now and then a few moonlight notes rise from it (src/scene/glimmers.ts).
+ *    Its outline to click lives in HotspotLayer, like the cat's and the lamp's.
+ *  - PianoCloseUp: a click brings it close. It grows from the shelf into a large, playable view
+ *    over the room (a modal dialog: the room stays where it is behind it, as when a page is
+ *    open). Every key can be played with a pointer (sliding across the keys, several fingers at
+ *    once) and with the computer keyboard; each shows its pressed sprite, cut from one atlas,
+ *    by opacity alone, and sounds a soft note; the first note starts a backing loop to jam over.
+ *    Its two brass knobs work: the top one picks the screen's landscape, the bottom one the loop.
+ *    Esc, a click outside or Close sends it back.
+ * Which keys are down lives in scene/piano.ts.
+ */
+
+const PIANO = overlay('piano')
+const [W, H] = PIANO_SIZE
+const [AW, AH] = PIANO_ATLAS.size
+const pct = (part: number, whole: number) => `${(part / whole) * 100}%`
+const boxStyle = ([x, y, w, h]: readonly [number, number, number, number]): CSSProperties => ({ left: pct(x, W), top: pct(y, H), width: pct(w, W), height: pct(h, H) })
+
+const SPRITES = PIANO_KEYS.map((key) => {
+  const [, , w, h] = key.box
+  const [ax, ay] = key.atlas
+  return {
+    id: key.id,
+    style: {
+      ...boxStyle(key.box),
+      backgroundImage: `url(${PIANO_ATLAS.src})`,
+      backgroundSize: `${pct(AW, w)} ${pct(AH, h)}`,
+      backgroundPosition: `${AW > w ? pct(ax, AW - w) : '0%'} ${AH > h ? pct(ay, AH - h) : '0%'}`,
+    } satisfies CSSProperties,
+  }
+})
+
+/** Its glimmer hint: three small notes in moonlight, rising one after another (offsets in em). */
+const NOTES = [
+  { dx: 0.7, dy: -1.9, rotate: 10, delay: 0, size: 0.85 },
+  { dx: 1.6, dy: -3.2, rotate: -6, delay: 0.6, size: 1 },
+  { dx: 2.6, dy: -4.6, rotate: 12, delay: 1.2, size: 1.2 },
+] as const
+const HINT_MS = 4200
+/**
+ * Its hover splash, like the cat's when it's petted: two or three cream notes float up and away from
+ * its screen, each a little different every time (drift, tilt, size, a staggered start). One per
+ * hover; never as the idle hint (that's the moonlight notes above).
+ */
+const between = (a: number, b: number) => a + Math.random() * (b - a)
+function makeSplash() {
+  return Array.from({ length: Math.random() < 0.5 ? 2 : 3 }, (_, i) => ({
+    dx: between(-0.4, 0.8) + i * between(0.6, 1.1),
+    dy: between(-2.4, -1.7) - i * 0.5,
+    rotate: between(-14, 14),
+    delay: i * between(0.18, 0.32),
+    size: between(0.8, 1.05) + (i === 1 ? 0.12 : 0),
+  }))
+}
+/** Where the notes rise from: the top of its screen, towards its right (the same share of the shelf's picture). */
+const [SX, SY, SW] = PIANO_SCREEN.box
+const [HX, HY, HW] = PIANO_SHELF.screen // (the shelf's picture is its own three-quarter render)
+const HINT_FROM: CSSProperties = { left: pct(HX + HW * 0.8, PIANO_SHELF.size[0]), top: pct(HY, PIANO_SHELF.size[1]) }
+/** The close-up's shape: the picture's own. */
+const STAGE = { aspectRatio: `${W} / ${H}`, '--ratio': W / H } as CSSProperties
+/** The screen: its box, clipped to the glass's own rounded outline. */
+const [, , , SH] = PIANO_SCREEN.box
+const SCREEN_MASK = `url("data:image/svg+xml,${encodeURIComponent(
+  `<svg xmlns='http://www.w3.org/2000/svg' viewBox='${SX} ${SY} ${SW} ${SH}' preserveAspectRatio='none'><path d='${PIANO_SCREEN.path}' fill='#fff'/></svg>`,
+)}")`
+const SCREEN_STYLE: CSSProperties = { ...boxStyle(PIANO_SCREEN.box), maskImage: SCREEN_MASK, WebkitMaskImage: SCREEN_MASK }
+
+/**
+ * A brass knob that works, as a volume control: its needle turns over the lit brass (the printed
+ * one is painted out of the picture) across the dots printed around it, from quiet to loud, settling
+ * with a slight overshoot. Drag it up or down, scroll on it, or tab to it and use the arrow keys
+ * (it's a slider). Its name is printed upright beside it, in bold.
+ */
+const QUIET_AT = 176 // degrees, anticlockwise from 3 o'clock: the first dot of the knob's scale
+const LOUD_AT = 81 // the last dot
+const STEPS = 10
+const DRAG_PX = 16 // how far a drag goes for one step (on screen)
+interface KnobProps {
+  knob: PianoKnob
+  label: string
+  name: string
+  value: number
+  invite: boolean
+  onChange: (v: number) => void
+}
+function Knob({ knob, label, name, value, invite, onChange }: KnobProps) {
+  const angle = QUIET_AT + (LOUD_AT - QUIET_AT) * value
+  const drag = useRef<{ y: number; from: number } | null>(null)
+  const at = Math.round(value * STEPS)
+  const set = (step: number) => onChange(Math.max(0, Math.min(STEPS, step)) / STEPS)
+  const [x1, y1, x2, y2] = [knob.cx + knob.inner * 0.4, knob.cy, knob.cx + knob.outer, knob.cy]
+  return (
+    <g
+      className="piano-close__knob"
+      data-invite={invite ? '' : undefined}
+      role="slider"
+      tabIndex={0}
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(value * 100)}
+      aria-valuetext={`${Math.round(value * 100)}%`}
+      onPointerDown={(event) => {
+        event.preventDefault()
+        event.stopPropagation()
+        ;(event.currentTarget as Element).setPointerCapture(event.pointerId)
+        ;(event.currentTarget as SVGGElement).focus({ preventScroll: true })
+        drag.current = { y: event.clientY, from: at }
+      }}
+      onPointerMove={(event) => {
+        const d = drag.current
+        if (d) set(d.from + Math.trunc((d.y - event.clientY) / DRAG_PX))
+      }}
+      onPointerUp={() => (drag.current = null)}
+      onPointerCancel={() => (drag.current = null)}
+      onWheel={(event) => set(at + (event.deltaY < 0 ? 1 : -1))}
+      onKeyDown={(event) => {
+        const to = { ArrowUp: at + 1, ArrowRight: at + 1, ArrowDown: at - 1, ArrowLeft: at - 1, Home: 0, End: STEPS }[event.key]
+        if (to === undefined) return
+        event.preventDefault()
+        event.stopPropagation()
+        set(to)
+      }}
+    >
+      <circle className="piano-close__knob-hit" cx={knob.cx} cy={knob.cy} r={knob.r * 1.22} />
+      {/* its name, printed on the cream beside it, reading upwards: dark print with a faint light edge */}
+      {[
+        [1.3, 'piano-close__print-edge'],
+        [0, 'piano-close__print'],
+      ].map(([dx, className]) => (
+        <text
+          key={className}
+          className={className as string}
+          x={knob.cx + knob.r + 19 + (dx as number)}
+          y={knob.cy}
+          transform={`rotate(-90 ${knob.cx + knob.r + 19 + (dx as number)} ${knob.cy})`}
+          dominantBaseline="middle"
+          aria-hidden="true"
+        >
+          {name.toUpperCase()}
+        </text>
+      ))}
+      <line
+        className="piano-close__needle"
+        x1={x1}
+        y1={y1}
+        x2={x2}
+        y2={y2}
+        stroke={`rgb(${knob.colour.join(',')})`}
+        strokeWidth={Math.max(5, knob.width * 0.9)}
+        style={{ transform: `rotate(${-angle}deg)`, transformOrigin: `${knob.cx}px ${knob.cy}px` }}
+      />
+    </g>
+  )
+}
+/**
+ * Its name on the walnut rail above the keys, where a piano carries its maker's: PIXEL JAM PIANO in
+ * gold-foil pixel letters (the screen's own font), each pixel a tiny square with a dark edge below.
+ */
+const NAME = 'PIXEL JAM PIANO'
+const NAME_PX = 3.1
+const NAME_AT = { cx: 502, top: 787.5 } // on the rail's face, centred over the keys
+const NAMEPLATE = (() => {
+  const left = NAME_AT.cx - (textWidth(NAME) * NAME_PX) / 2
+  const at = textPixels(NAME).map(([x, y]) => [left + x * NAME_PX, NAME_AT.top + y * NAME_PX] as const)
+  return {
+    shade: at.map(([x, y]) => `M${x.toFixed(2)} ${(y + 0.9).toFixed(2)}h${NAME_PX}v${NAME_PX}h-${NAME_PX}z`).join(''),
+    foil: at.map(([x, y]) => `M${x.toFixed(2)} ${y.toFixed(2)}h${NAME_PX - 0.15}v${NAME_PX - 0.15}h-${NAME_PX - 0.15}z`).join(''),
+  }
+})()
+function Nameplate() {
+  return (
+    <g aria-hidden="true">
+      <defs>
+        <linearGradient id="piano-foil" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#f6dc9a" />
+          <stop offset="0.55" stopColor="#d8ad62" />
+          <stop offset="1" stopColor="#a97a3c" />
+        </linearGradient>
+      </defs>
+      <path d={NAMEPLATE.shade} fill="rgb(40 14 4 / 0.55)" />
+      <path d={NAMEPLATE.foil} fill="url(#piano-foil)" />
+    </g>
+  )
+}
+
+/** When the close-up's pictures are fetched, after the room has arrived (they're not needed before a click). */
+const PRELOAD_AFTER_MS = 6000
+
+/** An eighth note, drawn (not a font's glyph): a tilted head, its stem and a flag. */
+function Note() {
+  return (
+    <svg viewBox="0 0 12 16" aria-hidden="true" focusable="false">
+      <ellipse cx="4.2" cy="12.4" rx="3.4" ry="2.5" transform="rotate(-22 4.2 12.4)" />
+      <path d="M7.1 12.2V1.6c1.6 0.9 4 2.3 3.9 5.4" fill="none" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+/**
+ * The shelf piano's own little screen: while it's hovered, it switches on, the way an old set does
+ * (a flicker, then a steady glow), and its name lights up on the glass, large, in amber pixel
+ * letters (the close-up's own font). Only the letters glow: the rest of the glass stays as it is.
+ * It's drawn by PianoScreenGlow, above the room's evening shading (as the lamp's light is), so it
+ * reads as lit; it sits over the picture's glass at its tilt and grows with the piano on hover.
+ */
+const [GX, GY, GW, GH] = PIANO_SHELF.screen
+const [SHELF_W, SHELF_H] = PIANO_SHELF.size
+const TILT = Math.tan((PIANO_SHELF_SHEAR * Math.PI) / 180)
+const SHELF_SCREEN: CSSProperties = {
+  left: pct(GX, SHELF_W),
+  top: pct(GY, SHELF_H),
+  width: pct(GW, SHELF_W),
+  height: pct(GH - GW * TILT, SHELF_H), // (its box holds the glass tilted: the glass itself is this tall)
+  transform: `skewY(${PIANO_SHELF_SHEAR}deg)`,
+}
+function ShelfScreen({ on }: { on: boolean }) {
+  const canvas = useRef<HTMLCanvasElement>(null)
+  useEffect(() => {
+    const c = canvas.current
+    const g = c?.getContext('2d')
+    if (!c || !g || c.width === TITLE_W) return
+    c.width = TITLE_W
+    c.height = TITLE_H
+    const img = g.createImageData(TITLE_W, TITLE_H) // transparent but for the letters
+    const put: Put = (x, y, col, a) => {
+      const i = (Math.round(y) * TITLE_W + Math.round(x)) * 4
+      img.data.set([col[0] * 255, col[1] * 255, col[2] * 255, Math.min(1, a) * 255], i)
+    }
+    paintName(put, 1)
+    g.putImageData(img, 0, 0)
+  }, [])
+  return (
+    <span className="piano__screen" data-on={on ? '' : undefined} style={SHELF_SCREEN} aria-hidden="true">
+      <canvas ref={canvas} />
+    </span>
+  )
+}
+
+const GLOW_BOX: CSSProperties = { left: pctX(PIANO.x), top: pctY(PIANO.y), width: pctX(PIANO.width), height: pctY(PIANO.height) }
+export function PianoScreenGlow({ on }: { on: boolean }) {
+  return (
+    <span className="piano-glow" data-on={on ? '' : undefined} style={GLOW_BOX} aria-hidden="true">
+      <ShelfScreen on={on} />
+    </span>
+  )
+}
+
+interface PianoArtProps {
+  /** Bumped by the room to ask for its glimmer hint. */
+  tell?: number
+  /** Hovered or focused: it grows a little and its screen lights up. */
+  highlighted?: boolean
+  /** Brought close (its close-up is showing): it leaves the shelf meanwhile. */
+  away?: boolean
+}
+
+export function PianoArt({ tell = 0, away = false, highlighted = false }: PianoArtProps) {
+  // Its close-up's pictures are fetched once the room is calm, so it comes close at once.
+  useEffect(() => {
+    const later = window.setTimeout(() => {
+      for (const src of [PIANO_CLOSE_SRC, PIANO_ATLAS.src]) new Image().src = src
+    }, PRELOAD_AFTER_MS)
+    return () => window.clearTimeout(later)
+  }, [])
+  const [hint, setHint] = useState(0)
+  // a fresh splash each time it's hovered (or focused), and only then
+  const lit = highlighted && !away
+  const [splash, setSplash] = useState<{ id: number; notes: ReturnType<typeof makeSplash> } | null>(null)
+  useEffect(() => {
+    if (!lit) return
+    setSplash((last) => ({ id: (last?.id ?? 0) + 1, notes: makeSplash() }))
+    const done = window.setTimeout(() => setSplash(null), 3200)
+    return () => window.clearTimeout(done)
+  }, [lit])
+  useEffect(() => {
+    if (tell === 0 || document.hidden) return
+    setHint(tell)
+    const done = window.setTimeout(() => setHint(0), HINT_MS)
+    return () => window.clearTimeout(done)
+  }, [tell])
+
+  return (
+    <SceneObject overlay={PIANO} highlighted={lit} discoveryIndex={-1} className="piano" dataAttributes={{ 'data-away': away ? '' : undefined }}>
+      <img src={PIANO.src} alt="" width={Math.round(PIANO.width)} height={Math.round(PIANO.height)} decoding="async" draggable={false} />
+      {splash && (
+        <span key={splash.id} className="piano__splash" style={HINT_FROM} aria-hidden="true">
+          {splash.notes.map((note, i) => (
+            <span
+              key={i}
+              className="piano__splash-note"
+              style={
+                {
+                  '--dx': `${note.dx}em`,
+                  '--dy': `${note.dy}em`,
+                  '--rot': `${note.rotate}deg`,
+                  '--size': note.size,
+                  animationDelay: `${note.delay}s`,
+                } as CSSProperties
+              }
+            >
+              <Note />
+            </span>
+          ))}
+        </span>
+      )}
+      {hint > 0 && !away && (
+        <span key={hint} className="piano__hint" style={HINT_FROM} aria-hidden="true">
+          {NOTES.map((note, i) => (
+            <span
+              key={i}
+              className="piano__note"
+              style={
+                {
+                  '--dx': `${note.dx}em`,
+                  '--dy': `${note.dy}em`,
+                  '--rot': `${note.rotate}deg`,
+                  '--size': note.size,
+                  animationDelay: `${note.delay}s`,
+                } as CSSProperties
+              }
+            >
+              <Note />
+            </span>
+          ))}
+        </span>
+      )}
+    </SceneObject>
+  )
+}
+
+/** The two choices beside the piano: the screen's landscape and the loop. */
+const DIALS = [
+  { kind: 'landscape', label: content.piano.landscape, help: () => content.piano.landscapeHelp, names: LANDSCAPES.map((l) => l.name) },
+  { kind: 'loop', label: content.piano.loop, help: (i: number) => `${Math.round(LOOPS[i]!.bpm)} BPM · ${LOOPS[i]!.key.replace('b ', '♭ ')}`, names: LOOPS.map((l) => l.name) },
+] as const
+
+const keyOf = (target: EventTarget) => (target as Element).closest?.<SVGElement>('[data-key]')?.dataset.key
+/** How long the piano takes to come close, and to go back. */
+const COME_MS = 560
+const GO_MS = 420
+const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'
+
+interface PianoCloseUpProps {
+  /** Brought close (the piano on the shelf was clicked). */
+  open: boolean
+  /** It has gone back to the shelf. */
+  onClosed: () => void
+}
+
+export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
+  const dialog = useRef<HTMLDialogElement>(null)
+  const stage = useRef<HTMLDivElement>(null)
+  const keysRef = useRef<HTMLDivElement>(null)
+  const [state, setState] = useState<'closed' | 'open' | 'closing'>('closed')
+  const reducedMotion = usePrefersReducedMotion()
+  const down = useSyncExternalStore(piano.subscribe, piano.keys)
+
+  // The transform that puts the close-up exactly over the piano on the shelf.
+  const fromShelf = () => {
+    const shelf = document.querySelector('.scene-object--piano')?.getBoundingClientRect()
+    const here = stage.current?.getBoundingClientRect()
+    if (!shelf || !here || !here.width) return null
+    const scale = shelf.height / here.height // (handle to feet: the two pictures aren't the same shape)
+    const dx = shelf.left + shelf.width / 2 - (here.left + here.width / 2)
+    const dy = shelf.top + shelf.height / 2 - (here.top + here.height / 2)
+    return `translate(${dx}px, ${dy}px) scale(${scale})`
+  }
+
+  // Come close: open the dialog, and once its picture is ready, grow from the shelf.
+  useEffect(() => {
+    const box = dialog.current
+    const node = stage.current
+    if (!open || !box || !node || box.open) return
+    box.showModal()
+    keysRef.current?.focus({ preventScroll: true })
+    const from = reducedMotion ? null : fromShelf()
+    if (from) node.style.transform = from // waits on the shelf, unseen, until its picture is decoded
+    let live = true
+    const art = node.querySelector('img')
+    void (art?.decode?.() ?? Promise.resolve())
+      .catch(() => {})
+      .then(() => {
+        if (!live) return
+        node.style.transform = ''
+        setState('open')
+        if (from) node.animate([{ transform: from }, { transform: 'none' }], { duration: COME_MS, easing: EASE })
+      })
+    return () => {
+      live = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open])
+
+  // Go back to the shelf, then close.
+  const close = () => {
+    const box = dialog.current
+    if (!box?.open || state === 'closing') return
+    setState('closing')
+    piano.releaseAll()
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      box.close()
+      setState('closed')
+      onClosed()
+    }
+    const to = fromShelf()
+    if (!to || reducedMotion) return void window.setTimeout(finish, reducedMotion ? 160 : 0)
+    const going = stage.current?.animate([{ transform: 'none' }, { transform: to }], { duration: GO_MS, easing: 'cubic-bezier(0.4, 0, 0.6, 1)', fill: 'forwards' })
+    if (!going) return finish()
+    // (and never later than it should be: a tab in the background barely runs animations)
+    const late = window.setTimeout(finish, GO_MS + 250)
+    void going.finished
+      .catch(() => {})
+      .then(() => {
+        window.clearTimeout(late)
+        finish()
+        going.cancel()
+      })
+  }
+
+  // Esc: go back the same way (not the dialog's own instant close).
+  useEffect(() => {
+    const box = dialog.current
+    if (!box) return
+    const onCancel = (event: Event) => {
+      event.preventDefault()
+      close()
+    }
+    box.addEventListener('cancel', onCancel)
+    return () => box.removeEventListener('cancel', onCancel)
+  })
+
+  // The notes sound only while it is close.
+  useEffect(() => (state === 'open' ? listenTo(piano) : undefined), [state])
+
+  // Its screen: a little landscape that answers the music, drawn only while it is close.
+  const canvas = useRef<HTMLCanvasElement>(null)
+  const screen = useRef<PianoScreen | null>(null)
+  const [knobs, setKnobs] = useState(settings)
+  useEffect(() => {
+    if (state !== 'open' || !canvas.current) return
+    // (a new one each time it opens: its canvas is new, and what a melody left behind stays until it closes)
+    const s = createPianoScreen(canvas.current, reducedMotion)
+    s.setLandscape(settings().landscape)
+    s.start()
+    screen.current = s
+    return () => {
+      s.stop()
+      screen.current = null
+    }
+  }, [state, reducedMotion])
+  const turnLandscape = (v: number) => {
+    setLandscape(v)
+    screen.current?.setLandscape(v)
+    screen.current?.readout('landscape', v)
+    setKnobs(settings())
+  }
+  const turnLoop = (v: number) => {
+    setLoop(v)
+    screen.current?.readout('loop', v)
+    setKnobs(settings())
+  }
+  const turnVolume = (which: 'loop' | 'keys', v: number) => {
+    setVolume(which, v)
+    screen.current?.readout(which === 'loop' ? 'loopVolume' : 'keysVolume', v)
+    setKnobs(settings())
+  }
+
+  // Pointers (mouse, pen, fingers) pressed on the keys and not yet lifted: sliding one across
+  // the keys plays each key it reaches, like a glissando.
+  const pressing = useRef(new Set<number>())
+  useEffect(() => {
+    const lifted = (event: globalThis.PointerEvent) => {
+      pressing.current.delete(event.pointerId)
+      piano.release(`p${event.pointerId}`)
+    }
+    const away = () => document.hidden && piano.releaseAll()
+    window.addEventListener('pointerup', lifted)
+    window.addEventListener('pointercancel', lifted)
+    document.addEventListener('visibilitychange', away)
+    return () => {
+      window.removeEventListener('pointerup', lifted)
+      window.removeEventListener('pointercancel', lifted)
+      document.removeEventListener('visibilitychange', away)
+      piano.releaseAll()
+    }
+  }, [])
+
+  const onPointerDown = (event: PointerEvent<SVGSVGElement>) => {
+    const key = keyOf(event.target)
+    if (!key || state !== 'open' || (event.pointerType === 'mouse' && event.button !== 0)) return
+    event.preventDefault() // no text selection, no focus change: the keys keep the keyboard
+    // A finger is held by the key it lands on: let it go, so it can slide on to the next key.
+    const target = event.target as Element
+    if (target.hasPointerCapture?.(event.pointerId)) target.releasePointerCapture(event.pointerId)
+    pressing.current.add(event.pointerId)
+    piano.press(`p${event.pointerId}`, key)
+  }
+  const onPointerOver = (event: PointerEvent<SVGSVGElement>) => {
+    const key = keyOf(event.target)
+    if (key && pressing.current.has(event.pointerId)) piano.press(`p${event.pointerId}`, key)
+  }
+  // Off the keys, the key comes up (and plays again if the pointer comes back still pressed).
+  const onPointerLeave = (event: PointerEvent<SVGSVGElement>) => piano.release(`p${event.pointerId}`)
+
+  // The computer keyboard plays it wherever the focus is in the close-up.
+  const onKeyDown = (event: KeyboardEvent<HTMLDialogElement>) => {
+    const key = KEYBOARD_NOTES[event.code]
+    if (!key || event.metaKey || event.ctrlKey || event.altKey) return
+    event.preventDefault()
+    event.stopPropagation() // a note, not a shortcut
+    if (!event.repeat && state === 'open') piano.press(`k${event.code}`, key)
+  }
+  const onKeyUp = (event: KeyboardEvent<HTMLDialogElement>) => {
+    if (KEYBOARD_NOTES[event.code]) piano.release(`k${event.code}`)
+  }
+
+  // A click on the dimmed room around it (not a press that began on the piano) sends it back.
+  const pressStartedOutside = useRef(false)
+  const onDialogPointerDown = (event: PointerEvent<HTMLDialogElement>) => {
+    pressStartedOutside.current = event.target === event.currentTarget
+  }
+  const onDialogClick = (event: MouseEvent<HTMLDialogElement>) => {
+    if (pressStartedOutside.current && event.target === event.currentTarget) close()
+  }
+
+  return (
+    <dialog
+      ref={dialog}
+      className="piano-close"
+      data-state={state}
+      aria-label={content.piano.closeUpLabel}
+      onKeyDown={onKeyDown}
+      onKeyUp={onKeyUp}
+      onPointerDown={onDialogPointerDown}
+      onClick={onDialogClick}
+      onBlur={(event) => {
+        if (!event.currentTarget.contains(event.relatedTarget as Node | null)) piano.releaseAll()
+      }}
+    >
+      {(open || state !== 'closed') && (
+        <div className="piano-close__frame">
+          <button type="button" className="piano-close__close" onClick={close}>
+            <span>{content.piano.close}</span>
+            <svg viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M3.5 3.5l9 9M12.5 3.5l-9 9" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+            </svg>
+          </button>
+
+          <div ref={stage} className="piano-close__stage" style={STAGE}>
+            <img className="piano-close__art" src={PIANO_CLOSE_SRC} alt="" width={W} height={H} draggable={false} />
+            {SPRITES.map((sprite) => (
+              <span key={sprite.id} className="piano-close__key" data-down={down.has(sprite.id) ? '' : undefined} style={sprite.style} />
+            ))}
+            {/* The screen: a pixel-art landscape that answers the music (src/scene/pianoScreen.ts),
+                clipped to the glass's outline, behind faint scanlines. */}
+            <div className="piano-close__screen" data-screen="" style={SCREEN_STYLE}>
+              <canvas ref={canvas} aria-hidden="true" />
+              <span className="piano-close__glass" aria-hidden="true" />
+            </div>
+            <div
+              ref={keysRef}
+              className="piano-close__keys"
+              role="application"
+              aria-roledescription="piano"
+              aria-label={content.piano.closeUpLabel}
+              aria-describedby="piano-how-to"
+              tabIndex={-1}
+            >
+              <svg
+                viewBox={`0 0 ${W} ${H}`}
+                aria-hidden="true"
+                focusable="false"
+                onPointerDown={onPointerDown}
+                onPointerOver={onPointerOver}
+                onPointerLeave={onPointerLeave}
+              >
+                {PIANO_KEYS.map((key) => (
+                  <path key={key.id} className="piano-close__hit" data-key={key.id} d={key.hit} />
+                ))}
+              </svg>
+            </div>
+            <svg className="piano-close__knobs" viewBox={`0 0 ${W} ${H}`}>
+              <Nameplate />
+              {PIANO_KNOBS.length === 2 && (
+                <>
+                  <Knob
+                    knob={PIANO_KNOBS[0]!}
+                    label={content.piano.loopVolume}
+                    name={content.piano.loopKnob}
+                    value={knobs.loopVolume}
+                    invite={state === 'open' && !reducedMotion}
+                    onChange={(v) => turnVolume('loop', v)}
+                  />
+                  <Knob
+                    knob={PIANO_KNOBS[1]!}
+                    label={content.piano.keysVolume}
+                    name={content.piano.keysKnob}
+                    value={knobs.keysVolume}
+                    invite={state === 'open' && !reducedMotion}
+                    onChange={(v) => turnVolume('keys', v)}
+                  />
+                </>
+              )}
+            </svg>
+          </div>
+
+          {/* what to play over: the landscape on the screen and the loop, each stepped through with its arrows */}
+          <div className="piano-close__dials">
+            {DIALS.map((dial) => {
+              const value = knobs[dial.kind]
+              const turn = dial.kind === 'landscape' ? turnLandscape : turnLoop
+              const n = dial.names.length
+              return (
+                <div key={dial.kind} className="piano-close__dial" role="group" aria-label={dial.label}>
+                  <span className="piano-close__dial-name">{dial.label}</span>
+                  <span className="piano-close__dial-dots" aria-hidden="true">
+                    {dial.names.map((name, j) => (
+                      <i key={name} data-on={j === value ? '' : undefined} />
+                    ))}
+                  </span>
+                  <button type="button" className="piano-close__dial-step" aria-label={`${content.piano.previous}: ${dial.names[(value + n - 1) % n]}`} onClick={() => turn((value + n - 1) % n)}>
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M10 3.5L5.5 8l4.5 4.5" />
+                    </svg>
+                  </button>
+                  <span className="piano-close__dial-value" aria-live="polite">
+                    {dial.names[value]}
+                  </span>
+                  <button type="button" className="piano-close__dial-step" aria-label={`${content.piano.next}: ${dial.names[(value + 1) % n]}`} onClick={() => turn((value + 1) % n)}>
+                    <svg viewBox="0 0 16 16" aria-hidden="true">
+                      <path d="M6 3.5L10.5 8 6 12.5" />
+                    </svg>
+                  </button>
+                  <span className="piano-close__dial-help">{dial.help(value)}</span>
+                </div>
+              )
+            })}
+          </div>
+
+          <p id="piano-how-to" className="piano-close__how">
+            {content.piano.howTo}
+          </p>
+        </div>
+      )}
+    </dialog>
+  )
+}

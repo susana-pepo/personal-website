@@ -15,6 +15,7 @@ import { useLoopSeam } from '../../hooks/useLoopSeam'
 import { CatOverlay, type CatHandle } from './overlays/CatOverlay'
 import { CoffeeOverlay } from './overlays/CoffeeOverlay'
 import { WomanOverlay } from './overlays/WomanOverlay'
+import { PianoArt, PianoCloseUp, PianoScreenGlow } from './overlays/PianoOverlay'
 import { HotspotLayer } from './HotspotLayer'
 import { PressedObject, SceneObject } from './overlays/SceneObject'
 import { PowerLight, VinylPlayer } from './overlays/VinylPlayer'
@@ -59,7 +60,7 @@ const SceneSandbox = import.meta.env.DEV ? lazy(() => import('./dev/SceneSandbox
 const sandboxRequested =
   import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sandbox') === '1'
 
-const OBJECTS = OVERLAYS.filter((o) => o.id !== 'cat' && o.id !== 'vinyl' && o.id !== 'coffee' && o.id !== 'woman')
+const OBJECTS = OVERLAYS.filter((o) => o.id !== 'cat' && o.id !== 'vinyl' && o.id !== 'coffee' && o.id !== 'woman' && o.id !== 'piano')
 // The optional breathing pulse before the first interaction (off when every object's `invite` is 0).
 const INVITE = OVERLAYS.some((o) => (o.glow?.invite ?? 0) > 0)
 // The clip and its poster are drawn slightly zoomed so the painted room lines up with the objects.
@@ -273,14 +274,16 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
     if (lampLit) lampSplash.current?.tease()
   }, [lampLit])
 
-  // The room's small surprises (the cat, the lamp) have no glow or label: until a visitor has
+  // The room's small surprises (the cat, the lamp, the piano) have no glow or label: until a visitor has
   // found them, each gives its moonlight hint once a cycle, in turn (src/scene/glimmers.ts),
   // from the end of the room's first look and her greeting. Pointing at one, focusing it or
   // tapping it finds it. With reduced motion there is no first look, and the hints are fades.
+  // The piano computer on the shelf, brought close to be played (PianoCloseUp).
+  const [pianoClose, setPianoClose] = useState(false)
   const tells = useGlimmerTells({
     moving: playback.motionAllowed,
     ready: greetingOver && (discovery === 'done' || reducedMotion),
-    busy: active !== null,
+    busy: active !== null || pianoClose,
   })
   useEffect(() => {
     if (isGlimmer(active)) findGlimmer(active)
@@ -297,6 +300,10 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
       catRef.current?.pet()
     }
     if (action === 'light') findGlimmer('lamp')
+    if (action === 'play') {
+      findGlimmer('piano')
+      setPianoClose(true)
+    }
     if (action === 'light') {
       const next = nextTone(lampToneRef.current)
       lampToneRef.current = next
@@ -443,6 +450,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
               onReaction={onCatReaction}
               tell={tells.cat}
             />
+            <PianoArt tell={tells.piano} away={pianoClose} highlighted={litOverlay === 'piano'} />
           </PressedObject>
           {/* Evening mood over the room and every object; the lamp's light sits above it. */}
           <span className="room-mood" aria-hidden="true" />
@@ -450,6 +458,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
           <span className="time-light time-light--day" aria-hidden="true" />
           <span className="time-light time-light--night" aria-hidden="true" />
           <PowerLight highlighted={litOverlay === 'vinyl'} motionAllowed={playback.motionAllowed} />
+          <PianoScreenGlow on={litOverlay === 'piano' && !pianoClose} />
 
           <LampLiquid motionAllowed={playback.motionAllowed} tone={lampTone} hovered={lampLit} flick={tells.lamp} />
           <LampColour tone={lampTone} />
@@ -463,6 +472,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
             lampTone={lampName(lampTone)}
             greeting={greeting}
           />
+          <PianoCloseUp open={pianoClose} onClosed={() => setPianoClose(false)} />
 
           {/* Drawn in the masthead above the room (after the menu in the tab order). */}
           {controlSlot &&

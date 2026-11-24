@@ -17,7 +17,7 @@ export const ROOM_FRAME = media.frame
 /** Playback speed of the room clip (1 = as rendered). */
 export const ROOM_PLAYBACK_RATE = media.playbackRate
 
-export type OverlayId = 'plant' | 'books' | 'vinyl' | 'lamp' | 'vase' | 'deskbooks' | 'laptop' | 'woman' | 'coffee' | 'cat'
+export type OverlayId = 'plant' | 'books' | 'piano' | 'vinyl' | 'lamp' | 'vase' | 'deskbooks' | 'laptop' | 'woman' | 'coffee' | 'cat'
 
 /** Halo images extend this many canvas pixels beyond each overlay (see scripts/build-glows.py). */
 export const HALO_MARGIN = 36
@@ -54,7 +54,7 @@ export interface Overlay {
   z: number
 }
 
-export const OVERLAY_IDS: readonly OverlayId[] = ['plant', 'books', 'vinyl', 'lamp', 'vase', 'deskbooks', 'laptop', 'woman', 'coffee', 'cat']
+export const OVERLAY_IDS: readonly OverlayId[] = ['plant', 'books', 'piano', 'vinyl', 'lamp', 'vase', 'deskbooks', 'laptop', 'woman', 'coffee', 'cat']
 
 type RawOverlay = (typeof overlays)[number] & { glow?: Glow; shadow?: Overlay['shadow']; hitFromY?: number }
 

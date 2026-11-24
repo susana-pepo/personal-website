@@ -313,6 +313,32 @@ export interface SiteContent {
     /** Announced when a click turns the lamp's light off (the room keeps its own light). */
     off: string
   }
+  /** The piano computer on the top shelf: a glimmer; a click brings it close, to be played. */
+  piano: {
+    /** Hover tag. */
+    hint: string
+    /** Accessible name of the piano button (on the shelf). */
+    actionLabel: string
+    /** The close-up's accessible name. */
+    closeUpLabel: string
+    /** How to play it, under the close-up (and its keys' accessible description). */
+    howTo: string
+    /** The close-up's close control. */
+    close: string
+    /** The choices beside the piano: the screen's landscape (with a line saying what it is) and the loop. */
+    landscape: string
+    landscapeHelp: string
+    loop: string
+    /** The brass knobs: their printed names, and what they're called aloud (the top one sets the
+     * loop's volume, the bottom one the keys'). */
+    loopKnob: string
+    loopVolume: string
+    keysKnob: string
+    keysVolume: string
+    /** The dials' arrows. */
+    previous: string
+    next: string
+  }
   /** The sleeping cat on the desk: a small easter egg, not a section. */
   cat: {
     /** Hover tag. */

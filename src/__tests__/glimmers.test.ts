@@ -28,7 +28,7 @@ describe('the room’s small surprises (glimmers)', () => {
   })
 
   it('leave each hint room to finish before the next one starts', () => {
-    // the longest hint (the cat's z's, about 4.4 s) fits in half a cycle
+    // the longest hint (the cat's z's, about 4.4 s) fits in each glimmer's share of a cycle
     expect(TELL_CYCLE_MS / GLIMMERS.length).toBeGreaterThanOrEqual(4400)
   })
 })

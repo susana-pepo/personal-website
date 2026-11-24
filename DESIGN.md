@@ -148,7 +148,9 @@ bold or an italic.
     (cream, warm-brown line; `GlimmerCursor`). Over the cat it is a hand that strokes, gliding
     along its fingers and back, and a click pats. Over the lamp it is a little bulb that flicks
     on now and then (on, a catch, on), glows a moment with a small moonlight spark and eases
-    off; it stays on while the button is down. The section objects keep the plain pointer. Still
+    off; it stays on while the button is down. Over the piano it is two beamed notes swaying
+    in time, with a moonlight spark on the beat; a press makes them hop. No glimmer has a hover
+    label: the cursor and the object's own answer say it (screen readers keep each name). The section objects keep the plain pointer. Still
     with reduced motion; never on touch or for the keyboard.
   - **Always an answer.** A pet while the cat is still answering the last one doesn't start
     over, but it never goes unanswered: a purr floats up from its head every time.

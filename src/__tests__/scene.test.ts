@@ -4,10 +4,11 @@ import { HOTSPOTS, boundsOf } from '../scene/hotspots'
 import { CANVAS_HEIGHT, CANVAS_WIDTH, CAT_MEDIA, OVERLAYS, coverFit } from '../scene/layout'
 
 describe('scene layout', () => {
-  it('stacks the layers back to front: plant, shelf books, record player, lamp, vase, desk books, laptop, woman, cat, coffee (the mug stands in front of the cat)', () => {
+  it('stacks the layers back to front: plant, shelf books, the piano on the top shelf, record player, lamp, vase, desk books, laptop, woman, cat, coffee (the mug stands in front of the cat)', () => {
     expect(OVERLAYS.map((o) => [o.id, o.z])).toEqual([
       ['plant', 3],
       ['books', 4],
+      ['piano', 5],
       ['vinyl', 5],
       ['lamp', 5],
       ['vase', 5],

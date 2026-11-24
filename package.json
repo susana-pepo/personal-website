@@ -20,11 +20,14 @@
     "scene:woman": "python3 scripts/build-woman.py",
     "scene:coffee": "python3 scripts/build-coffee.py",
     "scene:window": "python3 scripts/build-window-layers.py",
-    "scene:windows": "python3 scripts/build-window-views.py"
+    "scene:windows": "python3 scripts/build-window-views.py",
+    "scene:piano": "python3 scripts/build-piano.py",
+    "scene:landscapes": "python3 scripts/paint-landscapes.py"
   },
   "dependencies": {
     "react": "^19.3.1",
-    "react-dom": "^19.3.1"
+    "react-dom": "^19.3.1",
+    "tone": "15.0.4"
   },
   "devDependencies": {
     "@types/node": "^26.6.6",

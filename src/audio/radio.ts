@@ -100,6 +100,9 @@ const SWITCH_FADE = 0.3
 /** A slider being moved. */
 const NUDGE = 0.12
 const RAIN_FADE = 2.5
+/** How far the radio dips while the piano computer is played up close, and how quickly. */
+const DUCKED = 0.35
+const DUCK_FADE = 0.6
 const RAIN_XFADE = 3
 /** The music's slow fade at the end of a session. */
 const END_FADE = 6
@@ -112,6 +115,9 @@ class RoomRadio {
   private ctx: AudioContext | null = null
   private musicGain: GainNode | null = null
   private rainGain: GainNode | null = null
+  /** Between the radio and the speakers: dips while the piano computer is up close. */
+  private duckGain: GainNode | null = null
+  private ducked = false
   private audio: HTMLAudioElement | null = null
   /** The file the audio element holds (its own `src` is resolved to a full URL). */
   private loadedSrc = ''
@@ -251,6 +257,12 @@ class RoomRadio {
     }
   }
 
+  /** Dip the radio (and the rain) while something else plays, such as the piano computer up close. */
+  duck(on: boolean) {
+    this.ducked = on
+    if (this.ctx && this.duckGain) this.ramp(this.duckGain, on ? DUCKED : 1, DUCK_FADE)
+  }
+
   pause() {
     this.stopFocus()
     window.clearTimeout(this.switchTimer)
@@ -351,17 +363,21 @@ class RoomRadio {
     audio.addEventListener('error', () => {
       if (this.on && this.track) this.set({ status: 'error' })
     })
+    const duck = ctx.createGain()
+    duck.gain.value = this.ducked ? DUCKED : 1
+    duck.connect(ctx.destination)
     const music = ctx.createGain()
     music.gain.value = 0
-    music.connect(ctx.destination)
+    music.connect(duck)
     ctx.createMediaElementSource(audio).connect(music)
     const rain = ctx.createGain()
     rain.gain.value = 0
-    rain.connect(ctx.destination)
+    rain.connect(duck)
     this.ctx = ctx
     this.audio = audio
     this.musicGain = music
     this.rainGain = rain
+    this.duckGain = duck
     return true
   }
 

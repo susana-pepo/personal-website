@@ -1,0 +1,477 @@
+{
+ "$comment": "Edit `source` (what build-piano.py reads: see its notes), then run npm run scene:piano; it rewrites everything else here. All other sizes are in the pixels of piano-close.webp (the close-up). Each key: its pressed sprite (box on the piano, top-left in the atlas) and its playable outline. screen: the black screen, where its pixel-art reactions show.",
+ "source": {
+  "image": "portfolio-website-assets/public/media/piano/piano-front.png",
+  "keys": [
+   {
+    "id": "C4",
+    "kind": "white",
+    "seed": [
+     305,
+     1040
+    ]
+   },
+   {
+    "id": "C#4",
+    "kind": "black"
+   },
+   {
+    "id": "D4",
+    "kind": "white",
+    "seed": [
+     418,
+     1040
+    ]
+   },
+   {
+    "id": "D#4",
+    "kind": "black"
+   },
+   {
+    "id": "E4",
+    "kind": "white",
+    "seed": [
+     526,
+     1040
+    ]
+   },
+   {
+    "id": "F4",
+    "kind": "white",
+    "seed": [
+     634,
+     1040
+    ]
+   },
+   {
+    "id": "F#4",
+    "kind": "black"
+   },
+   {
+    "id": "G4",
+    "kind": "white",
+    "seed": [
+     744,
+     1040
+    ]
+   },
+   {
+    "id": "G#4",
+    "kind": "black"
+   },
+   {
+    "id": "A4",
+    "kind": "white",
+    "seed": [
+     855,
+     1040
+    ]
+   },
+   {
+    "id": "A#4",
+    "kind": "black"
+   },
+   {
+    "id": "B4",
+    "kind": "white",
+    "seed": [
+     962,
+     1040
+    ]
+   },
+   {
+    "id": "C5",
+    "kind": "white",
+    "seed": [
+     1050,
+     1040
+    ]
+   }
+  ],
+  "blackArea": [
+   300,
+   830,
+   960,
+   990
+  ],
+  "screen": {
+   "seed": [
+    600,
+    500
+   ],
+   "dark": 16,
+   "smooth": 9
+  },
+  "press": {
+   "white": {
+    "drop": 16,
+    "pivot": 1.0,
+    "frontEdge": 0.85,
+    "shade": 0.93,
+    "richer": 1.1,
+    "backShade": 0.0,
+    "gap": 0.3,
+    "wall": 0,
+    "wallDepth": 0,
+    "neighbourShadow": 0.1,
+    "neighbourReach": 5,
+    "sidesStay": true,
+    "gapColour": [
+     [
+      14,
+      4,
+      2
+     ],
+     [
+      52,
+      28,
+      16
+     ]
+    ]
+   },
+   "black": {
+    "drop": 12,
+    "pivot": 1.0,
+    "frontEdge": 0.85,
+    "shade": 0.75,
+    "richer": 1.0,
+    "backShade": 0.0,
+    "gap": 0.3,
+    "wall": 0,
+    "wallDepth": 0,
+    "neighbourShadow": 0.06,
+    "neighbourReach": 4,
+    "sidesStay": true,
+    "gapColour": [
+     [
+      12,
+      3,
+      1
+     ],
+     [
+      40,
+      20,
+      12
+     ]
+    ]
+   }
+  },
+  "shelfImage": "portfolio-website-assets/public/media/piano/piano-shelf.png",
+  "shelfScreen": {
+   "seed": [
+    640,
+    540
+   ]
+  },
+  "shelfEdge": {
+   "cut": 24,
+   "shrink": 1,
+   "decontaminate": 3
+  },
+  "shelfSide": {
+   "corner": 345,
+   "at": 111,
+   "drop": 63,
+   "topShare": 1
+  },
+  "shelfShear": 3.33,
+  "shelf": {
+   "centreX": 430,
+   "feetY": 255.2,
+   "width": 190
+  },
+  "shelfWidth": 480,
+  "shadow": {
+   "height": 0.08,
+   "opacity": 0.6,
+   "feet": 0.1
+  },
+  "knobs": [
+   {
+    "seed": [
+     989,
+     522
+    ]
+   },
+   {
+    "seed": [
+     990,
+     667
+    ]
+   }
+  ]
+ },
+ "size": [
+  1004,
+  1205
+ ],
+ "close": "/media/scene/piano/piano-close.webp?v=1d62b0e4",
+ "atlas": {
+  "src": "/media/scene/piano/keys-close.webp?v=0fd034eb",
+  "size": [
+   1602,
+   243
+  ]
+ },
+ "screen": {
+  "box": [
+   165,
+   282,
+   580,
+   436
+  ],
+  "path": "M190 330L176 358L169 397L165 457L165 559L169 617L177 662L188 686L203 701L230 711L279 715L589 716L688 709L711 700L726 685L736 656L742 598L743 409L740 369L733 334L725 318L713 306L686 295L609 285L531 282L398 283L314 288L256 295L212 310Z"
+ },
+ "knobs": [
+  {
+   "cx": 860.5,
+   "cy": 497.5,
+   "r": 55.6,
+   "angle": 60.8,
+   "inner": 12.8,
+   "outer": 44.7,
+   "width": 6.4,
+   "colour": [
+    6,
+    1,
+    0
+   ]
+  },
+  {
+   "cx": 862.5,
+   "cy": 643.5,
+   "r": 57.4,
+   "angle": 46.4,
+   "inner": 13.7,
+   "outer": 45.7,
+   "width": 6.3,
+   "colour": [
+    8,
+    1,
+    0
+   ]
+  }
+ ],
+ "keys": [
+  {
+   "id": "C4",
+   "midi": 60,
+   "kind": "white",
+   "box": [
+    98,
+    826,
+    147,
+    243
+   ],
+   "atlas": [
+    0,
+    0
+   ],
+   "hit": "M110 834L104 860L104 924L125 1048L134 1059L139 1061L236 1061L238 994L231 945L228 943L206 943L200 937L193 875L189 863L188 844L185 833L114 832Z"
+  },
+  {
+   "id": "D4",
+   "midi": 62,
+   "kind": "white",
+   "box": [
+    226,
+    826,
+    128,
+    243
+   ],
+   "atlas": [
+    252,
+    0
+   ],
+   "hit": "M255 832L252 834L252 846L259 896L262 940L257 943L236 943L233 945L232 963L238 1008L238 1059L240 1061L345 1061L347 999L341 953L338 944L319 943L313 938L298 835L294 832Z"
+  },
+  {
+   "id": "E4",
+   "midi": 64,
+   "kind": "white",
+   "box": [
+    335,
+    827,
+    124,
+    241
+   ],
+   "atlas": [
+    486,
+    0
+   ],
+   "hit": "M366 833L364 835L375 940L369 943L344 943L341 945L343 989L347 1004L347 1060L450 1061L452 997L426 837L423 833Z"
+  },
+  {
+   "id": "F4",
+   "midi": 65,
+   "kind": "white",
+   "box": [
+    419,
+    827,
+    149,
+    241
+   ],
+   "atlas": [
+    612,
+    0
+   ],
+   "hit": "M426 834L425 852L427 868L430 876L432 896L435 902L436 919L446 978L448 980L449 1000L452 1005L452 1059L454 1061L559 1061L561 997L551 946L548 943L524 943L514 940L494 835L492 833Z"
+  },
+  {
+   "id": "G4",
+   "midi": 67,
+   "kind": "white",
+   "box": [
+    547,
+    827,
+    135,
+    241
+   ],
+   "atlas": [
+    872,
+    0
+   ],
+   "hit": "M563 833L561 835L561 847L575 925L576 941L553 944L554 972L562 1006L562 1060L673 1061L675 996L665 944L662 942L643 942L638 937L619 837L616 833Z"
+  },
+  {
+   "id": "A4",
+   "midi": 69,
+   "kind": "white",
+   "box": [
+    661,
+    826,
+    132,
+    242
+   ],
+   "atlas": [
+    1114,
+    0
+   ],
+   "hit": "M686 832L684 834L684 844L700 938L696 942L671 942L667 946L668 974L671 979L676 1003L676 1059L678 1061L784 1060L786 996L777 950L772 942L757 942L753 939L745 906L739 863L733 844L733 835L730 832Z"
+  },
+  {
+   "id": "B4",
+   "midi": 71,
+   "kind": "white",
+   "box": [
+    771,
+    826,
+    124,
+    242
+   ],
+   "atlas": [
+    1356,
+    0
+   ],
+   "hit": "M801 832L800 849L813 939L809 942L781 942L777 946L780 982L784 987L786 995L787 1059L798 1061L885 1060L887 1051L888 999L850 836L846 832Z"
+  },
+  {
+   "id": "C5",
+   "midi": 72,
+   "kind": "white",
+   "box": [
+    843,
+    826,
+    120,
+    242
+   ],
+   "atlas": [
+    1482,
+    0
+   ],
+   "hit": "M851 832L849 834L849 850L857 892L862 905L862 913L871 944L873 960L880 976L880 984L887 1003L887 1058L889 1060L935 1061L952 1058L955 1055L956 997L917 836L911 832Z"
+  },
+  {
+   "id": "C#4",
+   "midi": 61,
+   "kind": "black",
+   "box": [
+    172,
+    806,
+    101,
+    163
+   ],
+   "atlas": [
+    149,
+    0
+   ],
+   "hit": "M200 814L191 820L187 828L179 831L179 837L184 844L197 946L199 948L221 948L227 953L228 961L235 961L237 953L243 948L265 947L265 925L255 843L257 831L244 824L244 816L242 814Z"
+  },
+  {
+   "id": "D#4",
+   "midi": 63,
+   "kind": "black",
+   "box": [
+    284,
+    806,
+    102,
+    164
+   ],
+   "atlas": [
+    382,
+    0
+   ],
+   "hit": "M314 813L305 817L301 825L291 831L291 837L296 846L304 913L308 929L308 944L312 948L331 949L335 954L336 962L343 962L346 952L351 948L376 948L378 946L377 916L373 898L367 834L362 827L356 826L355 815L352 813Z"
+  },
+  {
+   "id": "F#4",
+   "midi": 66,
+   "kind": "black",
+   "box": [
+    480,
+    806,
+    107,
+    163
+   ],
+   "atlas": [
+    763,
+    0
+   ],
+   "hit": "M506 813L494 828L487 830L487 838L491 842L510 946L517 948L541 948L545 951L548 961L554 961L560 949L579 946L577 917L564 837L556 827L550 814Z"
+  },
+  {
+   "id": "G#4",
+   "midi": 68,
+   "kind": "black",
+   "box": [
+    608,
+    806,
+    103,
+    163
+   ],
+   "atlas": [
+    1009,
+    0
+   ],
+   "hit": "M629 814L619 825L615 834L615 843L634 943L636 947L657 948L661 953L662 960L669 961L672 951L678 947L703 946L698 894L691 889L690 883L693 880L693 867L687 836L674 814Z"
+  },
+  {
+   "id": "A#4",
+   "midi": 70,
+   "kind": "black",
+   "box": [
+    718,
+    806,
+    106,
+    162
+   ],
+   "atlas": [
+    1248,
+    0
+   ],
+   "hit": "M741 815L731 827L725 830L725 837L730 842L730 851L749 946L767 948L773 960L779 960L782 952L788 947L815 947L816 935L813 905L801 833L797 829L791 828L789 816L786 813L746 813Z"
+  }
+ ],
+ "shelf": {
+  "size": [
+   1258,
+   1216
+  ],
+  "screen": [
+   363,
+   289,
+   555,
+   466
+  ]
+ }
+}

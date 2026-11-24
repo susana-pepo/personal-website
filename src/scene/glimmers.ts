@@ -1,6 +1,6 @@
 /**
  * Glimmers: the room's small surprises. They don't open a section; they answer in place,
- * like the cat (pet it) and the lamp (click it). Section objects are found by their amber
+ * like the cat (pet it), the lamp (click it) and the piano (click it to bring it close and play it). Section objects are found by their amber
  * halo and the room's first look around. Glimmers have no halo and no label, so each has a
  * *hint* instead: a small sign of life that makes a visitor curious, never an instruction
  * (no hands, arrows, rings or words like "click").
@@ -10,7 +10,8 @@
  *    HeroScene.css) that nothing else in the room uses, so the colour alone says "a different
  *    kind of thing". The bloom is an edge on the hint's own small marks, never a halo.
  *  - In its own nature: the sleeping cat breathes out z's; the lamp's bulb catches, as if a
- *    switch had been touched, and glints run up its brass.
+ *    switch had been touched, and glints run up its brass; a few notes rise from the little
+ *    piano computer, as if someone had just played it.
  *  - The room's pace: hints ease in softly (about a second, out of a slight blur, like her
  *    greeting), drift on the room's curves, and fade as they go. Never held, never snapped.
  *  - Bolder, not bigger: noticed through a firm stroke, each covering about the same area.
@@ -20,7 +21,8 @@
  *    is hidden or an object is being pointed at (that turn is skipped, not queued). With
  *    reduced motion a hint fades in and out where it stands.
  *  - Their own cursors, in the room's ink (GlimmerCursor): over the cat, a hand that
- *    strokes; over the lamp, a little bulb that flicks on.
+ *    strokes; over the lamp, a little bulb that flicks on; over the piano, two notes that
+ *    sway in time. No hover label on any of them (screen readers keep each one's name).
  *  - Found: once a glimmer has been met (hovered, focused or tapped), its hint stops, for
  *    good, in this browser. When all are found, the room is quiet again.
  *
@@ -28,15 +30,15 @@
  */
 
 /** Every glimmer in the room, in the order their hints come in each cycle. */
-export const GLIMMERS = ['cat', 'lamp'] as const
+export const GLIMMERS = ['cat', 'lamp', 'piano'] as const
 export type GlimmerId = (typeof GLIMMERS)[number]
 
 export const isGlimmer = (id: string | null): id is GlimmerId => GLIMMERS.includes(id as GlimmerId)
 
 /** How long after the room is ready (first look and greeting over) the first hint comes. */
 export const TELL_START_MS = 900
-/** Each unfound glimmer gives its hint once per cycle. */
-export const TELL_CYCLE_MS = 9000
+/** Each unfound glimmer gives its hint once per cycle (long enough for each of the three to finish its own). */
+export const TELL_CYCLE_MS = 13500
 
 /**
  * When each unfound glimmer's hints start, from the moment the room is ready: in GLIMMERS
