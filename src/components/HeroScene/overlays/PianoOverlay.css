@@ -4,7 +4,8 @@
 
 /* Brought close: it leaves the shelf while its close-up is showing (at once, as the close-up
    grows from exactly here, and back the moment the close-up lands here again). */
-.scene-object--piano[data-away] .scene-object__art {
+/* Lent to its close-up: its copy in the air has taken over, at the same place (PianoOverlay.tsx). */
+.scene-object--piano[data-lent] .scene-object__art {
   visibility: hidden;
 }
 

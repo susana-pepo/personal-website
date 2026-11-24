@@ -433,6 +433,13 @@ const DIALS = [
 const keyOf = (target: EventTarget) => (target as Element).closest?.<SVGElement>('[data-key]')?.dataset.key
 /** How long the piano takes to come close, and to go back. */
 const COME_MS = 1100
+/**
+ * Handing over between the piano on the shelf (in the room's light) and its copy in the air (in full
+ * light): the same picture at the same place, so they cross over as a change of light, never a swap.
+ */
+const HANDOFF_MS = 220
+const shelfPiano = () => document.querySelector<HTMLElement>('.scene-object--piano')
+const lend = (lent: boolean) => shelfPiano()?.toggleAttribute('data-lent', lent)
 const GO_MS = 750
 /** How long its controls take to step aside before it goes back to the shelf. */
 const GO_AFTER_MS = 120
@@ -535,9 +542,10 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     if (!node) return null
     const timing: KeyframeAnimationOptions = {
       duration: back ? GO_MS : COME_MS,
-      delay: back ? GO_AFTER_MS : 0, // (going back, its controls leave first)
+      // (coming, its copy first appears over the shelf piano; going back, its controls leave first)
+      delay: back ? GO_AFTER_MS : HANDOFF_MS,
       easing: EASE,
-      fill: back ? 'both' : 'none',
+      fill: back ? 'both' : 'backwards',
       direction: back ? 'reverse' : 'normal',
     }
     const body = node.querySelector('.piano-close__body')
@@ -553,6 +561,12 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
       body?.animate(blur, timing),
       body?.animate(facing, timing),
     ]
+    if (!back && from) {
+      // its copy fades in over the piano on the shelf, which then steps out of the room
+      void from
+        .animate([{ opacity: 0 }, { opacity: 1 }], { duration: HANDOFF_MS, easing: 'ease-out' })
+        .finished.then(() => lend(true), () => lend(true))
+    }
     return moves[0]!
   }
 
@@ -570,7 +584,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     if (from) {
       node.style.transform = `translate(${from.dx}px, ${from.dy}px) scale(${from.scale})`
       if (body) body.style.opacity = '0'
-      if (shelfPicture) shelfPicture.style.opacity = '1'
+      if (shelfPicture) shelfPicture.style.opacity = '0' // (it fades in over the shelf piano: travel)
     }
     let live = true
     const art = node.querySelector('img')
@@ -581,6 +595,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
         node.style.transform = ''
         setState('open')
         if (from) travel(from, false)
+        else lend(true) // (no journey: it simply steps out of the room)
         if (body) body.style.opacity = ''
         if (shelfPicture) shelfPicture.style.opacity = ''
       })
@@ -600,6 +615,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     const finish = () => {
       if (done) return
       done = true
+      lend(false)
       box.close()
       setState('closed')
       onClosed()
@@ -609,9 +625,16 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
     const going = travel(to, true)
     if (!going) return finish()
     // (and never later than it should be: a tab in the background barely runs animations)
-    const late = window.setTimeout(finish, GO_AFTER_MS + GO_MS + 250)
+    const late = window.setTimeout(finish, GO_AFTER_MS + GO_MS + HANDOFF_MS + 250)
     void going.finished
       .catch(() => {})
+      .then(() => {
+        // landed on the shelf: the shelf piano comes back under it, and its copy fades away
+        lend(false)
+        const from = stage.current?.querySelector('.piano-close__from')
+        const fade = from?.animate([{ opacity: 1 }, { opacity: 0 }], { duration: HANDOFF_MS, easing: 'ease-in', fill: 'forwards' })
+        return fade?.finished.catch(() => {})
+      })
       .then(() => {
         window.clearTimeout(late)
         finish()
