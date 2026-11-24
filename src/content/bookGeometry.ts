@@ -91,6 +91,18 @@ export interface BookSpec {
   creases: [number, number][]
 }
 
+/** A swatch from a real spine colour ('#rrggbb'), with ink that reads on it. */
+export function realSwatch(hex: string): Swatch & { light: boolean } {
+  const n = parseInt(hex.replace('#', '').slice(0, 6), 16)
+  const lin = (v: number) => {
+    const x = v / 255
+    return x <= 0.04045 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4
+  }
+  const lum = 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255)
+  const light = lum > 0.35
+  return { c: hex, t: light ? PALETTE.ink.c : PALETTE.card.c, light }
+}
+
 /** Everything about how a book looks, derived once from its data. Same book, same look. */
 export function specFor(book: Book): BookSpec {
   const seed = hash(book.title + '|' + book.author)
@@ -107,8 +119,11 @@ export function specFor(book: Book): BookSpec {
   // Real dimensions win when given (a 245mm book is the tallest the shelf holds).
   if (book.heightMm) height = Math.round(SHELF_H * clamp(book.heightMm / 245, 0.5, 1))
   if (book.thicknessMm) thick = Math.round(clamp(book.thicknessMm * 0.95, 12, 60))
+  // A real book's spine is drawn wide enough to carry its whole title.
+  else if (book.spineColour) thick = Math.max(thick, 26)
 
-  const light = LIGHT_COLOURS.has(colour)
+  const real = book.spineColour ? realSwatch(book.spineColour) : null
+  const light = real ? real.light : LIGHT_COLOURS.has(colour)
   const altPool = COLOUR_KEYS.filter(
     (k) => k !== colour && (light ? !LIGHT_COLOURS.has(k) : k !== 'ink' && k !== 'walnut'),
   )
@@ -121,7 +136,10 @@ export function specFor(book: Book): BookSpec {
   const creases: [number, number][] =
     kind === 'paperback' ? Array.from({ length: 1 + Math.floor(r() * 3) }, () => [0.25 + r() * 0.5, r()]) : []
 
-  return { seed, kind, colour, light, col: PALETTE[colour], alt: PALETTE[altKey], height, thick, variant, faded, wear, slipX, motif, creases }
+  // A real book keeps one colour: no invented series band or second colour.
+  const col = real ? { c: real.c, t: real.t } : PALETTE[colour]
+  const alt = real ? { ...col } : PALETTE[altKey]!
+  return { seed, kind, colour, light, col, alt, height, thick, variant, faded, wear, slipX, motif, creases }
 }
 
 /** Spines carry the surname, as most real ones do; the detail shows the full name. */
@@ -197,7 +215,8 @@ export type Slot =
   | { type: 'object'; object: ShelfObject; w: number; h: number }
 
 export const OBJECT_SIZE: Record<ShelfObject, { w: number; h: number }> = {
-  bookend: { w: 46, h: 82 },
+  // The photo's own proportions, about two thirds the height of a 23 cm book.
+  bookend: { w: 74, h: 118 },
 }
 
 const LEAN_DEG = 7
@@ -250,6 +269,11 @@ export function layoutShelf(books: Book[], shelf: Shelf): Slot[] {
     }
   })
 
+  // The bookend stands against the last upright book, holding the row up; any pile lies beyond it.
+  if (shelf.object) {
+    slots.push({ type: 'object', object: shelf.object, ...OBJECT_SIZE[shelf.object] })
+  }
+
   if (flat.length) {
     const pile = [...flat].sort((a, b) => a.spec.height - b.spec.height)
     const w = Math.max(...pile.map((p) => p.spec.height))
@@ -261,10 +285,6 @@ export function layoutShelf(books: Book[], shelf: Shelf): Slot[] {
       h,
       shade: shade(w + 8),
     })
-  }
-
-  if (shelf.object) {
-    slots.push({ type: 'object', object: shelf.object, ...OBJECT_SIZE[shelf.object] })
   }
   return slots
 }

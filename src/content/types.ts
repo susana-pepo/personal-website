@@ -206,6 +206,10 @@ export interface Book {
   thicknessMm?: number
   /** Optional name for the spine. Defaults to the author's surname. */
   spineAuthor?: string
+  /** Optional photo of the real front cover, e.g. '/media/books/la-perra.webp'. Replaces the drawn cover. */
+  cover?: string
+  /** Optional real spine colour as a hex value, e.g. '#891a1e'. Wins over colour; the lettering picks light or dark ink to suit. */
+  spineColour?: string
 }
 
 export interface ContactLink {

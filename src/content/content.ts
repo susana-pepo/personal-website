@@ -304,22 +304,32 @@ export const content: SiteContent = {
     // Each book is drawn from its data. Optional extras: kind ('cloth' | 'leather' | 'jacket' | 'paperback'),
     // colour (a room colour such as 'teal' or 'ochre'), pose ('upright' | 'face' | 'lean' | 'flat'),
     // heightMm and thicknessMm (real sizes), and spineAuthor (defaults to the surname).
+    // cover is a photo of the real front cover (put it in public/media/books/), and spineColour
+    // the real spine colour as a hex value, picked from the cover. Heights are the editions' formats:
+    // 23 cm literary paperbacks, 19 cm pocket editions (Debolsillo, Booket), 24 cm hardbacks.
     books: [
-      { title: 'El infinito en un junco', author: 'Irene Vallejo', shelf: 'reading' },
+      // Debolsillo edition.
+      { title: 'El infinito en un junco', author: 'Irene Vallejo', shelf: 'reading', kind: 'paperback', cover: '/media/books/el-infinito-en-un-junco.webp', heightMm: 190, spineColour: '#fefbe8' },
 
-      { title: 'Good Strategy Bad Strategy', author: 'Richard Rumelt', shelf: 'work' },
-      { title: 'Music Law in the Digital Age', author: 'Allen Bargfrede', shelf: 'work' },
-      { title: 'Inspired', author: 'Marty Cagan', shelf: 'work' },
-      { title: 'Never Split the Difference', author: 'Chris Voss', shelf: 'work' },
-      { title: 'Prophecy', author: 'Carissa Véliz', shelf: 'work' },
+      { title: 'Good Strategy Bad Strategy', author: 'Richard Rumelt', shelf: 'work', kind: 'jacket', cover: '/media/books/good-strategy-bad-strategy.webp', heightMm: 240, spineColour: '#1a1a1a' },
+      // 4th edition (Berklee Press).
+      { title: 'Music Law in the Digital Age', author: 'Allen Bargfrede', shelf: 'work', kind: 'paperback', cover: '/media/books/music-law-in-the-digital-age.webp', heightMm: 229, spineColour: '#432b18' },
+      { title: 'Inspired', author: 'Marty Cagan', shelf: 'work', kind: 'jacket', cover: '/media/books/inspired.webp', heightMm: 235, spineColour: '#ffffff' },
+      { title: 'Never Split the Difference', author: 'Chris Voss', shelf: 'work', kind: 'jacket', cover: '/media/books/never-split-the-difference.webp', heightMm: 240, spineColour: '#f4bf16' },
+      { title: 'Prophecy', author: 'Carissa Véliz', shelf: 'work', kind: 'jacket', cover: '/media/books/prophecy.webp', heightMm: 240, spineColour: '#72a471' },
 
-      { title: 'La perra', author: 'Pilar Quintana', shelf: 'loved' },
-      { title: 'Los abismos', author: 'Pilar Quintana', shelf: 'loved' },
-      { title: 'Lo que no tiene nombre', author: 'Piedad Bonnet', shelf: 'loved' },
+      // Alfaguara edition.
+      { title: 'La perra', author: 'Pilar Quintana', shelf: 'loved', kind: 'paperback', cover: '/media/books/la-perra.webp', heightMm: 230, spineColour: '#141414' },
+      { title: 'Los abismos', author: 'Pilar Quintana', shelf: 'loved', kind: 'paperback', cover: '/media/books/los-abismos.webp', heightMm: 230, spineColour: '#090818' },
+      { title: 'Lo que no tiene nombre', author: 'Piedad Bonnett', shelf: 'loved', kind: 'paperback', cover: '/media/books/lo-que-no-tiene-nombre.webp', heightMm: 230, spineColour: '#46221d' },
+      // Jaramillo Klinkert and Pinkola Estés are double surnames, so the spines carry both.
+      { title: 'Donde cantan las ballenas', author: 'Sara Jaramillo Klinkert', shelf: 'loved', spineAuthor: 'Jaramillo Klinkert', kind: 'paperback', cover: '/media/books/donde-cantan-las-ballenas.webp', heightMm: 230, spineColour: '#ffffff' },
+      { title: 'Mujeres que corren con los lobos', author: 'Clarissa Pinkola Estés', shelf: 'loved', spineAuthor: 'Pinkola Estés', kind: 'paperback', cover: '/media/books/mujeres-que-corren-con-los-lobos.webp', heightMm: 230, spineColour: '#891a1e', thicknessMm: 40 },
       // Han is the family name, so the spine shows the full name rather than "Kang". The two lie in a pile.
-      { title: 'La clase de griego', author: 'Han Kang', shelf: 'loved', spineAuthor: 'Han Kang', pose: 'flat' },
-      { title: 'La vegetariana', author: 'Han Kang', shelf: 'loved', spineAuthor: 'Han Kang', pose: 'flat' },
-      { title: 'La ridícula idea de no volver a verte', author: 'Rosa Montero', shelf: 'loved' },
+      { title: 'La clase de griego', author: 'Han Kang', shelf: 'loved', spineAuthor: 'Han Kang', pose: 'flat', kind: 'paperback', cover: '/media/books/la-clase-de-griego.webp', heightMm: 230, spineColour: '#fefefe' },
+      { title: 'La vegetariana', author: 'Han Kang', shelf: 'loved', spineAuthor: 'Han Kang', pose: 'flat', kind: 'paperback', cover: '/media/books/la-vegetariana.webp', heightMm: 230, spineColour: '#ffffff' },
+      // Booket edition.
+      { title: 'La ridícula idea de no volver a verte', author: 'Rosa Montero', shelf: 'loved', kind: 'paperback', cover: '/media/books/la-ridicula-idea-de-no-volver-a-verte.webp', heightMm: 190, spineColour: '#ffffff' },
     ],
     emptyNote: 'The shelf is being arranged. Books will be here soon.',
   },

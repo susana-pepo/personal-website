@@ -34,6 +34,45 @@ function Vertical({ text, display, x, cy, fs, fill, max, opacity = 1 }: Vertical
   )
 }
 
+/** Rough width of a letter in the display face, as a share of the font size. */
+const GLYPH = 0.5
+
+/** Splits a title into two lines of about the same length, at a word break. */
+function halves(text: string): [string, string] | null {
+  const words = text.split(' ')
+  if (words.length < 2) return null
+  let best: [string, string] | null = null
+  for (let i = 1; i < words.length; i++) {
+    const a = words.slice(0, i).join(' ')
+    const b = words.slice(i).join(' ')
+    if (!best || Math.max(a.length, b.length) < Math.max(best[0].length, best[1].length)) best = [a, b]
+  }
+  return best
+}
+
+/**
+ * A real book's title, as large as the spine allows: one line when it reads at a good
+ * size, otherwise two lines side by side, as long titles are printed on real spines.
+ */
+function SpineTitle({ text, w, y0, y1, fill }: { text: string; w: number; y0: number; y1: number; fill: string }) {
+  const cx = w / 2
+  const len = y1 - y0
+  const one = clamp(Math.min(w * 0.42, len / (text.length * GLYPH)), 0, 13)
+  const split = one < 8.5 ? halves(text) : null
+  if (!split || w < 20) {
+    return <Vertical text={text} display x={cx} cy={(y0 + y1) / 2} fs={clamp(w * 0.42, 8.5, 13)} fill={fill} max={len} />
+  }
+  const fs = clamp(Math.min(w * 0.36, len / (Math.max(split[0].length, split[1].length) * GLYPH)), 6, 11)
+  const gap = fs * 0.6
+  // Turned to read top to bottom, a line's top faces right, so the first line sits on the right.
+  return (
+    <>
+      <Vertical text={split[0]} display x={cx + gap} cy={(y0 + y1) / 2} fs={fs} fill={fill} max={len} />
+      <Vertical text={split[1]} display x={cx - gap} cy={(y0 + y1) / 2} fs={fs} fill={fill} max={len} />
+    </>
+  )
+}
+
 interface BookSpineProps {
   book: Book
   spec: BookSpec
@@ -123,6 +162,15 @@ export function BookSpine({ book, spec: s, w = s.thick, h = s.height }: BookSpin
       <>
         <Vertical text={book.title} display x={cx} cy={h * (0.13 + 0.235)} fs={titleFs * 0.92} fill={gilt} max={h * 0.47 - 10} />
         <Vertical text={who} display={false} x={cx} cy={(bands[1]! + bands[2]!) / 2} fs={authorFs * 0.92} fill={gilt} max={bands[2]! - bands[1]! - 12} />
+      </>
+    )
+  } else if (book.spineColour) {
+    // A real book: its own colour, the full title and the author, and no invented bands.
+    const split = h * 0.74
+    letters = (
+      <>
+        <SpineTitle text={book.title} w={w} y0={8} y1={split} fill={s.col.t} />
+        <Vertical text={who} display={false} x={cx} cy={lerp(split + 4, h - 7, 0.5)} fs={clamp(w * 0.26, 7, 9.5)} fill={s.col.t} max={h - split - 13} opacity={0.85} />
       </>
     )
   } else if (s.kind === 'jacket') {

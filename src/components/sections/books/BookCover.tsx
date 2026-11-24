@@ -102,8 +102,15 @@ export function BookCover({ book, spec: s }: { book: Book; spec: BookSpec }) {
   return (
     <svg viewBox={`0 0 ${W} ${H}`} aria-hidden="true" focusable="false">
       <rect width={W} height={H} rx={rx} fill={s.col.c} />
-      <rect width={W} height={H} rx={rx} filter={url(tex)} opacity={s.kind === 'cloth' ? 0.38 : 0.26} style={{ mixBlendMode: 'overlay' }} />
-      {art}
+      {book.cover ? (
+        // The real cover, filling the board; the room's light and wear still fall on it.
+        <image href={book.cover} width={W} height={H} preserveAspectRatio="xMidYMid slice" />
+      ) : (
+        <>
+          <rect width={W} height={H} rx={rx} filter={url(tex)} opacity={s.kind === 'cloth' ? 0.38 : 0.26} style={{ mixBlendMode: 'overlay' }} />
+          {art}
+        </>
+      )}
       {hard ? (
         <>
           <rect x={9} y={0} width={1.4} height={H} fill={DARK} opacity={0.26} />

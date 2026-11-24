@@ -104,11 +104,11 @@ describe('shelf layout', () => {
     expect(slots.some((s) => s.type === 'object')).toBe(false)
   })
 
-  it('stands books upright unless a book asks to lean or lie flat', () => {
+  it('stands books upright unless a book asks to lean or lie flat, with the bookend against them', () => {
     expect(layoutShelf(loved, shelf('loved')).every((s) => s.type === 'upright')).toBe(true)
     const posed = [book('A'), book('B', { pose: 'lean' }), book('C', { pose: 'flat' }), book('D', { pose: 'flat' })]
     const slots = layoutShelf(posed, shelf('loved', 'bookend'))
-    expect(slots.map((s) => s.type)).toEqual(['upright', 'lean', 'stack', 'object'])
+    expect(slots.map((s) => s.type)).toEqual(['upright', 'lean', 'object', 'stack'])
     const stack = slots.find((s) => s.type === 'stack')
     if (stack?.type !== 'stack') throw new Error('expected a pile')
     expect(stack.books).toHaveLength(2)

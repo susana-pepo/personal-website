@@ -706,16 +706,17 @@
 
 /* ── Sizes: the book unit follows the width of the panel ── */
 @container shelves (min-width: 34rem) {
+  /* Large enough that every spine reads, and never wider than the panel (the long shelf is about 480 units). */
   .bs-bay {
-    --u: 1px;
+    --u: min(1.3px, calc(100cqi / 480));
   }
 
   [data-shelf='work'] .bs-bay {
-    --u: 1.1px;
+    --u: 1.4px;
   }
 
   .bs-feature .bs-bay {
-    --u: 1.1px;
+    --u: 1.45px;
   }
 
   /* Side by side, the current read's title and author sit under its board. */
@@ -736,7 +737,30 @@
 
 @container shelves (max-width: 30rem) {
   .bs-bay {
-    --u: 0.84px;
+    --u: min(0.84px, calc(100cqi / 480));
+  }
+
+  /* The long shelf keeps its spines readable and slides sideways instead of shrinking. */
+  [data-shelf='loved'] .bs-plain {
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding-bottom: var(--space-sm);
+  }
+
+  [data-shelf='loved'] .bs-plain::-webkit-scrollbar {
+    display: none;
+  }
+
+  [data-shelf='loved'] .bs-bay {
+    --u: 1.15px;
+    width: max-content;
+    max-width: none;
+  }
+
+  [data-shelf='loved'] .bs-caption {
+    position: sticky;
+    left: 0;
   }
 
   /* On a phone the title and author stay beside the cover. */
@@ -746,7 +770,7 @@
   }
 
   .bs-feature .bs-bay {
-    --u: 0.95px;
+    --u: 1.1px;
   }
 
   .bs-feature__text {
@@ -759,7 +783,7 @@
   }
 
   [data-shelf='work'] .bs-bay {
-    --u: 0.95px;
+    --u: 1.2px;
   }
 
   [data-shelf='work'] .bs-row {
