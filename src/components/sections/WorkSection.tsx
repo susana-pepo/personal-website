@@ -3,8 +3,8 @@ import { WorkDesktop } from './work/WorkDesktop'
 
 /**
  * Things I've built: the room's tablet, drawn front-on on the walnut board,
- * with each project as a file on its desktop. Opening one pours a window
- * out of the file ("Put it back" returns it); on phones it unfolds in place.
+ * with the projects as big drawings that scroll on its screen. Choosing one
+ * fills the screen with that project ("Put it back" returns to the tiles).
  * The tablet is one top-level block, so the panel's entrance cascade applies.
  */
 export default function WorkSection() {

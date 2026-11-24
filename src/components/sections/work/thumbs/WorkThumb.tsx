@@ -104,6 +104,12 @@ function Keys({ id }: { id: string }) {
         return (
           <rect
             key={k}
+            className={pressed ? "wt-key" : undefined}
+            style={
+              pressed
+                ? ({ "--i": PRESSED.indexOf(k) } as CSSProperties)
+                : undefined
+            }
             x={x + 0.5}
             y="73"
             width={KEY_W - 1}

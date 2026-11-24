@@ -1,83 +1,182 @@
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import {
-  clampStart,
-  columnsFrom,
-  fileIndexForKey,
-  genieKeyframes,
-  selectionInView,
-  startToShow,
-} from '../components/sections/work/desktop'
+import WorkSection from '../components/sections/WorkSection'
+import { MOVE, placeOver, rowIndexForKey, wheelGoesToPage } from '../components/sections/work/desktop'
+import { ProjectPage, projectRowId } from '../components/sections/work/ProjectPage'
+import { content } from '../content/content'
 
-describe('columnsFrom', () => {
-  it('counts the files on the first row', () => {
-    expect(columnsFrom([10, 10, 10, 10, 10])).toBe(5)
-    expect(columnsFrom([10, 10.6, 10, 120, 120])).toBe(3)
-    expect(columnsFrom([10, 90, 170])).toBe(1)
-    expect(columnsFrom([])).toBe(1)
+const { projects } = content.work
+const noop = () => {}
+const esc = (s: string) => s.replace(/&/g, '&amp;')
+
+describe('the tablet at rest: the projects as rows', () => {
+  const html = renderToStaticMarkup(createElement(WorkSection))
+
+  it('lists every project as one row in a labelled list, in order', () => {
+    expect(html).toContain(`<ul class="wdesk__rows" role="list" aria-label="${projects.label}">`)
+    const rows = html.match(/<li id="([^"]+)" class="wdesk__row wtile"/g) ?? []
+    expect(rows).toHaveLength(projects.items.length)
+    projects.items.forEach((project, k) => {
+      expect(rows[k]).toContain(`id="${projectRowId(project.id)}"`)
+    })
+  })
+
+  it('makes each row one button named by the title, with the drawing, the name and the line', () => {
+    const buttons = html.match(/<button type="button" class="wdesk__open"[\s\S]*?<\/button>/g) ?? []
+    expect(buttons).toHaveLength(projects.items.length)
+    projects.items.forEach((project, k) => {
+      const id = projectRowId(project.id)
+      const button = buttons[k]!
+      expect(button).toContain(`aria-labelledby="${id}-name"`)
+      expect(button).toContain(`aria-describedby="${id}-line"`)
+      expect(button).toContain('class="wthumb"')
+      expect(button).toContain(`<span id="${id}-name" class="wdesk__name">${esc(project.title)}</span>`)
+      expect(button).toContain(`<span id="${id}-line" class="wdesk__line">${esc(project.line)}</span>`)
+      // The drawing comes first, then the words.
+      expect(button.indexOf('class="wthumb"')).toBeLessThan(button.indexOf('class="wdesk__name"'))
+    })
+  })
+
+  it('shows no summaries and no open page until a row is chosen', () => {
+    for (const project of projects.items) expect(html).not.toContain(esc(project.summary))
+    expect(html).not.toContain('wdesk__page')
+    expect(html).not.toContain('Put it back')
   })
 })
 
-describe('fileIndexForKey', () => {
-  it('moves along a row and stops at the ends', () => {
-    expect(fileIndexForKey(0, 'ArrowRight', 5, 5)).toBe(1)
-    expect(fileIndexForKey(4, 'ArrowRight', 5, 5)).toBe(4)
-    expect(fileIndexForKey(0, 'ArrowLeft', 5, 5)).toBe(0)
+describe('one project on the screen', () => {
+  const page = (k: number) =>
+    renderToStaticMarkup(createElement(ProjectPage, { project: projects.items[k]!, onPutBack: noop }))
+
+  it('is a region named by the project’s title, which can take focus', () => {
+    projects.items.forEach((project, k) => {
+      const html = page(k)
+      const id = `${projectRowId(project.id)}-title`
+      expect(html).toMatch(
+        new RegExp(`^<section id="${projectRowId(project.id)}-page" class="wdesk__page" aria-labelledby="${id}">`),
+      )
+      expect(html).toContain(`<h3 id="${id}" class="wdesk__title" tabindex="-1">${esc(project.title)}</h3>`)
+    })
   })
 
-  it('moves by a row in a single column, and stays put past the edge', () => {
-    expect(fileIndexForKey(0, 'ArrowDown', 5, 1)).toBe(1)
-    expect(fileIndexForKey(3, 'ArrowUp', 5, 1)).toBe(2)
-    expect(fileIndexForKey(1, 'ArrowDown', 5, 5)).toBe(1)
-    expect(fileIndexForKey(4, 'ArrowDown', 5, 1)).toBe(4)
+  it('starts with “Put it back”, then the drawing, then the words', () => {
+    const html = page(0)
+    const back = html.indexOf('Put it back')
+    const drawing = html.indexOf('class="wthumb"')
+    const title = html.indexOf('class="wdesk__title"')
+    expect(back).toBeGreaterThan(0)
+    expect(back).toBeLessThan(drawing)
+    expect(drawing).toBeLessThan(title)
+  })
+
+  it('shows the summary, the topics and the link, which opens in a new tab', () => {
+    projects.items.forEach((project, k) => {
+      const html = page(k)
+      expect(html).toContain(`<p class="wdesk__summary">${esc(project.summary)}</p>`)
+      if (project.topics) for (const topic of project.topics) expect(html).toContain(`<li>${esc(topic)}</li>`)
+      if (project.href) {
+        expect(html).toContain(`href="${project.href}" target="_blank" rel="noopener noreferrer"`)
+        expect(html).toContain(`${esc(project.linkLabel ?? project.title)}<span aria-hidden="true"> ↗</span>`)
+        expect(html).toContain('(opens in a new tab)')
+      } else {
+        expect(html).not.toContain('<a ')
+      }
+    })
+  })
+
+  it('has one button, “Put it back”, and no way to step to another project', () => {
+    const html = page(2)
+    expect(html.match(/<button/g)).toHaveLength(1)
+    expect(html).not.toMatch(/Previous|Next|of 5/)
+  })
+})
+
+describe('rowIndexForKey', () => {
+  it('moves to the next row with Down or Right and stops at the last', () => {
+    expect(rowIndexForKey(0, 'ArrowDown', 5)).toBe(1)
+    expect(rowIndexForKey(2, 'ArrowRight', 5)).toBe(3)
+    expect(rowIndexForKey(4, 'ArrowDown', 5)).toBe(4)
+  })
+
+  it('moves to the row before with Up or Left and stops at the first', () => {
+    expect(rowIndexForKey(3, 'ArrowUp', 5)).toBe(2)
+    expect(rowIndexForKey(1, 'ArrowLeft', 5)).toBe(0)
+    expect(rowIndexForKey(0, 'ArrowUp', 5)).toBe(0)
   })
 
   it('jumps with Home and End and ignores other keys', () => {
-    expect(fileIndexForKey(2, 'Home', 5, 5)).toBe(0)
-    expect(fileIndexForKey(2, 'End', 5, 5)).toBe(4)
-    expect(fileIndexForKey(2, 'Enter', 5, 5)).toBeNull()
-    expect(fileIndexForKey(0, 'ArrowRight', 0, 5)).toBeNull()
+    expect(rowIndexForKey(2, 'Home', 5)).toBe(0)
+    expect(rowIndexForKey(2, 'End', 5)).toBe(4)
+    expect(rowIndexForKey(2, 'Enter', 5)).toBeNull()
+    expect(rowIndexForKey(2, ' ', 5)).toBeNull()
+  })
+
+  it('returns null with no rows or no row focused', () => {
+    expect(rowIndexForKey(0, 'ArrowDown', 0)).toBeNull()
+    expect(rowIndexForKey(-1, 'ArrowDown', 5)).toBeNull()
   })
 })
 
-describe('genieKeyframes', () => {
-  const file = { x: 110, y: 60, w: 100, h: 120 }
-  const win = { x: 10, y: 20, w: 500, h: 400 }
-  const frames = genieKeyframes(file, win)
+describe('placeOver', () => {
+  const home = { left: 100, top: 50, width: 280, height: 210 }
 
-  it('starts on the file, invisible', () => {
-    expect(frames[0]).toMatchObject({ offset: 0, opacity: 0, transform: 'translate(100px, 40px) scale(0.2, 0.3)' })
+  it('moves and scales the page’s drawing onto its row, from the top-left corner', () => {
+    const row = { left: 20, top: 300, width: 210, height: 157.5 }
+    expect(placeOver(home, row)).toBe('translate(-80px, 250px) scale(0.75)')
   })
 
-  it('reaches full width before full height', () => {
-    const mid = frames.find((f) => f.offset === 0.55)!
-    expect(mid.transform).toMatch(/^translate\(0px, 22px\) scale\(1, 0\.615\)$/)
+  it('leaves a drawing already in place untouched', () => {
+    expect(placeOver(home, { ...home })).toBe('none')
   })
 
-  it('lands exactly on the window', () => {
-    expect(frames.at(-1)).toMatchObject({ offset: 1, opacity: 1, transform: 'translate(0px, 0px) scale(1, 1)' })
-  })
-})
-
-describe('browsing three files at a time', () => {
-  it('keeps the view inside the list', () => {
-    expect(clampStart(-1, 3, 5)).toBe(0)
-    expect(clampStart(4, 3, 5)).toBe(2)
-    expect(clampStart(1, 3, 2)).toBe(0)
+  it('gives none for a box with no width, so a hidden row never collapses the drawing', () => {
+    expect(placeOver(home, { left: 0, top: 0, width: 0, height: 0 })).toBe('none')
+    expect(placeOver({ ...home, width: 0 }, home)).toBe('none')
   })
 
-  it('moves the view only as far as needed to show a file', () => {
-    expect(startToShow(1, 0, 3, 5)).toBe(0)
-    expect(startToShow(3, 0, 3, 5)).toBe(1)
-    expect(startToShow(4, 0, 3, 5)).toBe(2)
-    expect(startToShow(0, 2, 3, 5)).toBe(0)
-    expect(startToShow(2, 2, 3, 5)).toBe(2)
+  it('rounds to whole hundredths of a pixel', () => {
+    expect(placeOver(home, { left: 100.123, top: 50.456, width: 280, height: 210 })).toBe(
+      'translate(0.12px, 0.46px) scale(1)',
+    )
   })
 })
 
-describe('selectionInView', () => {
-  it('keeps the selected file among the three in view', () => {
-    expect(selectionInView(0, 1, 3)).toBe(1)
-    expect(selectionInView(4, 0, 3)).toBe(2)
-    expect(selectionInView(3, 2, 3)).toBe(3)
+describe('wheelGoesToPage', () => {
+  const atEnd = { scrollTop: 532.4, scrollHeight: 995, clientHeight: 462.6 }
+  const middle = { scrollTop: 200, scrollHeight: 995, clientHeight: 462.6 }
+
+  it('passes a fresh downward gesture to the page when the screen is at its end, even a fraction short', () => {
+    expect(wheelGoesToPage(atEnd, 40, true, false)).toBe(true)
+    expect(wheelGoesToPage({ ...atEnd, scrollTop: 531.6 }, 40, true, false)).toBe(true)
+  })
+
+  it('keeps a fresh gesture on the screen while it can still scroll', () => {
+    expect(wheelGoesToPage(middle, 40, true, false)).toBe(false)
+    expect(wheelGoesToPage({ ...atEnd, scrollTop: 500 }, 40, true, false)).toBe(false)
+  })
+
+  it('keeps a gesture where it started: one that reaches the end part-way stays on the screen', () => {
+    expect(wheelGoesToPage(atEnd, 40, false, false)).toBe(false)
+    expect(wheelGoesToPage(middle, 40, false, true)).toBe(true)
+  })
+
+  it('leaves upward scrolling to the browser', () => {
+    expect(wheelGoesToPage({ ...middle, scrollTop: 0 }, -40, true, false)).toBe(false)
+    expect(wheelGoesToPage(atEnd, -40, false, true)).toBe(false)
+  })
+})
+
+describe('the move between the rows and a page', () => {
+  it('lets the other rows go before the drawing lands and the words arrive after it has mostly landed', () => {
+    expect(MOVE.rowsOut).toBeLessThan(MOVE.travel / 2)
+    expect(MOVE.wordsIn.delay).toBeGreaterThanOrEqual(MOVE.rowsOut)
+    expect(MOVE.travel).toBeGreaterThanOrEqual(420)
+    expect(MOVE.travel).toBeLessThanOrEqual(520)
+  })
+
+  it('takes the words away first on the way back', () => {
+    expect(MOVE.wordsOut).toBeLessThan(MOVE.back)
+    expect(MOVE.fade).toBeLessThan(MOVE.travel)
   })
 })

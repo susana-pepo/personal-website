@@ -24,7 +24,14 @@
 }
 
 .wthumb .wt-note {
+  transform-box: fill-box;
   transform-origin: center;
+}
+
+/* A pressed key goes down from its top edge, as a real key pivots at the back. */
+.wthumb .wt-key {
+  transform-box: fill-box;
+  transform-origin: 50% 0;
 }
 
 .wthumb .wt-bar {
@@ -47,11 +54,16 @@
     }
   }
 
-  /* Chord builder: the chord is played, C, then E, then G: each note gives a small pulse and
-     settles. It starts and ends on the finished drawing, so nothing vanishes first. */
+  /* Chord builder: the chord is played, C, then E, then G: each key goes down and its dot
+     swells, then both settle. It starts and ends on the finished drawing, so nothing vanishes. */
   :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-note {
-    animation: wt-note 360ms var(--ease-in-out, ease-in-out);
-    animation-delay: calc(var(--i) * 110ms);
+    animation: wt-note 520ms var(--ease-out, ease-out);
+    animation-delay: calc(var(--i) * 150ms);
+  }
+
+  :is(.wtile:hover, .wtile:focus-within, .wtile[data-play]) .wt-key {
+    animation: wt-key 520ms var(--ease-out, ease-out);
+    animation-delay: calc(var(--i) * 150ms);
   }
 
   /* Guidebook: the tabs slide out in turn, and the top of the list fills. */
@@ -90,9 +102,17 @@
   }
 }
 
+/* Each note of the chord: the key goes down, its dot swells, then both settle. */
 @keyframes wt-note {
-  50% {
-    transform: scale(1.06);
+  30% {
+    transform: scale(1.55);
+  }
+}
+
+@keyframes wt-key {
+  25% {
+    transform: translateY(2.5px) scaleY(0.985);
+    filter: brightness(0.9);
   }
 }
 

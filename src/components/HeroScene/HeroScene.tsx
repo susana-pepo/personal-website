@@ -38,7 +38,7 @@ import './HeroScene.css'
 
 /** The room as a picture's description; the weather outside follows the control. */
 const sceneDescription = (weather: Weather, words = WEATHER_WORDS[weather]) =>
-  `An illustrated room on ${words.evening}. A woman with long brown hair sits at a wooden desk by a tall window, writing in a notebook under a brass lamp, beside an open laptop, a small stack of books, a vase of blossoms, a steaming cup of coffee, headphones and a sleeping ginger-and-cream cat. ${words.outside} Behind her, a bookshelf holds books, an orchid and a vintage camera, and a record player rests on a low wooden cabinet.`
+  `An illustrated room on ${words.evening}. A woman with long brown hair sits at a wooden desk by a tall window, writing in a notebook under a brass lamp, beside an open laptop, a small stack of books, a vase of blossoms, a steaming cup of coffee, headphones and a sleeping ginger-and-cream cat. ${words.outside} Behind her, a bookshelf holds books, an orchid and a trailing pothos in a terracotta pot, and a record player rests on a low wooden cabinet.`
 
 // Development only: ?weather=clear|rain|snow starts the room in that weather.
 const weatherRequested = (() => {

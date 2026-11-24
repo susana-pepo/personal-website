@@ -1,41 +1,24 @@
 /**
- * Pure pieces of Work's desktop (the laptop screen with project files), kept
- * apart from the components so they can be tested without a DOM.
+ * Pure pieces of Work's tablet (the projects as rows on its screen, one
+ * project's page, and the move between them), kept apart from the component
+ * so they can be tested without a DOM.
  */
-
-/** A box in one shared coordinate space (e.g. client coordinates). */
-export interface Box {
-  x: number
-  y: number
-  w: number
-  h: number
-}
-
-/** How many files share the first row, from each file's top edge (in px). */
-export function columnsFrom(tops: readonly number[]): number {
-  if (tops.length === 0) return 1
-  const first = tops[0]!
-  return Math.max(1, tops.filter((top) => Math.abs(top - first) < 2).length)
-}
 
 /**
- * Arrow keys move between files as they sit on the screen: left and right by
- * one, up and down by a row. Home and End jump to the first and last file.
- * Moves stop at the edges. Any other key returns null.
+ * Arrow keys move between the rows in reading order: down and right go to the
+ * next row, up and left to the one before. Moves stop at the ends. Home and
+ * End jump to the first and last row. Any other key returns null.
  */
-export function fileIndexForKey(current: number, key: string, count: number, columns: number): number | null {
+export function rowIndexForKey(current: number, key: string, count: number): number | null {
   if (count <= 0 || current < 0) return null
   const last = count - 1
-  const cols = Math.max(1, columns)
   switch (key) {
+    case 'ArrowDown':
     case 'ArrowRight':
       return Math.min(last, current + 1)
+    case 'ArrowUp':
     case 'ArrowLeft':
       return Math.max(0, current - 1)
-    case 'ArrowDown':
-      return current + cols <= last ? current + cols : current
-    case 'ArrowUp':
-      return current - cols >= 0 ? current - cols : current
     case 'Home':
       return 0
     case 'End':
@@ -45,52 +28,68 @@ export function fileIndexForKey(current: number, key: string, count: number, col
   }
 }
 
-const round = (n: number) => Math.round(n * 1000) / 1000
-
-function transform(tx: number, ty: number, sx: number, sy: number) {
-  return `translate(${round(tx)}px, ${round(ty)}px) scale(${round(sx)}, ${round(sy)})`
+export interface Box {
+  left: number
+  top: number
+  width: number
+  height: number
 }
 
 /**
- * A short, simplified echo of the room's genie: the window pours out of its
- * file. Width leads height, so it reads as poured rather than zoomed. Transform
- * and opacity only; the window's transform-origin must be its top-left corner.
- * Played backwards, the same keyframes put the window back into the file.
+ * The transform that lays an element whose own box is `home` over the box
+ * `over`, for a transform-origin of 0 0. The drawing keeps its proportions, so
+ * one scale (from the widths) is enough. A box with no width gives 'none'.
  */
-export function genieKeyframes(file: Box, win: Box): Keyframe[] {
-  const sx = win.w > 0 ? file.w / win.w : 1
-  const sy = win.h > 0 ? file.h / win.h : 1
-  const tx = file.x - win.x
-  const ty = file.y - win.y
-  // Midway: already full width, still part of its height, halfway down from the file.
-  const lead = 0.45
-  return [
-    { offset: 0, opacity: 0, transform: transform(tx, ty, sx, sy) },
-    { offset: 0.14, opacity: 1 },
-    { offset: 0.55, transform: transform(0, ty * (1 - lead), 1, sy + (1 - sy) * lead) },
-    { offset: 1, opacity: 1, transform: transform(0, 0, 1, 1) },
-  ]
+export function placeOver(home: Box, over: Box): string {
+  if (home.width <= 0 || over.width <= 0) return 'none'
+  const dx = round(over.left - home.left)
+  const dy = round(over.top - home.top)
+  const s = round(over.width / home.width, 4)
+  if (dx === 0 && dy === 0 && s === 1) return 'none'
+  return `translate(${dx}px, ${dy}px) scale(${s})`
 }
 
-/** Reduced motion: the window simply cross-fades in place. */
-export const FADE_KEYFRAMES: Keyframe[] = [{ opacity: 0 }, { opacity: 1 }]
-
-/** How many files the desktop shows at once on a wide screen. */
-export const VISIBLE_FILES = 3
-
-/** The first visible file, kept inside 0 … count − visible. */
-export function clampStart(start: number, visible: number, count: number): number {
-  return Math.min(Math.max(0, start), Math.max(0, count - visible))
+const round = (n: number, places = 2) => {
+  const f = 10 ** places
+  return Math.round(n * f) / f
 }
 
-/** The smallest move of the view that brings file `index` into it. */
-export function startToShow(index: number, start: number, visible: number, count: number): number {
-  if (index < start) return clampStart(index, visible, count)
-  if (index >= start + visible) return clampStart(index - visible + 1, visible, count)
-  return clampStart(start, visible, count)
+/** A pause this long (ms) between wheel events starts a new wheel gesture. */
+export const WHEEL_GESTURE_GAP = 200
+
+/**
+ * Whether a wheel event over the screen should scroll the page around the tablet instead.
+ * Chrome can leave the screen's scroll a fraction of a pixel short of its end (when the tablet
+ * sits at a fractional position), and then a wheel there stays on the screen and the page never
+ * moves. So a downward gesture that starts at the end of the screen's scroll (within a pixel) is
+ * passed to the page, for as long as it lasts. A gesture that reaches the end part-way stays on
+ * the screen, as browsers keep a scroll on the box it started in. Upward is left to the browser:
+ * the top is never a fraction away.
+ */
+export function wheelGoesToPage(
+  view: { scrollTop: number; scrollHeight: number; clientHeight: number },
+  deltaY: number,
+  freshGesture: boolean,
+  passing: boolean,
+): boolean {
+  if (deltaY <= 0) return false
+  if (!freshGesture) return passing
+  return view.scrollTop >= view.scrollHeight - view.clientHeight - 1
 }
 
-/** After the row slides, the selected file stays among the ones in view. */
-export function selectionInView(selected: number, start: number, visible: number): number {
-  return Math.min(Math.max(selected, start), start + visible - 1)
-}
+/**
+ * The move between the rows and a project's page, in ms. The drawing travels;
+ * the other rows leave quickly; the page's words arrive once the drawing has
+ * mostly landed. Putting it back, the words leave first and the rows return
+ * while the drawing settles into its row.
+ */
+export const MOVE = {
+  travel: 480,
+  rowsOut: 140,
+  wordsIn: { delay: 140, duration: 260 },
+  back: 440,
+  wordsOut: 120,
+  rowsIn: { delay: 140, duration: 280 },
+  /** Reduced motion: a short crossfade and nothing travels. */
+  fade: 160,
+} as const

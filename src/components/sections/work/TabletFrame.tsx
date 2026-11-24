@@ -5,7 +5,7 @@ import './tablet.css'
 
 /**
  * A tablet in landscape, drawn front-on: an aluminium edge, an even bezel with
- * a camera dot, and a screen that grows with its content. It rests in a small
+ * a camera dot, and a screen of one shape (its content scrolls inside it). It rests in a small
  * walnut stand on the same board as the record crate and the desk pile.
  * Decorative parts are hidden from screen readers; the screen's content is not.
  */

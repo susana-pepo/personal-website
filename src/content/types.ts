@@ -267,6 +267,9 @@ export interface SiteContent {
     entries: ExperienceEntry[]
     education: EducationEntry[]
     cvLabel: string
+    /** The CV's folder on the background pile, and the line under its title when opened. */
+    cvTitle: string
+    cvNote: string
   }
   bookshelf: { intro: string; shelves: Shelf[]; books: Book[]; emptyNote: string }
   music: {

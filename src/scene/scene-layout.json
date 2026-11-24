@@ -1,5 +1,5 @@
 {
-  "$comment": "glow: opacity of the precomputed amber halo at rest (always softly lit, so the objects read as interactive), how much it swells in an optional breathing pulse before the first interaction (0 = off), and on hover/focus (when the object also grows slightly), and lift = brightness of the artwork on hover (1 = none; the cat is a video and is never filtered). shadow (optional): a soft contact shadow under the object, as fractions of its box, so it sits on its surface. One 1920x1080 canvas shared by the room video and every overlay. x/y/width are the overlay's top-left corner and width in canvas pixels; height always follows the PNG's own aspect ratio (intrinsic). Layer order: room 1, camera 3, shelf books 4, record player 5, desk books 6, laptop 7, woman 8, cat 8, coffee 9 (the mug stands in front of the cat). Objects with `glow` are interactive (halo + hover); the others are plain layers to animate later. After moving an overlay, run `npm run scene:trace` so its clickable outline follows. Tune with ?debug=1 in development.",
+  "$comment": "glow: opacity of the precomputed amber halo at rest (always softly lit, so the objects read as interactive), how much it swells in an optional breathing pulse before the first interaction (0 = off), and on hover/focus (when the object also grows slightly), and lift = brightness of the artwork on hover (1 = none; the cat is a video and is never filtered). shadow (optional): a soft contact shadow under the object, as fractions of its box, so it sits on its surface. One 1920x1080 canvas shared by the room video and every overlay. x/y/width are the overlay's top-left corner and width in canvas pixels; height always follows the PNG's own aspect ratio (intrinsic). Layer order: room 1, plant 3, shelf books 4, record player 5, desk books 6, laptop 7, woman 8, cat 8, coffee 9 (the mug stands in front of the cat). Objects with `glow` are interactive (halo + hover); the others are plain layers to animate later. After moving an overlay, run `npm run scene:trace` so its clickable outline follows. Tune with ?debug=1 in development.",
   "canvas": {
     "width": 1920,
     "height": 1080
@@ -18,15 +18,15 @@
   },
   "overlays": [
     {
-      "id": "camera",
-      "src": "/media/scene/camera.webp",
+      "id": "plant",
+      "src": "/media/scene/plant.webp",
       "intrinsic": [
-        1254,
-        1254
+        640,
+        696
       ],
-      "x": 375,
-      "y": 438,
-      "width": 131,
+      "x": 323,
+      "y": 408,
+      "width": 196,
       "z": 3
     },
     {
@@ -104,9 +104,9 @@
         1536,
         1024
       ],
-      "x": 975,
-      "y": 655,
-      "width": 209,
+      "x": 973,
+      "y": 632,
+      "width": 239,
       "z": 6,
       "glow": {
         "rest": 0.6,

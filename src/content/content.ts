@@ -289,6 +289,8 @@ export const content: SiteContent = {
       },
     ],
     cvLabel: 'Download CV (PDF)',
+    cvTitle: 'Curriculum vitae',
+    cvNote: 'One page, as a PDF.',
   },
 
   bookshelf: {

@@ -1,10 +1,16 @@
 /*
- * Work's desktop: the tablet's screen. Flat hills in walnut, terracotta and rose
- * along the bottom (the painted wallpaper, translated into room colours, no
- * gradient), the projects as files shown three at a time (arrows browse the
- * rest), and the open project as a window poured out of its file: dark like the
- * panel but raised a step lighter, with a faint light outline.
- * On phones: one column, each file unfolding in place beneath itself.
+ * Work's tablet screen. Flat hills in walnut, terracotta and rose along the
+ * bottom (the painted wallpaper, translated into room colours, no gradient).
+ * The screen keeps one shape. At rest it holds the projects as rows, one under
+ * another: on a wide tablet a big drawing on the left of each row with its name
+ * and line beside it, on a phone the drawing across the screen with the name
+ * beneath. The rows scroll inside the screen, the next one peeking above a soft
+ * fade. Choosing one fills the screen with that project alone, in one column at
+ * every width: the drawing at the top, sized from the screen's height so that it
+ * and the words beneath it fit the screen together, then the words. "Put it
+ * back" returns to the rows. The move between the two is driven from
+ * WorkDesktop.tsx (transform and opacity only); this file holds the resting
+ * state of each phase.
  */
 
 /* The intro reads at a calm size, so the project titles outrank it. */
@@ -16,77 +22,120 @@
 }
 
 .wdesk {
+  --hills: 1.6rem;
+  --pad-x: 1.25rem;
+  /* A fixed screen a little wider than tall (the tablet's width less its edge and bezel);
+     what does not fit scrolls inside it. */
+  --screen-h: min(calc((100cqw - 38px) * 0.86), 72svh);
+  /* On a project’s page the drawing takes a little under half the screen’s height (its width follows at
+     4:3), so the drawing and the words fit the screen together. */
+  --pic-h: calc(var(--screen-h) * 0.45);
   position: relative;
   display: grid;
-  /* At least a 4:3-ish screen (the tablet's width less its edge and bezel); it grows past that if needed. */
-  min-height: calc((100cqw - 38px) * 0.7);
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  height: var(--screen-h);
   color: var(--scr-ink);
-  --sel: oklch(0.86 0.06 72); /* the warm highlight of the selected file */
+  font-family: var(--font-sans);
 }
 
 .wdesk__hills {
   position: absolute;
   inset: auto 0 0;
-  z-index: 0;
+  z-index: 2;
   display: block;
   width: 100%;
-  height: 3.1rem;
+  height: var(--hills);
   pointer-events: none;
 }
 
-/* ── The files: three in view, the same size and spacing, the row slides ── */
-.wdesk__browse {
-  --fgap: 1.25rem;
-  position: relative;
-  z-index: 1;
+/* ── Both views scroll inside the screen and fade out softly above the hills ── */
+.wdesk__rows,
+.wdesk__page {
+  --fade: 3rem;
   grid-area: 1 / 1;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  /* At either end the page itself carries on scrolling. */
+  overscroll-behavior: auto;
+  scrollbar-width: thin;
+  scrollbar-color: oklch(0.94 0.008 80 / 0.2) transparent;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 0.875rem,
+    #000 calc(100% - var(--hills) - var(--fade)),
+    transparent calc(100% - var(--hills) + 0.25rem)
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    transparent 0,
+    #000 0.875rem,
+    #000 calc(100% - var(--hills) - var(--fade)),
+    transparent calc(100% - var(--hills) + 0.25rem)
+  );
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .wdesk__rows,
+  .wdesk__page {
+    scroll-behavior: smooth;
+  }
+}
+
+/* Fingers swipe; they need no bar. */
+@media (any-pointer: coarse) {
+  .wdesk__rows,
+  .wdesk__page {
+    scrollbar-width: none;
+  }
+}
+
+/* ── The rows: one project to a row, a big drawing with its name and line beside it ── */
+.wdesk__rows {
   display: grid;
-  grid-template-rows: auto 1fr auto;
-  padding: 1.75rem 1.6rem 3.6rem;
-  transition: opacity 240ms ease;
-}
-
-.wdesk[data-window] .wdesk__browse {
-  opacity: 0.28;
-}
-
-/* Clips the row; its negative margin leaves room for the lift, the ring and the focus outline. */
-.wdesk__viewport {
-  min-width: 0;
-  margin: -8px -7px;
-  padding: 8px 7px;
-  overflow: hidden;
-  /* clip, not hidden: a focused file off to the side must not scroll the row itself. */
-  overflow: clip;
-}
-
-.wdesk__files {
-  display: flex;
-  gap: var(--fgap);
+  align-content: start;
+  gap: 1.25rem;
   margin: 0;
-  padding: 0;
+  /* The end is padded past the fade and the hills, so the last row reads clearly. */
+  padding: 1.25rem var(--pad-x) calc(var(--hills) + 3.25rem);
   list-style: none;
-  transform: translateX(calc(var(--start, 0) * -1 * (100% + var(--fgap)) / 3));
-  transition: transform 460ms var(--ease-out);
+  scroll-snap-type: y proximity;
+  /* Focus and snapping keep a row clear of the top edge and the fade. */
+  scroll-padding: 1.25rem 0 calc(var(--hills) + 3rem);
 }
 
-.wdesk__file {
-  flex: 0 0 calc((100% - 2 * var(--fgap)) / 3);
+.wdesk__row {
   min-width: 0;
+  scroll-snap-align: start;
 }
 
+/* While its drawing is on the move, the row's own copy steps aside. */
+.wdesk__row[data-source] .wthumb {
+  opacity: 0;
+}
+
+/* The row a drawing was put back into keeps its drawing still while it has focus, so the drawing
+   lands as it left the page instead of part-way through its small motion. */
+.wdesk__row.wtile[data-still] .wthumb * {
+  animation: none;
+}
+
+/* The drawing takes a little under half the row; the words fill the rest, centred beside it. */
 .wdesk__open {
   display: grid;
-  justify-items: center;
-  gap: 0.6rem;
+  grid-template-columns: minmax(0, 46fr) minmax(0, 54fr);
+  align-items: center;
+  gap: 0.75rem 1.5rem;
   width: 100%;
+  min-height: 2.75rem;
   padding: 0;
   border: 0;
   border-radius: 8px;
   background: none;
   color: inherit;
   font: inherit;
-  text-align: center;
+  text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -96,474 +145,282 @@
   outline-offset: 4px;
 }
 
-.wdesk__open .wthumb {
-  box-shadow:
-    0 0 0 0 transparent,
-    0 1px 2px oklch(0 0 0 / 0.3),
-    0 8px 16px -10px oklch(0 0 0 / 0.6);
-  transition:
-    box-shadow 180ms ease,
-    filter 180ms ease,
-    transform 320ms var(--ease-out);
+.wdesk__caption {
+  display: grid;
+  gap: 0.45rem;
+  min-width: 0;
+  max-width: 30ch;
+  padding-right: 0.25rem;
 }
 
-/* The selected file: a thin warm ring round its drawing. No underlines, nothing moves. */
-.wdesk__file[data-selected] .wthumb,
-.wdesk__file[data-state='open'] .wthumb {
-  box-shadow:
-    0 0 0 2px var(--sel),
-    0 1px 2px oklch(0 0 0 / 0.3),
-    0 8px 16px -10px oklch(0 0 0 / 0.6);
-}
-
-/* Titles always take two lines' room, so files line up and nothing shifts. A file is an
-   item, so its name is in the sans at 500, under the page's serif title. */
+/* A row is an item, so its name is in the sans at 500. */
 .wdesk__name {
-  display: block;
-  min-height: calc(2 * 1.18em);
-  font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 1.02rem;
-  line-height: 1.18;
-  letter-spacing: -0.01em;
-  color: var(--scr-ink-2);
+  font-size: 1.25rem;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  color: var(--scr-ink);
   text-wrap: balance;
   overflow-wrap: break-word;
+}
+
+.wdesk__line {
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: var(--scr-ink-2);
+  text-wrap: pretty;
+}
+
+/* ── One project on the screen, in one centred column: "Put it back", the drawing
+   centred at the top, then the words. On a wide screen "Put it back" sits in the
+   top-left corner beside the drawing, so the column gives its height to the words. ── */
+.wdesk__page {
+  --fade: 1rem;
+  position: relative;
+  z-index: 1;
+  /* A page shorter than the screen sits in its middle; a longer one starts at the top. */
+  display: flex;
+  flex-direction: column;
+  padding: 0.375rem var(--pad-x) calc(var(--hills) + 1.25rem);
+}
+
+.wdesk__col {
+  display: grid;
+  justify-items: start;
+  width: min(100%, 34rem);
+  margin: auto;
+}
+
+.wdesk__back {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 2.75rem;
+  margin: 0 0 0.125rem -0.35rem;
+  padding: 0 0.5rem 0 0.35rem;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  font-size: 0.875rem;
+  line-height: 1.3;
+  color: var(--scr-ink-2);
+  cursor: pointer;
   transition: color 180ms ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.wdesk__file[data-selected] .wdesk__name {
-  color: var(--scr-ink);
+.wdesk__back svg {
+  width: 12px;
+  height: 12px;
+  flex: none;
 }
 
-/* Hover: the file brightens a touch as it lifts (the lift is in work-thumbs.css). Nothing reflows. */
 @media (hover: hover) and (pointer: fine) {
-  .wdesk__open:hover .wthumb {
-    filter: brightness(1.06);
-  }
-
-  .wdesk__open:hover .wdesk__name {
+  .wdesk__back:hover {
     color: var(--scr-ink);
   }
 }
 
-/* Keyboard focus lifts a file the way hover does. */
-@media (prefers-reduced-motion: no-preference) {
-  .wdesk__open:focus-visible .wthumb {
-    transform: translateY(-2px);
-  }
-}
-
-/* ── The shared info area: one fixed-height line under the files ── */
-.wdesk__info {
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  height: 5rem;
-  margin-top: 1.25rem;
-  text-align: center;
-}
-
-.wdesk__about {
-  display: grid;
-  justify-items: center;
-  gap: 0.45rem;
-  max-width: 42ch;
-  min-width: 0;
-  animation: wdesk-fade 180ms ease both;
-}
-
-.wdesk__about-line {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  font-family: var(--font-sans);
-  font-size: 0.95rem;
-  line-height: 1.45;
-  color: var(--scr-ink-2);
-  text-wrap: balance;
-}
-
-/* Opens the live project, or its window when there is nothing public to link to. */
-.wdesk__explore {
-  padding: 0.2rem 0.1rem;
-  border: 0;
-  background: none;
-  font-family: var(--font-sans);
-  font-size: 0.875rem;
-  line-height: 1.3;
-  color: var(--scr-ink);
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--spot);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.25em;
-  transition: color 180ms ease;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .wdesk__explore:hover {
-    color: var(--sel);
-  }
-}
-
-.wdesk__explore:focus-visible {
+.wdesk__back:focus-visible {
   outline: 2px solid var(--spot);
-  outline-offset: 3px;
-  border-radius: 2px;
+  outline-offset: 0;
 }
 
-.wdesk__nav {
-  display: flex;
+/* The drawing travels from its row by its top-left corner (see placeOver in desktop.ts).
+   Its box is the drawing's own, so the move can be measured from it. */
+.wdesk__pic {
   justify-self: center;
-  align-items: center;
-  gap: 0.25rem;
-}
-
-.wdesk__step {
-  display: grid;
-  place-items: center;
-  width: 2.25rem;
-  height: 2.25rem;
-  padding: 0;
-  border: 0;
-  border-radius: 999px;
-  background: oklch(0.94 0.008 80 / 0.07);
-  color: var(--scr-ink);
-  cursor: pointer;
-  transition:
-    background-color 180ms ease,
-    color 180ms ease,
-    opacity var(--dur-soft) ease;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.wdesk__step svg {
-  width: 14px;
-  height: 14px;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .wdesk__step:not(:disabled):hover {
-    background: oklch(0.94 0.008 80 / 0.2);
-    color: var(--sel);
-  }
-}
-
-.wdesk__step:active:not(:disabled) svg {
-  transform: scale(0.9);
-}
-
-.wdesk__step:disabled {
-  opacity: 0.3;
-  cursor: default;
-}
-
-.wdesk__step:focus-visible {
-  outline: 2px solid var(--spot);
-  outline-offset: 2px;
-}
-
-/* Fingers: the arrows and "Explore project" keep their size but answer a 44px target. */
-@media (any-pointer: coarse) {
-  .wdesk__step,
-  .wdesk__explore {
-    position: relative;
-  }
-
-  .wdesk__step::after {
-    content: '';
-    position: absolute;
-    inset: -4px;
-    border-radius: 50%;
-  }
-
-  .wdesk__explore::after {
-    content: '';
-    position: absolute;
-    inset: -10px -6px;
-  }
-}
-
-/* Where the row is: one dot per position, the current one longer and warm. */
-.wdesk__dots {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding-inline: 0.4rem;
-}
-
-.wdesk__dots i {
-  width: 5px;
-  height: 5px;
-  border-radius: 999px;
-  background: var(--scr-ink-3);
-  opacity: 0.5;
-  transition:
-    width 320ms var(--ease-out),
-    background-color var(--dur-soft) ease,
-    opacity var(--dur-soft) ease;
-}
-
-.wdesk__dots i[data-on] {
-  width: 14px;
-  background: var(--sel);
-  opacity: 1;
-}
-
-/* ── The window ── */
-.wwin {
-  /* Raised off the screen: on the smoked panel elevation means a step lighter. */
-  --card: oklch(0.315 0.018 50);
-  --card-shade: oklch(0.285 0.016 48);
-  position: relative;
-  z-index: 2;
-  grid-area: 1 / 1;
-  display: grid;
-  grid-template-rows: auto 1fr;
-  margin: 0.6rem 0.6rem 1.4rem;
-  overflow: hidden;
-  border-radius: 8px;
-  background: var(--card);
-  color: var(--ink);
-  box-shadow:
-    inset 0 0 0 1px oklch(0.94 0.008 80 / 0.07),
-    0 1px 2px oklch(0 0 0 / 0.3),
-    0 18px 36px -18px oklch(0 0 0 / 0.7);
+  width: min(100%, calc(var(--pic-h) * 4 / 3));
   transform-origin: 0 0;
-  outline: none;
 }
 
-.wwin__bar {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.45rem 0.75rem;
-  /* No hairline: the darker shade alone sets the title bar apart. */
-  background: var(--card-shade);
+.wdesk__pic .wthumb {
+  box-shadow:
+    0 1px 2px oklch(0 0 0 / 0.3),
+    0 12px 24px -12px oklch(0 0 0 / 0.65);
 }
 
-.wwin__dots {
-  display: flex;
-  gap: 5px;
-}
-
-.wwin__dots span {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-}
-
-.wwin__dots span:nth-child(1) {
-  background: oklch(0.66 0.11 35);
-}
-.wwin__dots span:nth-child(2) {
-  background: oklch(0.78 0.09 80);
-}
-.wwin__dots span:nth-child(3) {
-  background: oklch(0.7 0.07 150);
-}
-
-.wwin__name {
-  min-width: 0;
-  overflow: hidden;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  color: var(--ink-3);
-  white-space: nowrap;
-  text-overflow: ellipsis;
-}
-
-.wwin__back {
-  justify-self: end;
-  min-height: 2rem;
-  padding: 0 0.1rem;
-  border: 0;
-  background: none;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  color: var(--ink);
-  cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--spot-ink);
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.25em;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .wwin__back:hover {
-    color: var(--spot-ink);
-  }
-}
-
-.wwin__back:focus-visible {
-  outline: 2px solid var(--spot-ink);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-.wwin__body {
-  display: grid;
-  grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr);
-  align-items: start;
-  gap: 1.25rem;
-  padding: 1.25rem 1.25rem 1.4rem;
-}
-
-.wwin__text {
+.wdesk__words {
   display: grid;
   justify-items: start;
-  gap: 0.55rem;
+  gap: 0.5rem;
+  width: 100%;
+  margin-top: 0.875rem;
 }
 
-.wwin__title {
+.wdesk__title {
+  margin: 0;
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: 1.375rem;
   line-height: 1.15;
   letter-spacing: -0.015em;
+  color: var(--scr-ink);
   text-wrap: balance;
 }
 
-.wwin__summary,
+/* Focus lands here so the page is read from its title; it is not a control, so no ring. */
+.wdesk__title:focus {
+  outline: none;
+}
+
 .wdesk__summary {
-  font-family: var(--font-sans);
+  margin: 0;
+  max-width: 60ch;
   font-size: 0.9375rem;
-  line-height: 1.6;
+  line-height: 1.55;
+  color: var(--scr-ink-2);
   text-wrap: pretty;
 }
 
-.wwin__summary {
-  color: var(--ink-2);
-}
-
-.wwin .topics,
-.wdesk__fold .topics {
+.wdesk .topics {
   font-size: var(--text-sm);
   line-height: 1.55;
-}
-
-.wwin__link,
-.wdesk__link {
-  margin-top: 0.15rem;
-}
-
-/* The window's words arrive as it lands. */
-.wwin[data-landing] .wwin__body {
-  animation: wdesk-fade 220ms ease 300ms both;
-}
-
-/* ── Phones and narrow panels: one column, details unfold in place ── */
-.wdesk__fold {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    grid-template-rows 380ms var(--ease-out),
-    opacity 140ms ease,
-    visibility 0s linear 380ms;
-}
-
-.wdesk__fold-inner {
-  display: grid;
-  gap: 0.6rem;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.wdesk__fold-inner > :first-child {
-  margin-top: 0.75rem;
-}
-
-.wdesk__file[data-state='open'] > .wdesk__fold {
-  grid-template-rows: 1fr;
-  opacity: 1;
-  visibility: visible;
-  transition:
-    grid-template-rows 460ms var(--ease-out) 40ms,
-    opacity 260ms ease 160ms,
-    visibility 0s linear 0s;
-}
-
-.wdesk__summary {
-  color: var(--scr-ink-2);
-}
-
-.wdesk__fold .topics {
   color: var(--scr-ink-3);
 }
 
-.wdesk__fold .topics li:not(:last-child)::after {
+.wdesk .topics li:not(:last-child)::after {
   color: var(--scr-rule);
 }
 
-.wdesk__fold .text-link {
+.wdesk__link {
+  margin: 0.15rem 0 0;
+}
+
+.wdesk .text-link {
+  position: relative;
   color: var(--scr-ink);
   text-decoration-color: var(--spot);
 }
 
-@container (max-width: 30rem) {
-  .wdesk {
-    min-height: 0;
-  }
-
-  .wdesk__browse {
-    grid-template-rows: auto;
-  }
-
-  .wdesk__hills {
-    height: 1.3rem;
-  }
-
-  .wdesk__browse {
-    padding: 0.9rem 0.8rem 1.9rem;
-  }
-
-  .wdesk__viewport {
-    margin: 0;
-    padding: 0;
-    overflow: visible;
-  }
-
-  .wdesk__files {
-    flex-direction: column;
-    gap: 0.9rem;
-    transform: none;
-  }
-
-  .wdesk__file {
-    flex-basis: auto;
-  }
-
-  .wdesk__open {
-    grid-template-columns: 5.75rem minmax(0, 1fr);
-    justify-items: start;
-    align-items: center;
-    column-gap: 0.85rem;
-    padding: 0.15rem;
-    text-align: left;
-  }
-
-  .wdesk__name {
-    min-height: 0;
-    font-size: 1.02rem;
-    color: var(--scr-ink);
+@media (hover: hover) and (pointer: fine) {
+  .wdesk .text-link:hover {
+    color: oklch(0.86 0.06 72);
   }
 }
 
-/* ── Arrival: the screen wakes, then the files rise in a soft stagger (all in by ~0.8s) ── */
+/* Fingers: the link keeps its size but answers a 44px target. */
+@media (any-pointer: coarse) {
+  .wdesk .text-link::after {
+    content: '';
+    position: absolute;
+    inset: -12px -8px;
+  }
+}
+
+/* ── Where each phase rests (the moves between them run from WorkDesktop.tsx) ── */
+.wdesk[data-phase='opening'] .wdesk__rows {
+  opacity: 0;
+}
+
+/* Under a page the rows keep their place (and their scroll), unseen. */
+.wdesk[data-phase='page'] .wdesk__rows {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* A page on its way out lets the rows coming back take the pointer. */
+.wdesk[data-phase='closing'] .wdesk__page {
+  pointer-events: none;
+}
+
+/* A middling screen keeps "Put it back" above the drawing, so the drawing gives up a little height. */
+@container (max-width: 34rem) {
+  .wdesk {
+    --pic-h: calc(var(--screen-h) * 0.38);
+  }
+}
+
+/* A wide screen has room beside the centred drawing: "Put it back" waits in the corner. */
+@container (min-width: 34rem) {
+  .wdesk__page {
+    padding-top: 0.875rem;
+  }
+
+  .wdesk__back {
+    position: absolute;
+    top: 0.375rem;
+    left: calc(var(--pad-x) - 0.35rem);
+    margin: 0;
+  }
+}
+
+/* ── Phones and narrow panels: each row reads top to bottom, the drawing across the screen
+   and the name beneath it ── */
+@container (max-width: 30rem) {
+  .wdesk {
+    --hills: 1.1rem;
+    --pad-x: 0.75rem;
+    /* About one and a half rows, so the next one always shows. */
+    --screen-h: min(calc((100cqw - 25px) * 1.3), 66svh);
+  }
+
+  .wdesk__rows {
+    gap: 1.375rem;
+    padding-top: 0.75rem;
+    scroll-padding-top: 0.75rem;
+  }
+
+  .wdesk__open {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.625rem;
+  }
+
+  .wdesk__caption {
+    max-width: none;
+    padding-inline: 0.125rem;
+  }
+
+  .wdesk__name {
+    font-size: 1.125rem;
+  }
+
+  /* The name alone under the drawing; the line waits on the project's page. */
+  .wdesk__line {
+    display: none;
+  }
+
+  .wdesk__page {
+    padding-top: 0.125rem;
+  }
+
+  /* On a phone the row's drawing is already the screen's width, and so is the page's. */
+  .wdesk__pic {
+    width: 100%;
+  }
+
+  .wdesk__words {
+    gap: 0.5rem;
+    margin-top: 0.875rem;
+  }
+
+  .wdesk__title {
+    font-size: 1.25rem;
+  }
+}
+
+@container (max-width: 17rem) {
+  .wdesk {
+    --pad-x: 0.5rem;
+    --screen-h: min(calc((100cqw - 19px) * 1.3), 66svh);
+  }
+
+  .wdesk__name {
+    font-size: 1rem;
+  }
+}
+
+/* ── Arrival: the screen wakes, then the rows rise in a soft stagger ── */
 .panel__page[data-enter] .wdesk__hills {
   animation: wdesk-fade 360ms ease 180ms backwards;
 }
 
-.panel__page[data-enter] .wdesk__file {
+/* Only on the panel's arrival: once the screen has changed view, the rows come back at once. */
+.panel__page[data-enter] .wdesk:not([data-moved]) .wdesk__row {
   /* backwards, not both: the last keyframe is the resting state, and a held animation would block
-     the file's own transform transitions after it lands. */
+     the drawing's own transform transitions after it lands. */
   animation: wdesk-rise 380ms var(--ease-out) backwards;
-  animation-delay: calc(260ms + var(--k, 0) * 45ms);
+  animation-delay: calc(260ms + var(--k, 0) * 60ms);
 }
 
 @keyframes wdesk-fade {
@@ -580,28 +437,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .wdesk__browse {
-    transition-duration: 120ms;
-  }
-
-  .wdesk__files {
-    transition: none;
-  }
-
-  .wdesk__about {
-    animation-duration: 120ms;
-  }
-
-  .wdesk__fold,
-  .wdesk__file[data-state='open'] > .wdesk__fold {
-    transition:
-      opacity 140ms ease,
-      visibility 0s linear 0s;
-  }
-
-  .wwin[data-landing] .wwin__body,
   .panel__page[data-enter] .wdesk__hills,
-  .panel__page[data-enter] .wdesk__file {
+  .panel__page[data-enter] .wdesk__row {
     animation: none;
   }
 }

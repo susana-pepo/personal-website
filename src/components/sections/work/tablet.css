@@ -2,7 +2,7 @@
  * The tablet, drawn front-on in CSS so it stays sharp and light: landscape,
  * a thin matte dark aluminium edge with a quiet highlight on its right side
  * (the lamp is upper right), an even ink bezel with a camera dot on the long
- * top edge, and a 4:3 screen that grows if its content needs more. It rests in
+ * top edge, and a screen of one fixed shape whose content scrolls inside it. It rests in
  * a small walnut stand on the shared walnut board; shadows fall down and to the
  * left. Flat fills and box-shadows only: no filters or backdrop-filter on large areas.
  *
@@ -122,5 +122,19 @@
   .pad__stand,
   .pad__board {
     display: none;
+  }
+}
+
+/* The smallest phones: a slimmer bezel gives the list its width back. */
+@container (max-width: 17rem) {
+  .pad__bezel {
+    --bezel-w: 7px;
+  }
+
+  .pad__camera {
+    top: 2px;
+    width: 3px;
+    height: 3px;
+    margin-left: -1.5px;
   }
 }

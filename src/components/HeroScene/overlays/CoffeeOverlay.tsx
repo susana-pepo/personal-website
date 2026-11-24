@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
 import { useEntered } from '../../../hooks/useEntered'
 import { COFFEE_MEDIA, overlay } from '../../../scene/layout'
@@ -25,20 +26,25 @@ export function CoffeeOverlay({ motionAllowed, highlighted, discoveryIndex }: Co
   const reducedMotion = usePrefersReducedMotion()
   const moving = motionAllowed && !reducedMotion
   const entered = useEntered() // the steam waits for the page's entrance
+  const looping = moving && entered
+  // The still stays underneath until the loop's first frame is up: the whole mug lives in the
+  // video, so without it the mug blinked out each time the loop (re)started, as when a page closes.
+  const [arrived, setArrived] = useState(false)
+  useEffect(() => {
+    if (!looping) setArrived(false)
+  }, [looping])
   return (
     <SceneObject overlay={COFFEE} highlighted={highlighted} discoveryIndex={discoveryIndex} className="coffee">
-      {moving && entered ? (
-        <LoopClip src={COFFEE_MEDIA.animated} still={COFFEE_MEDIA.still} alpha size={COFFEE_MEDIA.size} />
-      ) : (
-        <img
-          src={COFFEE_MEDIA.still}
-          alt=""
-          width={Math.round(COFFEE.width)}
-          height={Math.round(COFFEE.height)}
-          decoding="async"
-          draggable={false}
-        />
-      )}
+      <img
+        src={COFFEE_MEDIA.still}
+        alt=""
+        width={Math.round(COFFEE.width)}
+        height={Math.round(COFFEE.height)}
+        decoding="async"
+        draggable={false}
+        style={looping && arrived ? { visibility: 'hidden' } : undefined}
+      />
+      {looping && <LoopClip src={COFFEE_MEDIA.animated} alpha size={COFFEE_MEDIA.size} onArrived={() => setArrived(true)} />}
     </SceneObject>
   )
 }

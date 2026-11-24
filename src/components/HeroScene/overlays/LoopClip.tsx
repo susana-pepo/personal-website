@@ -51,7 +51,6 @@ export function LoopClip({ src, still, alpha, size, onArrived, style }: LoopClip
     }
     // the waiting copy is hidden by its own attribute (React owns the style): .loop-clip[data-waiting]
     const shown = (v: HTMLVideoElement, on: boolean) => (on ? v.removeAttribute('data-waiting') : v.setAttribute('data-waiting', ''))
-    shown(second, false)
     const start = first.play()
     void start.catch(() => {}) // e.g. iOS Low Power Mode: it rests on its first frame
     let arrived = false
@@ -148,6 +147,9 @@ export function LoopClip({ src, still, alpha, size, onArrived, style }: LoopClip
     <video
       ref={ref}
       className="loop-clip"
+      // the second copy starts hidden (from its very first frame, never doubling the first);
+      // from then on the handover moves the attribute itself
+      data-waiting={primary ? undefined : ''}
       style={box}
       src={url}
       autoPlay={primary}

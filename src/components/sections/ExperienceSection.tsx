@@ -8,6 +8,7 @@ import { spineTitle, startYear, yearsOf } from "./experience/years";
 import { Topics } from "./Topics";
 
 const TOOLKIT = "toolkit";
+const CV = "cv";
 const tabId = (item: { id: string }) => `cv-tab-${item.id}`;
 const pageId = (item: { id: string }) => `cv-page-${item.id}`;
 
@@ -45,9 +46,20 @@ export default function ExperienceSection() {
     [roles],
   );
 
-  /** Top of the pile first: the notebook, then the degrees. */
+  /** Top of the pile first: my CV (when the PDF is there), the notebook, then the degrees. */
   const beyond = useMemo<PileItem[]>(
     () => [
+      ...(__CV_PATH__
+        ? [
+            {
+              id: CV,
+              title: experience.cvTitle,
+              byline: "PDF",
+              label: `${experience.cvTitle}, to download as a PDF`,
+              kind: "document" as const,
+            },
+          ]
+        : []),
       ...(hasToolkit
         ? [
             {
@@ -66,7 +78,7 @@ export default function ExperienceSection() {
         education: entry,
       })),
     ],
-    [education, hasToolkit, experience.toolkitTitle],
+    [education, hasToolkit, experience.toolkitTitle, experience.cvTitle],
   );
 
   if (work.length === 0 && beyond.length === 0) return null;
@@ -121,11 +133,10 @@ export default function ExperienceSection() {
                 {experience.beyondTitle}
               </h3>
             }
-            beside={
-              __CV_PATH__ ? <CvSheet label={experience.cvLabel} /> : undefined
-            }
             render={(item) =>
-              item.education ? (
+              item.id === CV ? (
+                <CvBody />
+              ) : item.education ? (
                 <EducationBody entry={item.education} />
               ) : (
                 <ToolkitBody title={item.title} />
@@ -153,7 +164,6 @@ function Pile({
   head,
   lead,
   small = false,
-  beside,
   render,
 }: {
   id?: string;
@@ -164,8 +174,6 @@ function Pile({
   lead?: ReactNode;
   /** Drawn at about two thirds of the size, for supporting details. */
   small?: boolean;
-  /** Something standing on the same board beside the books. */
-  beside?: ReactNode;
   render: (item: PileItem) => ReactNode;
 }) {
   const [selected, setSelected] = useState<string | null>(initial);
@@ -194,7 +202,6 @@ function Pile({
         selected={selected ?? ""}
         tabId={tabId}
         panelId={pageId}
-        beside={beside}
         onSelect={(item, byKeyboard) => {
           setInstant(byKeyboard);
           const next =
@@ -341,14 +348,20 @@ function ToolkitBody({ title }: { title: string }) {
 }
 
 /**
- * My CV as what it is, a printed page: a small copy of its first page standing on the
- * desk beside the background books, leaning a little like the portrait print on About.
- * The page and its label are one link, which downloads the PDF.
+ * My CV, opened from its folder on the pile: a copy of its first page laid on the desk like
+ * the portrait print on About, and the download beside it.
  */
-function CvSheet({ label }: { label: string }) {
+function CvBody() {
+  const { experience } = content;
   return (
-    <a className="xp-cv" href={__CV_PATH__} download>
-      <span className="xp-cv__sheet" aria-hidden="true">
+    <div className="cv-print">
+      <a
+        className="cv-print__sheet"
+        href={__CV_PATH__}
+        download
+        tabIndex={-1}
+        aria-hidden="true"
+      >
         <img
           src="/cv/cv-page.webp"
           alt=""
@@ -357,8 +370,14 @@ function CvSheet({ label }: { label: string }) {
           decoding="async"
           loading="lazy"
         />
-      </span>
-      <span className="xp-cv__label">{label}</span>
-    </a>
+      </a>
+      <div className="cv-print__text">
+        <h4 className="cv-page__title">{experience.cvTitle}</h4>
+        <p className="cv-page__period">{experience.cvNote}</p>
+        <a className="text-link cv-print__link" href={__CV_PATH__} download>
+          {experience.cvLabel}
+        </a>
+      </div>
+    </div>
   );
 }

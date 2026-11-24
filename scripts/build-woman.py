@@ -614,6 +614,45 @@ def _neck_paint(a, m):
     rim = near & (a[..., 3] > 0) & (den > 0.05) & ~(fill > 0.5) & (a[..., 2] + 30 > a[..., 0])
     t = inner + ((luma(a[..., :3]) - luma(inner)) * 0.5)[..., None]
     a[..., :3] = np.where(rim[..., None], t, a[..., :3])
+    # In front of the throat (clear room, between the jaw and the collar), any leftover fleck of
+    # the old background goes: it showed as a small greenish speck where the collar starts.
+    (bx0, bx1), (by0, by1) = NECK_X, NECK_Y
+    Y, X = np.mgrid[by0:min(H, by1 + 120), bx0:bx1]
+    front_line = top_x + (Y - jy) * THROAT_LEAN
+    skin_now, sweater_now = _neck_masks(a.astype(np.uint8))
+    sub = (slice(by0, min(H, by1 + 120)), slice(bx0, bx1))
+    clear = (X > front_line + 2) & (fill[sub] < 0.05) & ~skin_now[sub] & ~sweater_now[sub] & (a[sub][..., 3] < 245)
+    a[sub][clear] = 0
+    # The export's pale cut-out line where her skin and hair met the see-through gap (under the
+    # jaw, down the back of the neck) reads as a cut-out edge now that the neck is behind it: it's
+    # redrawn as the drawing's own warm contour (the colour of the chin's outline).
+    k3 = np.ones((3, 3), np.uint8)
+    inside = (fill > 0.5).astype(np.uint8)
+    ring = cv2.dilate(inside, k3, iterations=3).astype(bool) & ~inside.astype(bool)
+    rgb = a[..., :3]
+    mx, mn = rgb.max(2), rgb.min(2)
+    sat = (mx - mn) / np.maximum(mx, 1)
+    pale = ring & (a[..., 3] > 40) & ~sweater_now & ((sat < 0.32) | (luma(rgb) > luma(m['tone'][None, None, :])[..., 0] + 6))
+    contour = m['tone'] * np.array([0.78, 0.66, 0.6], np.float32)  # warm, like the chin's line
+    a[..., :3] = np.where(pale[..., None], contour[None, None, :], a[..., :3])
+    a[..., 3] = np.where(pale, 255, a[..., 3])
+    # Inside the neck, the export's pale fringe along the collar's top (its old background) takes
+    # the neck's colour: it showed as a thin light line between the neck and the collar.
+    rgb = a[..., :3]
+    mx, mn = rgb.max(2), rgb.min(2)
+    sat = (mx - mn) / np.maximum(mx, 1)
+    fringe = (fill > 0.5) & ~sweater_now & ((sat < 0.3) | (luma(rgb) > luma(m['tone'][None, None, :])[..., 0] + 6)) & (luma(rgb) > 90)
+    a[..., :3] = np.where(fringe[..., None], neck, a[..., :3])
+    # Where the collar's outline ends at the throat, its last half-see-through pixels showed the
+    # room through them, a small pale-blue fleck: they become the end of the collar's dark line.
+    near_front = (np.abs(X - front_line) < 5) & (Y > jy)
+    tip = np.zeros((H, W), bool)
+    tip[sub] = near_front & sweater_now[sub] & (a[sub][..., 3] < 210)
+    soft_tip = np.zeros((H, W), bool)
+    soft_tip[sub] = near_front & (a[sub][..., 3] > 0) & (a[sub][..., 3] < 210) & ~skin_now[sub] & (fill[sub] < 0.5)
+    tip |= soft_tip & (a[..., 2] > a[..., 0])
+    a[..., :3] = np.where(tip[..., None], np.array([28, 38, 46], np.float32), a[..., :3])
+    a[..., 3] = np.where(tip, np.where(a[..., 3] > 60, 255, 0), a[..., 3])
     return np.clip(a, 0, 255).round().astype(np.uint8)
 
 
@@ -957,8 +996,9 @@ def build_clip(name, width, quality):
     tmp = anim.with_name(f'.woman-{name}.tmp.webp')  # written aside, then swapped in: the live file is never half-written
     # Played once per turn (loop=1): if the page is a moment late starting the next clip, she
     # simply rests on the shared first frame, which the bridge ends on.
+    # kept for the later steps to read back, not served: encoded quickly (method 4)
     frames[0].save(tmp, save_all=True, append_images=frames[1:], duration=ms, loop=1, lossless=False,
-                   quality=quality, alpha_quality=100, method=6, exact=True, minimize_size=True)
+                   quality=quality, alpha_quality=100, method=4, exact=True)
     os.replace(tmp, anim)
     write_videos(frames, holds, OUT / f'woman-{name}')  # what the page plays (the WebP is the fallback)
     total = sum(ms)

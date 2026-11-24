@@ -4,7 +4,7 @@ import { clearPlacements, getPlacement, setPlacement, type Placement } from '../
 import './SceneSandbox.css'
 
 const NAMES: Record<OverlayId, string> = {
-  camera: 'Camera',
+  plant: 'Hanging plant',
   books: 'Shelf books',
   vinyl: 'Record player',
   lamp: 'Desk lamp',
@@ -25,7 +25,7 @@ const NAMES: Record<OverlayId, string> = {
  * or into src/scene/scene-layout.json. Nothing is saved automatically.
  */
 export default function SceneSandbox() {
-  const [selected, setSelected] = useState<OverlayId>('vinyl')
+  const [selected, setSelected] = useState<OverlayId>('plant')
   const [, force] = useState(0)
   const [copied, setCopied] = useState(false)
   const layerRef = useRef<HTMLDivElement>(null)

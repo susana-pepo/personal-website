@@ -8,20 +8,56 @@ import {
   type KeyboardEvent,
 } from 'react'
 import type { WorkProject } from '../../../content/types'
-import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
-import { Topics } from '../Topics'
-import { VISIBLE_FILES, clampStart, columnsFrom, fileIndexForKey, selectionInView, startToShow } from './desktop'
+import { cssToken, prefersReducedMotion } from '../../../lib/motion'
+import { MOVE, WHEEL_GESTURE_GAP, placeOver, rowIndexForKey, wheelGoesToPage, type Box } from './desktop'
+import { ProjectPage, projectRowId } from './ProjectPage'
 import { TabletFrame } from './TabletFrame'
-import { ProjectWindow } from './ProjectWindow'
 import { WorkThumb } from './thumbs/WorkThumb'
 import './desktop.css'
 
-/** Below this tablet width (the same as the CSS container query), files unfold in place. */
-const NARROW_PX = 480
-/** How long the screen takes to grow or shrink around an opened window. */
-const RESIZE_MS = 360
+/** Brings an element into view only if it is outside the window, by the smallest move. */
+function bringIntoView(el: HTMLElement | null | undefined, smooth: boolean) {
+  if (!el) return
+  const r = el.getBoundingClientRect()
+  if (r.top >= 0 && r.bottom <= window.innerHeight) return
+  el.scrollIntoView({ block: 'nearest', behavior: smooth ? 'smooth' : 'auto' })
+}
 
-const fileId = (project: WorkProject) => `project-${project.id}`
+/** The nearest box around `el` that scrolls up and down (the panel, or the document). */
+function scrollParent(el: Element): HTMLElement | null {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node)
+    if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return node
+  }
+  return document.scrollingElement as HTMLElement | null
+}
+
+const boxOf = (el: Element | null | undefined): Box | null => {
+  if (!el) return null
+  const { left, top, width, height } = el.getBoundingClientRect()
+  return { left, top, width, height }
+}
+
+const opacityOf = (el: Element | null | undefined, fallback: number) => {
+  if (!el) return fallback
+  const n = parseFloat(getComputedStyle(el).opacity)
+  return Number.isNaN(n) ? fallback : n
+}
+
+/**
+ * Rows: the projects in the screen. Opening: one project's drawing travels
+ * from its row to the top of its page. Page: that project alone. Closing: the
+ * drawing travels back into its row.
+ */
+type Phase = 'rows' | 'opening' | 'page' | 'closing'
+
+/** Where a move starts, read from the screen just before it. */
+interface Start {
+  /** Where the drawing is now (its row, or wherever an interrupted move left it). */
+  drawing: Box | null
+  rows: number
+  words: number
+}
 
 interface WorkDesktopProps {
   label: string
@@ -29,101 +65,215 @@ interface WorkDesktopProps {
 }
 
 /**
- * Things I've built, as files on the tablet's screen. On a wide panel a file
- * opens as a window on the screen (the other files fade and can't be
- * reached meanwhile); on a narrow one it unfolds in place beneath itself.
- * Escape puts an open project back before the panel itself closes, and focus
- * returns to the file.
+ * Things I've built, on the tablet's screen. At rest the screen holds the
+ * projects as rows, one under another: a big drawing with the name (and, on a
+ * wide tablet, its one line) beside it, or on a phone the drawing with the name
+ * beneath. The screen keeps its shape and the rows scroll inside it. Choosing
+ * one fills the screen with that project: its drawing grows from the row to
+ * the top of the page and the words arrive beneath it. "Put it back", or
+ * Escape, sends the drawing back into its row, with the rows where they were
+ * and focus on the row it came from.
+ *
+ * The rows stay in the screen (hidden while a page is up), so their scroll
+ * position is kept and the way back can be measured. Only transform and
+ * opacity move, through the Web Animations API, so a move can be cut short
+ * from wherever it is.
  */
 export function WorkDesktop({ label, projects }: WorkDesktopProps) {
-  const reducedMotion = usePrefersReducedMotion()
   const rootRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
-  const [narrow, setNarrow] = useState(false)
-  /** The project that is open, or being opened. */
+  const pageRef = useRef<HTMLElement>(null)
+  const titleRef = useRef<HTMLHeadingElement>(null)
+  /** The project whose page is up (or on its way in or out). */
   const [open, setOpen] = useState<string | null>(null)
-  /** The project whose window is on screen (it stays while it is put back). */
-  const [shown, setShown] = useState<string | null>(null)
-  const heightBefore = useRef<number | null>(null)
-  /** The first of the three files in view (wide screens only). */
-  const [start, setStart] = useState(0)
-  const browsing = !narrow && projects.length > VISIBLE_FILES
-  /** The file shown in the shared info area: follows hover and focus; a tap selects on touch. */
-  const [selected, setSelected] = useState(0)
+  const [phase, setPhase] = useState<Phase>('rows')
+  /** Set on the first change of view, so the panel's arrival stagger never replays. */
+  const [moved, setMoved] = useState(false)
+  /**
+   * The row a drawing was put back into. It takes focus as the drawing sets off, and focus would
+   * start its drawing's small motion, still running when the drawing lands; so that row keeps
+   * still until focus moves on.
+   */
+  const [still, setStill] = useState<string | null>(null)
+  const start = useRef<Start | null>(null)
+  const moving = useRef<Animation[]>([])
+  /** Counts moves, so a move that was cut short never finishes the one after it. */
+  const move = useRef(0)
 
-  // Narrow or wide, from the tablet's own width.
-  useLayoutEffect(() => {
-    const lap = rootRef.current?.closest('.pad')
-    if (!lap) return
-    const measure = () => setNarrow(lap.clientWidth < NARROW_PX)
-    measure()
-    const observer = new ResizeObserver(measure)
-    observer.observe(lap)
-    return () => observer.disconnect()
-  }, [])
+  const rowThumb = (id: string) => listRef.current?.querySelector(`#${projectRowId(id)} .wthumb`)
+  const pagePic = () => pageRef.current?.querySelector('.wdesk__pic')
+  const pageFades = () => Array.from(pageRef.current?.querySelectorAll<HTMLElement>('[data-fade]') ?? [])
 
-  const buttonFor = useCallback(
-    (id: string) => listRef.current?.querySelector<HTMLButtonElement>(`#${fileId({ id } as WorkProject)} .wdesk__open`),
-    [],
-  )
-
-  const noteHeight = () => {
-    heightBefore.current = rootRef.current?.offsetHeight ?? null
+  const stop = () => {
+    for (const a of moving.current) a.cancel()
+    moving.current = []
   }
 
-  const openProject = (project: WorkProject) => {
-    if (narrow) {
-      setOpen((current) => (current === project.id ? null : project.id))
-      return
+  const openProject = (id: string) => {
+    if (phase === 'opening' || phase === 'page') return
+    // Cut short a way back: from where its drawing is now if it is this project, else from the row.
+    const same = phase === 'closing' && open === id
+    start.current = {
+      drawing: boxOf(same ? pagePic() : rowThumb(id)),
+      rows: phase === 'closing' ? opacityOf(listRef.current, 1) : 1,
+      words: same ? opacityOf(pageFades()[0], 0) : 0,
     }
-    noteHeight()
-    setOpen(project.id)
-    setShown(project.id)
+    stop()
+    move.current += 1
+    setMoved(true)
+    setOpen(id)
+    setPhase('opening')
   }
 
   const putBack = useCallback(() => {
-    if (open === null) return
-    setOpen(null)
-    if (narrow) buttonFor(open)?.focus()
-  }, [open, narrow, buttonFor])
+    if (phase !== 'opening' && phase !== 'page') return
+    start.current = {
+      drawing: boxOf(pagePic()),
+      rows: opacityOf(listRef.current, phase === 'page' ? 0 : 1),
+      words: opacityOf(pageFades()[0], 1),
+    }
+    stop()
+    move.current += 1
+    setStill(open)
+    setPhase('closing')
+  }, [phase, open])
 
-  /** The file to focus once the window has gone (the list is inert until then). */
-  const returnTo = useRef<string | null>(null)
-
-  const onWindowClosed = useCallback(() => {
-    returnTo.current = shown
-    noteHeight()
-    setShown(null)
-  }, [shown])
-
+  // Each change of phase starts its move from what start.current recorded.
   useLayoutEffect(() => {
-    if (shown || !returnTo.current) return
-    buttonFor(returnTo.current)?.focus({ preventScroll: true })
-    returnTo.current = null
-  }, [shown, buttonFor])
+    const from = start.current
+    start.current = null
+    const list = listRef.current
+    const page = pageRef.current
+    const token = move.current
+    const reduce = prefersReducedMotion()
+    const ease = cssToken('--ease-drawer', 'cubic-bezier(0.32, 0.72, 0, 1)')
+    const easeOut = cssToken('--ease-out', 'cubic-bezier(0.23, 1, 0.32, 1)')
+    const settle = (next: () => void) => {
+      Promise.all(moving.current.map((a) => a.finished)).then(
+        () => {
+          if (move.current === token) next()
+        },
+        () => {},
+      )
+    }
 
-  // Switching to a narrow layout while a window is up: drop the window, keep the project open in place.
+    if (phase === 'opening' && from && list && page) {
+      titleRef.current?.focus({ preventScroll: true })
+      const pic = pagePic()
+      const anims: Animation[] = []
+      if (reduce) {
+        anims.push(list.animate([{ opacity: from.rows }, { opacity: 0 }], { duration: MOVE.fade, easing: 'ease' }))
+        anims.push(page.animate([{ opacity: 0 }, { opacity: 1 }], { duration: MOVE.fade, easing: 'ease' }))
+      } else {
+        const home = boxOf(pic)
+        if (pic && home && from.drawing) {
+          anims.push(
+            pic.animate([{ transform: placeOver(home, from.drawing) }, { transform: 'none' }], {
+              duration: MOVE.travel,
+              easing: ease,
+            }),
+          )
+        }
+        anims.push(
+          list.animate([{ opacity: from.rows }, { opacity: 0 }], { duration: MOVE.rowsOut, easing: easeOut }),
+        )
+        for (const el of pageFades()) {
+          anims.push(
+            el.animate(
+              [
+                { opacity: from.words, transform: `translateY(${from.words > 0 ? 0 : 8}px)` },
+                { opacity: 1, transform: 'none' },
+              ],
+              { ...MOVE.wordsIn, easing: easeOut, fill: 'backwards' },
+            ),
+          )
+        }
+      }
+      moving.current = anims
+      bringIntoView(rootRef.current, !reduce)
+      settle(() => setPhase('page'))
+      return
+    }
+
+    if (phase === 'closing' && from && list && page && open) {
+      // Focus goes back to the row at once, so a keyboard is never left on a page that is leaving.
+      list.querySelector<HTMLButtonElement>(`#${projectRowId(open)} .wdesk__open`)?.focus({ preventScroll: true })
+      const pic = pagePic()
+      const target = boxOf(rowThumb(open))
+      const anims: Animation[] = []
+      if (reduce) {
+        anims.push(page.animate([{ opacity: 1 }, { opacity: 0 }], { duration: MOVE.fade, easing: 'ease', fill: 'forwards' }))
+        anims.push(list.animate([{ opacity: from.rows }, { opacity: 1 }], { duration: MOVE.fade, easing: 'ease' }))
+      } else {
+        const home = boxOf(pic)
+        if (pic && home && target) {
+          anims.push(
+            pic.animate(
+              [{ transform: from.drawing ? placeOver(home, from.drawing) : 'none' }, { transform: placeOver(home, target) }],
+              // Held at the row until the page is taken away, so it never springs back for a frame.
+              { duration: MOVE.back, easing: ease, fill: 'forwards' },
+            ),
+          )
+        }
+        for (const el of pageFades()) {
+          anims.push(
+            el.animate([{ opacity: from.words }, { opacity: 0 }], {
+              duration: MOVE.wordsOut,
+              easing: easeOut,
+              fill: 'forwards',
+            }),
+          )
+        }
+        anims.push(
+          list.animate([{ opacity: from.rows }, { opacity: 1 }], {
+            ...MOVE.rowsIn,
+            easing: easeOut,
+            fill: 'backwards',
+          }),
+        )
+      }
+      moving.current = anims
+      settle(() => {
+        setOpen(null)
+        setPhase('rows')
+      })
+      return
+    }
+
+    // The way back has landed: the page is gone, so its held frames go too.
+    if (phase === 'rows') stop()
+    // Only a change of phase starts a move.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
+
+  // A move still running when the tablet leaves is let go.
+  useEffect(() => stop, [])
+
+  // A wheel that starts at the end of the screen's scroll carries on to the page (see wheelGoesToPage).
   useEffect(() => {
-    if (narrow && shown) setShown(null)
-  }, [narrow, shown])
-
-  // The screen grows (or shrinks) smoothly around the window instead of jumping.
-  useLayoutEffect(() => {
-    const el = rootRef.current
-    const before = heightBefore.current
-    heightBefore.current = null
-    if (!el || before === null || reducedMotion || typeof el.animate !== 'function') return
-    const after = el.offsetHeight
-    if (Math.abs(after - before) < 2) return
-    el.animate([{ height: `${before}px` }, { height: `${after}px` }], {
-      duration: RESIZE_MS,
-      easing: 'cubic-bezier(0.23, 1, 0.32, 1)',
-    })
-  }, [shown, reducedMotion])
+    const root = rootRef.current
+    if (!root) return
+    let last = -Infinity
+    let passing = false
+    const onWheel = (event: WheelEvent) => {
+      const fresh = event.timeStamp - last > WHEEL_GESTURE_GAP
+      last = event.timeStamp
+      const view = (event.target as Element).closest?.<HTMLElement>('.wdesk__rows, .wdesk__page')
+      passing = !!view && !event.ctrlKey && wheelGoesToPage(view, event.deltaY, fresh, passing)
+      if (!passing) return
+      const page = scrollParent(root)
+      if (!page || page.scrollTop + page.clientHeight >= page.scrollHeight - 1) return
+      event.preventDefault()
+      const unit = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? page.clientHeight : 1
+      page.scrollBy({ top: event.deltaY * unit, behavior: 'instant' })
+    }
+    root.addEventListener('wheel', onWheel, { passive: false })
+    return () => root.removeEventListener('wheel', onWheel)
+  }, [])
 
   // Escape puts the project back first; only the next Escape closes the panel.
   useEffect(() => {
-    if (open === null) return
+    if (phase !== 'opening' && phase !== 'page') return
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       if (event.key !== 'Escape' || event.defaultPrevented) return
       event.preventDefault()
@@ -142,48 +292,82 @@ export function WorkDesktop({ label, projects }: WorkDesktopProps) {
       document.removeEventListener('keydown', onKeyDown, true)
       dialog?.removeEventListener('cancel', onCancel, true)
     }
-  }, [open, putBack])
+  }, [phase, putBack])
 
-  // Arrows move between files as they sit on the screen; Home and End jump.
-  const onFilesKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
+  // Arrow keys move from row to row (focus scrolls the row into view on the screen); Home and End jump.
+  const onRowsKeyDown = (event: KeyboardEvent<HTMLUListElement>) => {
     const buttons = Array.from(listRef.current?.querySelectorAll<HTMLButtonElement>('.wdesk__open') ?? [])
     const current = buttons.indexOf(event.target as HTMLButtonElement)
     if (current < 0) return
-    const columns = columnsFrom(buttons.map((b) => b.getBoundingClientRect().top))
-    const next = fileIndexForKey(current, event.key, buttons.length, columns)
+    const next = rowIndexForKey(current, event.key, buttons.length)
     if (next === null) return
     event.preventDefault()
-    reveal(next)
-    buttons[next]?.focus({ preventScroll: true })
+    buttons[next]?.focus()
   }
 
-  const windowProject = !narrow ? projects.find((p) => p.id === shown) : undefined
-  const view = browsing ? clampStart(start, VISIBLE_FILES, projects.length) : 0
-  const step = (by: number) => {
-    const next = clampStart(view + by, VISIBLE_FILES, projects.length)
-    setStart(next)
-    setSelected((current) => selectionInView(current, next, VISIBLE_FILES))
-  }
-  // A file reached by keyboard or screen reader slides into view and becomes the selected one.
-  const reveal = (index: number) => {
-    setSelected(index)
-    if (browsing) setStart(startToShow(index, view, VISIBLE_FILES, projects.length))
-  }
-  // Choosing a file selects it (its line and "Explore project" appear below); choosing the selected file
-  // again opens its window. On a narrow screen a file simply unfolds in place.
-  const onFileClick = (project: WorkProject, index: number) => {
-    if (!narrow && selected !== index) {
-      setSelected(index)
-      return
-    }
-    openProject(project)
-  }
-  const current = projects[Math.min(selected, projects.length - 1)]
-  const positions = browsing ? projects.length - VISIBLE_FILES + 1 : 0
+  const project = projects.find((p) => p.id === open)
+  const away = phase === 'opening' || phase === 'page'
 
   return (
     <TabletFrame>
-      <div ref={rootRef} className="wdesk" data-window={windowProject ? '' : undefined}>
+      <div
+        ref={rootRef}
+        className="wdesk"
+        data-phase={phase}
+        data-moved={moved ? '' : undefined}
+      >
+        <ul
+          ref={listRef}
+          className="wdesk__rows"
+          role="list"
+          aria-label={label}
+          aria-hidden={away || undefined}
+          inert={away || undefined}
+          onKeyDown={onRowsKeyDown}
+        >
+          {projects.map((p, k) => (
+            <li
+              key={p.id}
+              id={projectRowId(p.id)}
+              className="wdesk__row wtile"
+              // While its drawing is on the move, the row's own copy steps aside.
+              data-source={open === p.id && phase !== 'rows' ? '' : undefined}
+              data-still={still === p.id ? '' : undefined}
+              style={{ '--k': k } as CSSProperties}
+            >
+              {/* Named by the project's title; its one line is read as the description. */}
+              <button
+                type="button"
+                className="wdesk__open"
+                aria-labelledby={`${projectRowId(p.id)}-name`}
+                aria-describedby={`${projectRowId(p.id)}-line`}
+                onClick={() => openProject(p.id)}
+                onBlur={() => setStill((id) => (id === p.id ? null : id))}
+              >
+                <WorkThumb kind={p.thumb} />
+                <span className="wdesk__caption">
+                  <span id={`${projectRowId(p.id)}-name`} className="wdesk__name">
+                    {p.title}
+                  </span>
+                  <span id={`${projectRowId(p.id)}-line`} className="wdesk__line">
+                    {p.line}
+                  </span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {project && (
+          <ProjectPage
+            key={project.id}
+            ref={pageRef}
+            project={project}
+            titleRef={titleRef}
+            onPutBack={putBack}
+            playing={phase === 'page'}
+            inert={phase === 'closing'}
+          />
+        )}
         <svg
           className="wdesk__hills"
           viewBox="0 0 600 80"
@@ -195,154 +379,7 @@ export function WorkDesktop({ label, projects }: WorkDesktopProps) {
           <path d="M0 60 C 120 40, 230 46, 330 58 S 520 46, 600 54 V80 H0 Z" fill="oklch(0.45 0.095 38)" />
           <path d="M0 70 C 140 59, 260 65, 360 71 S 540 62, 600 68 V80 H0 Z" fill="oklch(0.34 0.048 48)" />
         </svg>
-
-        <div className="wdesk__browse" inert={windowProject ? true : undefined}>
-          <div className="wdesk__viewport">
-            <ul
-              ref={listRef}
-              id="wdesk-files"
-              className="wdesk__files"
-              role="list"
-              aria-label={label}
-              onKeyDown={onFilesKeyDown}
-              style={{ '--start': view } as CSSProperties}
-            >
-              {projects.map((project, k) => {
-                const isOpen = open === project.id
-                const foldId = `${fileId(project)}-detail`
-                const windowId = `${fileId(project)}-window`
-                return (
-                  <li
-                    key={project.id}
-                    id={fileId(project)}
-                    className="wdesk__file wtile"
-                    data-state={isOpen ? 'open' : 'rest'}
-                    data-selected={!narrow && selected === k ? '' : undefined}
-                    style={{ '--k': k } as CSSProperties}
-                    onFocus={(e) => {
-                      // Keyboard focus selects; a click's or tap's focus waits for the click itself (see onFileClick).
-                      if ((e.target as HTMLElement).matches(':focus-visible')) reveal(k)
-                    }}
-                  >
-                    <button
-                      type="button"
-                      className="wdesk__open"
-                      aria-expanded={isOpen}
-                      aria-controls={narrow ? foldId : isOpen ? windowId : undefined}
-                      aria-haspopup={narrow ? undefined : 'dialog'}
-                      aria-describedby={narrow ? undefined : `${fileId(project)}-line`}
-                      aria-current={!narrow && selected === k ? 'true' : undefined}
-                      onClick={() => onFileClick(project, k)}
-                    >
-                      <WorkThumb kind={project.thumb} />
-                      <span className="wdesk__name">{project.title}</span>
-                    </button>
-                    {!narrow && (
-                      <span id={`${fileId(project)}-line`} hidden>
-                        {project.line}
-                      </span>
-                    )}
-                    {narrow && (
-                      <div id={foldId} className="wdesk__fold" role="region" aria-label={project.title}>
-                        <div className="wdesk__fold-inner">
-                          <p className="wdesk__summary">{project.summary}</p>
-                          {project.topics && <Topics label={`Topics in ${project.title}`} items={project.topics} />}
-                          {project.href && (
-                            <p className="wdesk__link">
-                              <a className="text-link" href={project.href} target="_blank" rel="noopener noreferrer">
-                                {project.linkLabel ?? project.title}
-                                <span className="visually-hidden"> (opens in a new tab)</span>
-                              </a>
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    )}
-                  </li>
-                )
-              })}
-            </ul>
-          </div>
-
-          {!narrow && current && (
-            <div className="wdesk__info">
-              <div key={current.id} className="wdesk__about">
-                {/* The same words the selected file's button carries; shown here, read there. */}
-                <p className="wdesk__about-line" aria-hidden="true">
-                  {current.line}
-                </p>
-                {current.href ? (
-                  <a className="wdesk__explore" href={current.href} target="_blank" rel="noopener noreferrer">
-                    {current.linkLabel ?? current.title}<span aria-hidden="true"> ↗</span>
-                    <span className="visually-hidden">{current.linkLabel ? `: ${current.title}` : ''} (opens in a new tab)</span>
-                  </a>
-                ) : (
-                  <button type="button" className="wdesk__explore" onClick={() => openProject(current)}>
-                    Open<span className="visually-hidden"> {current.title}</span>
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-          {browsing && (
-            <div className="wdesk__nav">
-              <button
-                type="button"
-                className="wdesk__step"
-                aria-label="Previous projects"
-                aria-controls="wdesk-files"
-                disabled={view === 0}
-                onClick={() => step(-1)}
-              >
-                <Chevron dir="left" />
-              </button>
-              <span className="wdesk__dots" aria-hidden="true">
-                {Array.from({ length: positions }, (_, i) => (
-                  <i key={i} data-on={i === view ? '' : undefined} />
-                ))}
-              </span>
-              <button
-                type="button"
-                className="wdesk__step"
-                aria-label="Next projects"
-                aria-controls="wdesk-files"
-                disabled={view >= projects.length - VISIBLE_FILES}
-                onClick={() => step(1)}
-              >
-                <Chevron dir="right" />
-              </button>
-            </div>
-          )}
-        </div>
-
-        {windowProject && (
-          <ProjectWindow
-            key={windowProject.id}
-            project={windowProject}
-            id={`${fileId(windowProject)}-window`}
-            from={listRef.current?.querySelector<HTMLElement>(`#${fileId(windowProject)} .wthumb`) ?? null}
-            closing={open !== windowProject.id}
-            reducedMotion={reducedMotion}
-            onPutBack={putBack}
-            onClosed={onWindowClosed}
-          />
-        )}
       </div>
     </TabletFrame>
-  )
-}
-
-function Chevron({ dir }: { dir: 'left' | 'right' }) {
-  return (
-    <svg viewBox="0 0 14 14" aria-hidden="true" focusable="false">
-      <path
-        d={dir === 'left' ? 'M9 2.5 4.5 7 9 11.5' : 'M5 2.5 9.5 7 5 11.5'}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.6"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
   )
 }
