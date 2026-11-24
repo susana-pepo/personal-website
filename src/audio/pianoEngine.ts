@@ -21,7 +21,7 @@ import type * as ToneLib from 'tone'
 import type { Piano } from '../scene/piano'
 import { roomRadio } from './radio'
 import {
-  FIGURES, INSTRUMENTS, LANDSCAPES, LOOPS, TONES, loopInterval, loopStep, midiOf,
+  FIGURES, INSTRUMENTS, LANDSCAPES, LOOPS, LOOP_STEPS, TONES, loopInterval, loopStep, midiOf, stepSeconds,
   type Ambience, type BackingLoop, type Instrument, type LoopStep,
 } from '../scene/pianoMusic'
 
@@ -141,6 +141,9 @@ function withTone(lib: typeof ToneLib) {
   // the loop goes straight to the end of the chain: it's a finished recording, it has its own space
   loopsGain = new T.Gain(loopLevel()).connect(post)
   keysGain = new T.Gain(keysLevel()).connect(bus)
+  // what the loop sounds like, for the screen (listening only: nothing comes out of it)
+  loopEar = ear(ctx)
+  T.connect(loopsGain, loopEar)
   for (const [inst, map] of Object.entries(INSTRUMENTS) as [Instrument, Record<string, string>][]) {
     const panner = new T.Panner(0).connect(keysGain)
     const urls = Object.fromEntries(Object.entries(map).map(([note, file]) => [note, `${file}.m4a`]))
@@ -306,8 +309,86 @@ function step(time: number) {
     }
   }
   backingStep(time, at)
+  if (backing.on && backing.deck && stepN >= backing.from) {
+    const L = backing.deck.loop
+    const k = stepN - backing.from
+    const chordAt = (step: number) => L.chords[Math.floor((((step % LOOP_STEPS) + LOOP_STEPS) % LOOP_STEPS) / 16)] ?? null
+    // (and the chord coming up an eighth from now: players anticipate a change)
+    tick = { at, k, sec: stepSeconds(L), chord: chordAt(k), soon: chordAt(k + 2), scale: ((L.transpose % 12) + 12) % 12 }
+  } else tick = null
   stepN++
 }
+
+// ── Listening: the screen hears how the loop sounds right now ──
+// One analyser on the loop. Each frame the screen asks how strong its bass, middle and top are,
+// each measured between that band's own recent quietest and loudest (so every band rises and falls
+// whatever the loop's loudness), at the same pace whatever the display's frame rate. (Its drums come
+// from the hits measured in each loop, which arrive in time: backingEvents.)
+
+const ear = (c: AudioContext) => {
+  const a = c.createAnalyser()
+  a.fftSize = 1024
+  a.smoothingTimeConstant = 0.3
+  // (an analyser is only kept running while it leads somewhere: into silence, then out)
+  const hush = c.createGain()
+  hush.gain.value = 0
+  a.connect(hush).connect(c.destination)
+  return a
+}
+let loopEar: AnalyserNode | null = null
+type BandName = 'bass' | 'mid' | 'high'
+const BANDS: Record<BandName, readonly [number, number]> = { bass: [35, 160], mid: [300, 2000], high: [5000, 12000] }
+type BandState = { level: number; floor: number; loudest: number }
+const bands: Record<BandName, BandState> = {
+  bass: { level: 0, floor: 1, loudest: 0 },
+  mid: { level: 0, floor: 1, loudest: 0 },
+  high: { level: 0, floor: 1, loudest: 0 },
+}
+let bins: Uint8Array<ArrayBuffer> | null = null
+let heardAt = 0
+/** How the loop sounds right now: its bass, middle and top, each 0-1 (all 0 while no loop plays). */
+export interface Heard {
+  bass: number
+  mid: number
+  high: number
+}
+const silence: Heard = { bass: 0, mid: 0, high: 0 }
+export function heard(now: number): Heard {
+  const dt = Math.min(0.1, Math.max(0, now - heardAt))
+  heardAt = now
+  if (!loopEar || !backing.on) {
+    for (const st of Object.values(bands)) st.level = 0
+    return silence
+  }
+  if (!bins || bins.length !== loopEar.frequencyBinCount) bins = new Uint8Array(loopEar.frequencyBinCount)
+  loopEar.getByteFrequencyData(bins) // (read once a frame)
+  const per = loopEar.context.sampleRate / loopEar.fftSize
+  const out: Heard = { bass: 0, mid: 0, high: 0 }
+  for (const band of ['bass', 'mid', 'high'] as const) {
+    const [lo, hi] = BANDS[band]
+    const a = Math.max(1, Math.floor(lo / per))
+    const b = Math.min(bins.length - 1, Math.ceil(hi / per))
+    let sum = 0
+    for (let i = a; i <= b; i++) sum += bins[i]!
+    const e = sum / ((b - a + 1) * 255)
+    const st = bands[band]
+    // its range: the loudest falls back slowly (by half in about 4 s), the quietest rises slowly
+    st.loudest = Math.max(e, st.loudest * Math.pow(0.84, dt))
+    st.floor = e < st.floor ? e : st.floor + (e - st.floor) * (1 - Math.pow(0.7, dt))
+    const level = Math.max(0, Math.min(1, (e - st.floor) / Math.max(0.04, st.loudest - st.floor)))
+    st.level += (level - st.level) * (1 - Math.exp(-dt / 0.06))
+    out[band] = st.level
+  }
+  return out
+}
+
+/**
+ * The loop's groove right now: where it is (sixteenths since it started, and when the last one
+ * fell, on the screen's clock), how long a sixteenth is, its chord's root now and an eighth from
+ * now, and the key's tonic (the keyboard's C), as pitch classes: or null while no loop plays.
+ */
+let tick: { at: number; k: number; sec: number; chord: number | null; soon: number | null; scale: number } | null = null
+export const groove = () => (backing.on && !backing.starting ? tick : null)
 
 // ── The backing loop ──
 // A recorded loop (src/scene/piano-loops.json) plays on a Tone.js Player, started on a beat after

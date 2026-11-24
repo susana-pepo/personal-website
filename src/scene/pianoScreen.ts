@@ -15,8 +15,8 @@
  * With reduced motion, things appear and fade where they are.
  */
 import art from './piano-landscapes.json'
-import { backingEvents, beat, jamming, screenClock, voices, type Voice } from '../audio/pianoEngine'
-import { LANDSCAPES, LOOPS, NOTE_COLOURS, bandOf, colourOfPitchClass, isBlack, placeOf, type Band } from './pianoMusic'
+import { backingEvents, beat, groove, heard, jamming, screenClock, voices, type Voice } from '../audio/pianoEngine'
+import { KEYS_BY_PITCH, LANDSCAPES, LOOPS, NOTE_COLOURS, bandOf, colourOfPitchClass, isBlack, placeOf, type Band } from './pianoMusic'
 import { FONT_HEIGHT, textPixels, textWidth } from './pixelFont'
 import { TITLE_BG, paintTitle } from './pianoTitle'
 
@@ -62,10 +62,24 @@ interface Scene {
   special(vc: Voice): void
   spark(vc: Voice, colour: Rgb): void
   release(vc: Voice): void
-  /** A drum hit of the backing loop. */
+  /** A drum hit of the backing loop (heard in its sound). */
   hit(kind: Drum, t: number): void
+  /** A phrase just ended (a pause after a few notes): the landscape answers, near where it was drawn. */
+  answer(at: { x: number; y: number; col: Rgb }, t: number): void
+  /** A new bar of the loop: something in the landscape moves with it. */
+  bar(t: number): void
+  /** Its own colour for the life that rises as the playing gets busier (fireflies, snow glints...). */
+  accent: Rgb
+  /** The phrase being played, drawn in the landscape's own way (every frame, even when there's none). */
+  phrase(points: readonly PhrasePoint[], t: number, dt: number): void
+  /** A phrase has ended: what it leaves in the landscape. */
+  settle(points: readonly PhrasePoint[], t: number): void
   draw(t: number, dt: number, held: Voice[]): void
 }
+/** How a note sits in the music: one of the chord's notes, another note of the key, a blue note, or outside. */
+type Tier = 'chord' | 'key' | 'blue' | 'outside'
+/** A note of the phrase being played: when, where (x scrolls with the beat; y: high notes high, 6-32), its colour and its tier. */
+type PhrasePoint = { t: number; x: number; y: number; col: Rgb; tier: Tier; step: number }
 type Drum = 'kick' | 'snare' | 'hat'
 
 type Readout = 'landscape' | 'loop' | 'loopVolume' | 'keysVolume' | 'loopState'
@@ -100,8 +114,9 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     put(x, y, c, a)
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) put(x + dx, y + dy, c, a * 0.4)
   }
-  function flare(x: number, y: number, c: Rgb, a: number, size: number) {
-    put(x, y, WHITE, a * 0.7)
+  function flare(x: number, y: number, c: Rgb, a: number, size0: number) {
+    const size = size0 + 1 // (a little bolder: the screen is small)
+    put(x, y, WHITE, a * 0.8)
     for (let r = 1; r <= size; r++) {
       const k = a * (1 - r / (size + 1))
       put(x + r, y, c, k)
@@ -219,6 +234,17 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
   const kickK = (t: number) => (reduce ? 0 : Math.exp(-Math.max(0, t - kickAt) / 0.16))
   /** A chord change: its colour sweeps down the sky. */
   let sweep: { t0: number; col: Rgb } | null = null
+  /**
+   * What the screen hears and how the playing goes, for every landscape: the loop's bass, middle
+   * and top (heard live, 0-1), how loud the keys are, how busy the playing is (notes in the last few
+   * seconds), and how much a jam has built up (it grows with every note, and fades after a quiet).
+   */
+  const E = { bass: 0, mid: 0, high: 0, density: 0, build: 0 }
+  const recent: number[] = [] // when the last notes were struck
+  /** A note's colour in a phrase, by how it sits in the music: a blue note cooler, an outside note dimmer, another note of the key leaning to the chord. */
+  const BLUE: Rgb = hex('#9ec8ff')
+  const tierColour = (p: PhrasePoint): Rgb =>
+    p.tier === 'blue' ? mix(p.col, BLUE, 0.4) : p.tier === 'outside' ? mix(p.col, [0.45, 0.42, 0.5], 0.5) : p.tier === 'key' && chord ? mix(p.col, chord, 0.25) : p.col
   /** A long jam slowly brings first light (0: night, up to 0.9). */
   let daybreak = 0
   const DAWN_LOW = hex('#f3a07a')
@@ -325,6 +351,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     const herons: { t0: number; dir: number; y: number; col: Rgb }[] = []
     let lastHeron = -9
     const fish: { x: number; t0: number }[] = []
+    const FISH = hex('#dff4ff') // (a moonlit silver, much brighter than the water)
     let nextFish = screenClock() + rnd(5, 10)
     const drifters = Array.from({ length: 2 }, (_, i) => ({ x: rnd(0, W), y: 26 + i * 9, sp: rnd(0.6, 1.2), puffs: [] as { dx: number; dy: number; r: number }[] }))
     const HERON = hex('#191628')
@@ -335,6 +362,50 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     }
     for (const d of drifters) d.puffs = puffs()
     const WATER = A.lake_top ?? HZ + 1
+    /** The phrase being played: a string of paper lanterns floating over the lake, one a note (high notes higher), drifting up as they age. */
+    let playing: readonly PhrasePoint[] = []
+    const PAPER = hex('#ffb35c')
+    const lanternY = (p: PhrasePoint, t: number) => 30 + (p.y - 6) * 0.9 - Math.min(6, (t - p.t) * 1.2)
+    function phraseLanterns(t: number) {
+      for (const p of playing) {
+        const x = Math.round(p.x)
+        const y = Math.round(lanternY(p, t) + (reduce ? 0 : Math.sin(t * 1.4 + p.t * 3) * 0.6))
+        const fresh = Math.exp(-(t - p.t) / 3)
+        const col = mix(tierColour(p), PAPER, 0.3)
+        const dim = p.tier === 'outside' ? 0.55 : 1
+        const flick = reduce ? 0.8 : 0.7 + 0.3 * Math.sin(t * 11 + p.t * 7)
+        // its glow on the night air
+        for (let yy = -5; yy <= 5; yy++)
+          for (let xx = -5; xx <= 5; xx++) {
+            const d = Math.hypot(xx, yy * 1.2)
+            if (d < 5) put(x + xx, y + 1 + yy, col, 0.07 * (5 - d) * dim * (0.5 + 0.5 * fresh))
+          }
+        if (p.tier === 'outside') {
+          put(x, y + 1, col, 0.8)
+          put(x, y + 2, col, 0.6)
+          continue
+        }
+        // the paper lantern: a dark rim on top, the lit paper, the flame's bright heart, a tuft below
+        const big = p.tier === 'chord'
+        for (let i = -1; i <= 1; i++) put(x + i, y, mix(col, [0.12, 0.06, 0.05], 0.6), 0.9)
+        for (let j = 1; j <= (big ? 3 : 2); j++) for (let i = -1; i <= 1; i++) put(x + i, y + j, col, 0.95)
+        put(x, y + 1 + (big ? 1 : 0), mix(col, WHITE, 0.6), flick)
+        put(x, y + (big ? 4 : 3), PAPER, 0.7 * flick)
+      }
+    }
+    /** ...each one lit on the water below, wavering. */
+    function phraseOnWater(t: number) {
+      for (const p of playing) {
+        const fresh = Math.exp(-(t - p.t) / 3)
+        const ry = WATER + 2 + (WATER - lanternY(p, t)) * 0.3
+        const col = mix(tierColour(p), PAPER, 0.3)
+        for (let k = 0; k < 5; k++) {
+          const w = reduce ? 0 : Math.round(Math.sin(t * 3 + k + p.t))
+          put(p.x + w, ry + k * 2, col, 0.4 * (1 - k / 5) * (0.5 + 0.5 * fresh))
+          if (k < 2) put(p.x + w + 1, ry + k * 2, col, 0.2 * (0.5 + 0.5 * fresh))
+        }
+      }
+    }
     return {
       strike(vc, band) {
         const x = colOf(vc.key)
@@ -369,6 +440,22 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         }
         const C = clouds.get(vc)
         if (C) C.leaving = screenClock()
+      },
+      phrase(pts) {
+        playing = pts // (drawn in front of the pines, and on the water: see draw)
+      },
+      settle(pts, t) {
+        // the lanterns float away up and become stars
+        for (const p of pts) kept.push({ x: p.x, y: lanternY(p, t), ty: rnd(4, 26), col: tierColour(p), t0: t, life: rnd(12, 20), tw: rnd(0, 6.3) })
+      },
+      accent: hex('#e8f0a0'),
+      answer(at, t) {
+        // the lake answers a phrase: a fish leaps below it
+        if (reduce) return
+        fish.push({ x: Math.max(14, Math.min(W - 20, at.x)), t0: t })
+      },
+      bar(t) {
+        ripples.push({ x: rnd(20, W - 20), t0: t, col: chord ?? MOON, size: 0.35 + E.bass * 0.4 })
       },
       hit(kind, t) {
         if (kind === 'kick') ripples.push({ x: rnd(16, W - 16), t0: t, col: chord ?? MOON, size: 0.5 })
@@ -427,6 +514,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         blit('lake', 'forest-hills')
         blit('lake', 'pines')
         for (const [vc, L] of lanterns) lightUp('lake', 'pines', L.x, L.dy, 12 + 6 * ease(heldFor(vc, t) / 4), L.col, amp(vc, t) * 0.8)
+        phraseLanterns(t)
         // a heron gliding low over the water, a thread of the note's colour behind it
         for (let i = herons.length - 1; i >= 0; i--) {
           const h = herons[i]!
@@ -469,7 +557,8 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         let stir = 0
         for (const r of ripples) stir += Math.max(0, 1 - (t - r.t0) / 2)
         blit('lake', 'lake')
-        reflect(WATER, t, stir)
+        reflect(WATER, t, stir + E.bass * 1.2) // (the loop's bass stirs the water; 0 with reduced motion)
+        phraseOnWater(t)
         // the moon's path glitters on the water
         for (let y = WATER + 1; y < H; y++) {
           const depth = (y - WATER) / (H - WATER)
@@ -493,10 +582,24 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
             ripples.push({ x: f.x + 6, t0: t, col: MOON, size: 0.4 })
             continue
           }
-          const fx = f.x + k * 6
-          const fy = WATER + 6 - Math.sin(Math.PI * k) * 6
-          put(fx, fy, MOON, 0.8)
-          put(fx - 1, fy + (k < 0.5 ? 1 : -1), MOON, 0.6)
+          // a silver fish, its nose along its arc, bright against the dark water
+          const fx = f.x + k * 10
+          const fy = WATER + 5 - Math.sin(Math.PI * k) * 10
+          const vy = -Math.cos(Math.PI * k) * 10 * Math.PI
+          const n = Math.hypot(10, vy)
+          const ux = 10 / n
+          const uy = vy / n
+          for (let i = -2; i <= 2; i++) {
+            put(fx + ux * i, fy + uy * i, i === 2 ? WHITE : FISH, 1)
+            if (i > -2 && i < 2) put(fx + ux * i - uy, fy + uy * i + ux, FISH, 0.75) // (its belly)
+          }
+          put(fx + ux - uy * 0.5, fy + uy + ux * 0.5, WHITE, 0.9) // (a glint of moonlight on it)
+          for (const side of [-1.5, 1.5]) put(fx - ux * 3 - uy * side, fy - uy * 3 + ux * side, FISH, 0.9) // (its tail)
+          // a splash where it leaves the water, and where it falls back in
+          for (const [at, sx] of [[0, f.x], [1, f.x + 10]] as const) {
+            const s = Math.max(0, 1 - Math.abs(k - at) / 0.25)
+            if (s > 0) for (const j of [-2, -1, 1, 2]) put(sx + j * 1.5, WATER + 4 - s * (3 - Math.abs(j)) * 1.5, WHITE, 0.8 * s)
+          }
         }
         particles(glints, t, dt, (g, k) => plus(g.x, g.y, g.col, sinWave(k) * 0.8))
         for (let i = ripples.length - 1; i >= 0; i--) {
@@ -541,6 +644,27 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     let gust = 0
     const AURORA = hex('#5fe0a0')
     const FOX = hex('#d9824a')
+    let playing: readonly PhrasePoint[] = []
+    const curtainsLeft: { pts: PhrasePoint[]; t0: number }[] = []
+    function melodyCurtain(ps: readonly PhrasePoint[], t: number, k: number) {
+      if (!ps.length) return
+      const from = Math.max(0, Math.floor(ps[0]!.x - 4))
+      const to = Math.min(W - 1, Math.ceil(ps[ps.length - 1]!.x + 4))
+      let i = 1
+      for (let x = from; x <= to; x++) {
+        while (i < ps.length - 1 && ps[i]!.x < x) i++
+        const a0 = ps[Math.max(0, i - 1)]!
+        const a1 = ps[i] ?? a0
+        const u = a1.x === a0.x ? 0 : clamp01((x - a0.x) / (a1.x - a0.x))
+        const top = 4 + (a0.y + (a1.y - a0.y) * u - 6) * 0.9
+        const col = mix(tierColour(a0), tierColour(a1), u)
+        const len = Math.min(16 + 4 * Math.sin(x * 0.2 + t * (reduce ? 0 : 0.7)), 40 - top)
+        const shim = reduce ? 0.8 : 0.6 + 0.4 * Math.sin(x * 1.1 + t * 2.4)
+        const edge = Math.min(1, (x - from) / 4, (to - x) / 4)
+        put(x, top, mix(col, WHITE, 0.3), 0.65 * k * edge)
+        for (let y = 1; y < len; y++) put(x, top + y, col, k * edge * shim * 0.45 * (1 - y / len))
+      }
+    }
     let glow = 0
     return {
       strike(vc, band) {
@@ -560,6 +684,22 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
       special: (vc) => meteor(noteRgb(vc.key)),
       spark: (_vc, col) => void glints.push({ x: rnd(4, W - 4), y: rnd(10, HZ), t0: screenClock(), col, life: rnd(1.5, 2.5) }),
       release() {},
+      phrase(pts) {
+        playing = pts // (drawn with the aurora, behind the peaks: see draw)
+      },
+      settle(pts, t) {
+        // ...and lingers after it, fading
+        curtainsLeft.push({ pts: pts.map((p) => ({ ...p })), t0: t })
+        if (curtainsLeft.length > 2) curtainsLeft.shift()
+      },
+      accent: hex('#dfe7f3'),
+      answer(at, t) {
+        if (reduce) return
+        foxes.push({ t0: t, dir: at.x < W / 2 ? 1 : -1, col: at.col, y: rnd(84, 90) })
+      },
+      bar() {
+        gust = Math.max(gust, 0.45)
+      },
       hit(kind, t) {
         if (kind === 'snare') gust = 1
         else if (kind === 'hat' && Math.random() < 0.6) glints.push({ x: rnd(4, W - 4), y: rnd(4, HZ), t0: t, col: chord ? mix(SNOW, chord, 0.4) : SNOW, life: 0.4 })
@@ -573,7 +713,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         starDust(field, t, 0.5)
         // a faint aurora, always breathing; the kick lights it up
         const ac = chord ? mix(AURORA, chord, 0.5) : AURORA
-        const breathe = (reduce ? 0.1 : 0.07 + 0.04 * Math.sin(t * 0.5)) + kickK(t) * 0.22
+        const breathe = (reduce ? 0.1 : 0.07 + 0.04 * Math.sin(t * 0.5)) + kickK(t) * 0.22 + E.mid * 0.16 // (it breathes with the loop)
         for (let x = 0; x < W; x++) {
           const top = 8 + 5 * Math.sin(x * 0.06 + t * (reduce ? 0 : 0.25))
           const bot = top + 14 + 4 * Math.sin(x * 0.09 - t * (reduce ? 0 : 0.3))
@@ -599,6 +739,14 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
             const shim = reduce ? 0.8 : 0.55 + 0.45 * Math.sin(x * 1.3 + t * 2.6 + c.ph)
             for (let y = Math.ceil(top); y < bot; y++) put(x, y, c.col, a * edge * shim * 0.5 * Math.pow(Math.max(0, (y - top) / (bot - top)), 1.6))
           }
+        }
+        // the aurora takes the shape of the melody: its curtain's lit edge follows the phrase, and lingers after it
+        melodyCurtain(playing, t, 1)
+        for (let i = curtainsLeft.length - 1; i >= 0; i--) {
+          const c = curtainsLeft[i]!
+          const k = 1 - (t - c.t0) / 7
+          if (k <= 0) curtainsLeft.splice(i, 1)
+          else melodyCurtain(c.pts, t, k)
         }
         drawMeteors(t)
         blit('peaks', 'far-peaks')
@@ -701,6 +849,16 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     const weeds: { t0: number; dir: number }[] = []
     let nextWeed = screenClock() + rnd(6, 12)
     const WEED = hex('#8a6a48')
+    const STRING = hex('#3a2630')
+    const kitesGone: { x: number; y: number; col: Rgb; t0: number }[] = []
+    /** A diamond kite, in the colour of a note, with its dark cross spars, gently bobbing on the wind. */
+    function kite(x: number, y: number, col: Rgb, t: number, a: number) {
+      const yy = Math.round(y + (reduce ? 0 : Math.sin(t * 2.2) * 1))
+      const rows = ['....#....', '...###...', '..#####..', '.#######.', '#########', '.#######.', '..#####..', '...###...', '....#....']
+      rows.forEach((row, j) => [...row].forEach((ch, i) => ch === '#' && put(x + i - 4, yy + j, j < 4 ? mix(col, WHITE, 0.2) : mix(col, BIRD, 0.2), a)))
+      for (let j = 1; j < 8; j++) put(x, yy + j, STRING, 0.6 * a)
+      for (let i = -3; i <= 3; i++) put(x + i, yy + 4, STRING, 0.5 * a)
+    }
     return {
       strike(vc, band) {
         const x = Math.round(colOf(vc.key))
@@ -721,6 +879,53 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
           kept.push({ x: s.x, y: s.y, col: s.col, t0: screenClock(), life: rnd(14, 22), tw: s.tw })
           eve.delete(vc)
         }
+      },
+      phrase(pts, t, dt) {
+        // a kite on the desert wind; its tail, a bow for each note, is the melody
+        const yOf = (p: PhrasePoint) => 18 + (p.y - 6) + (reduce ? 0 : Math.sin(p.x * 0.35 + t * 2.5) * 1.2)
+        for (let j = 1; j < pts.length; j++) {
+          const q = pts[j - 1]!
+          const p = pts[j]!
+          const n = Math.max(2, Math.ceil(Math.hypot(p.x - q.x, yOf(p) - yOf(q))))
+          for (let i = 0; i < n; i++) put(q.x + ((p.x - q.x) * i) / n, yOf(q) + ((yOf(p) - yOf(q)) * i) / n, STRING, 0.55)
+        }
+        for (const p of pts) {
+          const col = tierColour(p)
+          const a = p.tier === 'outside' ? 0.5 : 1
+          sprite(p.tier === 'chord' ? ['#.#', '.#.', '#.#'] : ['#.#', '...', '#.#'], p.x, yOf(p) - 1, col, 0.95 * a)
+          put(p.x, yOf(p), mix(col, WHITE, 0.4), a)
+        }
+        const head = pts[pts.length - 1]
+        if (head) {
+          kite(head.x + 5, yOf(head) - 13, tierColour(head), t, 1)
+          for (let i = 0; i <= 5; i++) put(head.x + i, yOf(head) - i - 1, STRING, 0.55) // (its line, up to the kite)
+          if (!reduce && Math.random() < dt * 6) grains.push({ x: head.x, y: yOf(head), vx: rnd(-14, -6), vy: rnd(-3, 3), t0: t, col: SUN, life: rnd(0.5, 0.9) })
+        }
+        // a kite let go sails off on the wind
+        for (let i = kitesGone.length - 1; i >= 0; i--) {
+          const k = kitesGone[i]!
+          const u = (t - k.t0) / 3
+          if (u > 1) {
+            kitesGone.splice(i, 1)
+            continue
+          }
+          kite(k.x + u * 40, k.y - u * 18, k.col, t, 1 - u)
+        }
+      },
+      settle(pts, t) {
+        // the kite sails off, and the bows of its tail fall back to the dunes as glittering sand
+        const head = pts[pts.length - 1]!
+        if (!reduce) kitesGone.push({ x: head.x + 5, y: 18 + (head.y - 6) - 13, col: tierColour(head), t0: t })
+        for (const p of pts) grains.push({ x: p.x, y: 18 + (p.y - 6), vx: rnd(-4, 4), vy: rnd(4, 10), t0: t, col: tierColour(p), life: rnd(1, 1.8) })
+      },
+      accent: hex('#f8d690'),
+      answer(at, t) {
+        if (reduce) return
+        flocks.push({ t0: t, y: Math.max(14, Math.min(34, at.y)), dir: at.x < W / 2 ? 1 : -1, n: Math.round(rnd(4, 7)) })
+      },
+      bar(t) {
+        const x = rnd(10, W - 10)
+        for (let i = 0; i < 8; i++) grains.push({ x: x + rnd(-3, 3), y: top(mid, x) - 1, vx: rnd(6, 16), vy: rnd(-8, -2), t0: t, col: SUN, life: rnd(0.6, 1) })
       },
       hit(kind, t) {
         if (kind === 'snare') {
@@ -824,7 +1029,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         }
         for (const s of sand) {
           if (!reduce) {
-            s.x += s.sp * dt
+            s.x += s.sp * dt * (1 + E.high * 2.5) // (the loop's top blows the sand along)
             if (s.x > W) {
               s.x = 0
               s.y = rnd(62, H)
@@ -891,6 +1096,12 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     let lastGulls = -9
     let nextGulls = screenClock() + rnd(8, 14)
     const GULL = hex('#e8e4da')
+    const flyers: { x: number; y: number; vx: number; vy: number; t0: number; col: Rgb; ph: number }[] = []
+    function gull(x: number, y: number, col: Rgb, ph: number, t: number, a: number) {
+      const up = reduce || Math.sin(t * 8 + ph * 5) > 0
+      sprite(up ? ['#...#', '.#.#.'] : ['.....', '##.##'], x, y, GULL, 0.9 * a)
+      put(x, y + 1, col, a) // (the note's colour, on its body)
+    }
     let chordOn = false
     return {
       strike(vc, band) {
@@ -920,6 +1131,34 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
           kept.push({ x: s.x, y: s.y, col: s.col, t0: screenClock(), life: rnd(14, 22), tw: s.tw })
           stars.delete(vc)
         }
+      },
+      phrase(pts, t, dt) {
+        // a flock of gulls flies the melody's shape, one a note
+        for (const p of pts) gull(p.x, 14 + (p.y - 6) * 1.1, tierColour(p), p.t, t, p.tier === 'outside' ? 0.5 : 1)
+        // ...and when it's over they wheel away out to sea
+        for (let i = flyers.length - 1; i >= 0; i--) {
+          const f = flyers[i]!
+          const k = (t - f.t0) / 3
+          if (k > 1) {
+            flyers.splice(i, 1)
+            continue
+          }
+          f.x += f.vx * dt
+          f.y += f.vy * dt
+          gull(f.x, f.y, f.col, f.ph, t, 1 - k)
+        }
+      },
+      settle(pts, t) {
+        if (reduce) return
+        for (const p of pts) flyers.push({ x: p.x, y: 14 + (p.y - 6) * 1.1, vx: rnd(-26, -12), vy: rnd(-8, -2), t0: t, col: tierColour(p), ph: p.t })
+      },
+      accent: hex('#8fe3ff'),
+      answer(at, t) {
+        if (reduce) return
+        whales.push({ x: Math.min(W - 50, Math.max(10, at.x)), t0: t, col: at.col })
+      },
+      bar(t) {
+        for (let i = 0; i < 6; i++) glints.push({ x: rnd(4, W - 46), y: rnd(HZ + 2, HZ + 12), t0: t, col: chord ? mix(MOON, chord, 0.5) : MOON, life: 0.6 })
       },
       hit(kind, t) {
         if (kind === 'snare') {
@@ -993,7 +1232,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
           plus(x - 3, y - 3, b.col, fade)
           for (let j = 1; j < 5; j++) put(x - 3, y + j * 2, LANTERN, (fade * 0.25) / j)
         }
-        const crestK = kickK(t) // the kick lifts the crests
+        const crestK = Math.max(kickK(t), E.bass * 0.55) // the kick (and the loop's bass) lifts the crests
         for (let y = HZ + 1; y < H; y += 2)
           for (let x = 0; x < W; x++) {
             const crest = Math.sin(x * 0.35 + y * 1.7 + t * (reduce ? 0 : 1.4)) > 0.92 - crestK * 0.12
@@ -1077,6 +1316,110 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
   let switchedAt = -9
   let osd: { kind: Readout; value: number; until: number } | null = null
   const pulse = () => Math.max(beat(), kickAt, snareAt)
+
+  // ── Your playing, drawn by the landscape itself. A phrase scrolls left with the loop's beat (the
+  // newest note at the right, high notes high), and each landscape draws it its own way: floating
+  // lanterns on the lake, the aurora's edge over the peaks, a ribbon of blown sand over the dunes,
+  // a flock of gulls over the sea. When it ends (two beats of quiet, nothing held) it settles into
+  // the scenery: the lanterns rise into stars, the aurora lingers, the sand falls, the gulls fly off.
+  // Each note shows how it sits in the music: a chord note bright, another note of the key leaning
+  // to the chord, a blue note cooler, an outside note dim; when an outside note steps onto a chord
+  // note it resolves in a glow and sparks. The landscape answers a phrase of three notes or more on
+  // the next downbeat. The busier the playing, the more life rises from the landscape. ──
+  let phrase: PhrasePoint[] = []
+  const motes: Particle[] = []
+  let glow: { x: number; y: number; t0: number; col: Rgb } | null = null
+  let lastNoteAt = -9
+  let quietSince = -9 // when the keys last fell silent (nothing held)
+  let lastMidi: number | null = null
+  let lastTier: Tier = 'chord'
+  let lastResolve = -9
+  let answerDue: { x: number; y: number; col: Rgb } | null = null
+  let lastAnswerBar = -9
+  let lastBar = -1
+  let barChord: number | null = null
+  const HEAD_X = 100 // where the newest note of a phrase sits
+  const stepOf = (key: string) => Math.max(0, KEYS_BY_PITCH.indexOf(key))
+  const heightOf = (key: string) => 32 - stepOf(key) * 2.15 // (the 13 keys span the sky, y 6-32)
+  /** How fast a phrase scrolls: 12 px a beat (or a calm 15 px/s with no loop). */
+  const scrollSpeed = () => {
+    const now = groove()
+    return now ? 12 / (now.sec * 4) : 15
+  }
+  /** How a note sits in the music: one of the chord's notes (either third), another note of the key, a blue note (the key's b3, b5, b7), or outside. */
+  function tierOf(midi: number): Tier {
+    const now = groove()
+    if (!now) return 'chord'
+    const pc = ((midi % 12) + 12) % 12
+    const inChord = (root: number | null) => root !== null && [0, 3, 4, 7].some((i) => (root + i) % 12 === pc)
+    if (inChord(now.chord) || inChord(now.soon)) return 'chord' // (a note just before a change counts for the new chord)
+    const k = now.scale
+    if ([0, 2, 4, 5, 7, 9, 11].some((i) => (k + i) % 12 === pc)) return 'key'
+    if ([3, 6, 10].some((i) => (k + i) % 12 === pc)) return 'blue'
+    return 'outside'
+  }
+  function onNote(vc: Voice, t: number) {
+    recent.push(t)
+    lastNoteAt = t
+    E.build = Math.min(1, E.build + 0.012)
+    const col = noteRgb(vc.key)
+    const tier = tierOf(vc.midi)
+    const y = heightOf(vc.key)
+    phrase.push({ t, x: HEAD_X, y, col, tier, step: stepOf(vc.key) })
+    // a tension resolved: an outside note stepping (by a semitone or a tone) onto a chord note
+    const stepped = lastMidi !== null && Math.abs(vc.midi - lastMidi) <= 2
+    if (tier === 'chord' && lastTier === 'outside' && stepped && t - lastResolve > 4) {
+      lastResolve = t
+      if (!reduce) {
+        glow = { x: HEAD_X, y, t0: t, col }
+        for (let i = 0; i < 16; i++) {
+          const a = (i / 16) * 6.283
+          motes.push({ x: HEAD_X, y, vx: Math.cos(a) * rnd(14, 26), vy: Math.sin(a) * rnd(10, 20), t0: t, col, life: rnd(0.6, 1) })
+        }
+      }
+    }
+    lastMidi = vc.midi
+    lastTier = tier
+  }
+  /** A phrase is over (two beats of quiet, nothing held): it settles into the landscape, which answers it. */
+  function endPhrase(t: number) {
+    const pts = phrase.filter((p) => p.x > 2)
+    phrase = []
+    lastMidi = null
+    if (!pts.length) return
+    scene.settle(pts, t)
+    // a phrase of three or more that doesn't end outside the key: the landscape answers, on the next downbeat
+    const last = pts[pts.length - 1]!
+    const cx = pts.reduce((a, p) => a + p.x, 0) / pts.length
+    const cy = pts.reduce((a, p) => a + p.y, 0) / pts.length
+    if (pts.length >= 3 && last.tier !== 'outside') answerDue = { x: cx, y: cy, col: last.col }
+  }
+  function drawPlaying(t: number, dt: number) {
+    // life rising from the landscape, as busy as the playing
+    if (!reduce && motes.length < 70 && Math.random() < dt * E.density * 16) {
+      motes.push({ x: rnd(4, W - 4), y: rnd(H * 0.45, H - 4), vx: rnd(-3, 3), vy: rnd(-12, -4), t0: t, col: scene.accent, life: rnd(1.2, 2.4) })
+    }
+    particles(motes, t, dt, (m, k) => put(m.x, m.y, m.col, Math.sin(Math.PI * k) * 0.9))
+    // the phrase being played, drawn by the landscape in its own way, scrolling left with the beat
+    const speed = reduce ? 0 : scrollSpeed()
+    for (const p of phrase) p.x = HEAD_X - (t - p.t) * speed
+    phrase = phrase.filter((p) => p.x > -20) // (what has scrolled off is let go)
+    scene.phrase(phrase, t, dt)
+    // a resolution: a soft glow around the note, easing out
+    if (glow) {
+      const k = (t - glow.t0) / 0.5
+      if (k > 1) glow = null
+      else {
+        const a = 0.12 * (1 - k) * (1 - k)
+        for (let y = Math.max(0, Math.floor(glow.y - 18)); y < Math.min(H, glow.y + 18); y++)
+          for (let x = Math.max(0, Math.floor(glow.x - 18)); x < Math.min(W, glow.x + 18); x++) {
+            const d = Math.hypot(x - glow.x, y - glow.y) / 18
+            if (d < 1) put(x, y, glow.col, a * (1 - d))
+          }
+      }
+    }
+  }
+
   // the backing loop's hits arrive a moment early (they're scheduled ahead): each waits for its time
   const due: ReturnType<typeof backingEvents> = []
   let nextMeteor = screenClock() + rnd(6, 12)
@@ -1148,6 +1491,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     for (const vc of voices()) {
       if (!seen.has(vc)) {
         seen.add(vc)
+        if (vc.start >= opened) onNote(vc, t)
         if (vc.start >= opened) {
           // (a note still fading from the last time it was open doesn't count)
           boot.strikes++
@@ -1188,11 +1532,49 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         chord = hex(colourOfPitchClass(e.pc))
         if (!reduce) sweep = { t0: t, col: chord }
       } else {
+        // the loop's drums: the hits measured in it, arriving in time
         if (e.kind === 'kick') kickAt = t
         if (e.kind === 'snare') snareAt = t
         scene.hit(e.kind, t)
       }
     }
+    // how the loop sounds right now (still, with reduced motion: nothing pulses with it)
+    const h = reduce ? { bass: 0, mid: 0, high: 0 } : heard(t)
+    const follow = 1 - Math.exp(-dt / 0.12)
+    E.bass += (h.bass - E.bass) * follow
+    E.mid += (h.mid - E.mid) * follow
+    E.high += (h.high - E.high) * follow
+    // the loop's bars and beats
+    const now = groove()
+    if (now) {
+      const pos = Math.max(0, now.k + (t - now.at) / now.sec) // (the step is scheduled a moment ahead)
+      const bar = Math.floor(pos / 16)
+      if (bar !== lastBar) {
+        // a downbeat: the landscape answers a finished phrase here (at most every two bars); on bars
+        // 1 and 5 of the loop it moves with the music, unless the chord changes (that sweeps the sky)
+        if (lastBar >= 0 && !reduce) {
+          if (answerDue && bar - lastAnswerBar >= 1) {
+            scene.answer(answerDue, t)
+            lastAnswerBar = bar
+          } else if (bar % 4 === 0 && now.chord === barChord) scene.bar(t)
+        }
+        answerDue = null
+        barChord = now.chord
+        lastBar = bar
+      }
+    } else {
+      lastBar = -1
+      if (answerDue && !reduce) scene.answer(answerDue, t) // (no loop: it answers at once)
+      answerDue = null
+    }
+    // how busy the playing is (it keeps rising up to about five notes a second), how much the jam has
+    // built up, and the end of a phrase: two beats of quiet (at least 1.2 s), nothing held
+    while (recent.length && t - recent[0]! > 4) recent.shift()
+    E.density = Math.min(1, Math.sqrt(recent.length / 20))
+    if (t - lastNoteAt > 8) E.build = Math.max(0, E.build - dt / 90)
+    if (held.length) quietSince = t
+    const gap = Math.max(1.2, now ? now.sec * 8 : 1.2)
+    if (phrase.length && !held.length && t - Math.max(quietSince, lastNoteAt) > gap) endPhrase(t)
     const looping = jamming() ? chord : null
     // a long jam brings first light; it goes back to night slowly when the music stops
     daybreak = Math.max(0, Math.min(0.9, daybreak + dt * (held.length || looping ? 1 / 150 : -1 / 90)))
@@ -1205,7 +1587,10 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     if (tw > 0) tint = [tr / tw, tg / tw, tb / tw]
     if (looping) tint = mix(tint, looping, tw > 0 ? 0.45 : 1)
     px.fill(0)
-    if (layers[id]) scene.draw(t, dt, held)
+    if (layers[id]) {
+      scene.draw(t, dt, held)
+      drawPlaying(t, dt)
+    }
     const k = (t - switchedAt) / 0.45
     if (k >= 0 && k < 1) {
       // changing channel: a burst of static and a rolling bar
