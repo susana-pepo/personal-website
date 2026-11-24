@@ -123,6 +123,14 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   // A portrait phone pans across the room (App.css): keyboard focus brings each object into view.
   const roomPan = useRoomPan(stageRef, pan, reducedMotion)
   const { reveal } = roomPan
+  // An arrow goes once the room ends that way: focus on it moves to the other one, not off the page.
+  const panArrows = useRef<HTMLDivElement>(null)
+  const lookAlong = (direction: -1 | 1, arrow: HTMLButtonElement) => {
+    const atEnd = roomPan.step(direction)
+    if (atEnd && document.activeElement === arrow) {
+      panArrows.current?.querySelector<HTMLButtonElement>(direction < 0 ? '.room-pan__arrow--end' : '.room-pan__arrow--start')?.focus()
+    }
+  }
   const revealObject = useCallback(
     (id: string) => {
       const span = SPAN_OF.get(id)
@@ -449,14 +457,33 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
           {announcement}
         </p>
       </div>
-      {/* A portrait phone's room pans: soft fades at the edges with more of the room beyond them. */}
+      {/* A portrait phone's room pans: soft fades at the edges with more of the room beyond them,
+          and an arrow on each to look that way (a swipe does the same). */}
       {pan && (
-        <span
-          className="stage-edges"
-          data-start={roomPan.more.start ? '' : undefined}
-          data-end={roomPan.more.end ? '' : undefined}
-          aria-hidden="true"
-        />
+        <div ref={panArrows} className="room-pan" data-start={roomPan.more.start ? '' : undefined} data-end={roomPan.more.end ? '' : undefined}>
+          <button
+            type="button"
+            className="room-pan__arrow room-pan__arrow--start"
+            aria-label={content.discovery.panStart}
+            disabled={!roomPan.more.start}
+            onClick={(event) => lookAlong(-1, event.currentTarget)}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M9.75 3.5 5.25 8l4.5 4.5" />
+            </svg>
+          </button>
+          <button
+            type="button"
+            className="room-pan__arrow room-pan__arrow--end"
+            aria-label={content.discovery.panEnd}
+            disabled={!roomPan.more.end}
+            onClick={(event) => lookAlong(1, event.currentTarget)}
+          >
+            <svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
+              <path d="M6.25 3.5 10.75 8l-4.5 4.5" />
+            </svg>
+          </button>
+        </div>
       )}
     </>
   )

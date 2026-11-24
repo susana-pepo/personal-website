@@ -470,6 +470,8 @@ export const content: SiteContent = {
     title: 'Explore the room',
     hint: 'Hover or tap the objects',
     dismissLabel: 'Dismiss hint',
+    panStart: 'Look left in the room',
+    panEnd: 'Look right in the room',
   },
 
   lamp: {

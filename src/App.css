@@ -129,8 +129,9 @@
     overflow: clip;
   }
 
-  /* Soft fades at the edges with more room beyond them (useRoomPan sets data-start and data-end). */
-  .stage-edges {
+  /* Soft fades at the edges with more room beyond them (useRoomPan sets data-start and data-end),
+     each with an arrow to look that way. */
+  .room-pan {
     position: absolute;
     inset: 0;
     z-index: 1;
@@ -139,8 +140,8 @@
     pointer-events: none;
   }
 
-  .stage-edges::before,
-  .stage-edges::after {
+  .room-pan::before,
+  .room-pan::after {
     content: '';
     position: absolute;
     top: 0;
@@ -150,25 +151,126 @@
     transition: opacity 240ms var(--ease-out);
   }
 
-  .stage-edges::before {
+  .room-pan::before {
     left: 0;
     background: linear-gradient(to right, oklch(0.12 0.008 45 / 0.62), oklch(0.12 0.008 45 / 0));
   }
 
-  .stage-edges::after {
+  .room-pan::after {
     right: 0;
     background: linear-gradient(to left, oklch(0.12 0.008 45 / 0.62), oklch(0.12 0.008 45 / 0));
   }
 
-  .stage-edges[data-start]::before,
-  .stage-edges[data-end]::after {
+  .room-pan[data-start]::before,
+  .room-pan[data-end]::after {
     opacity: 1;
+  }
+
+  /* The arrows: small rounds of the same dark glass as the "Explore the room" chip, centred on
+     each edge, each there only while the room goes on that way. */
+  .room-pan__arrow {
+    position: absolute;
+    top: 50%;
+    z-index: 1;
+    display: grid;
+    place-items: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    margin-top: -1.125rem;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: linear-gradient(150deg, oklch(0.26 0.016 52 / 0.78), oklch(0.17 0.012 45 / 0.74));
+    -webkit-backdrop-filter: blur(12px) saturate(115%);
+    backdrop-filter: blur(12px) saturate(115%);
+    box-shadow:
+      inset 0 0 0 1px oklch(1 0 0 / 0.16),
+      0 8px 18px -10px oklch(0.05 0.01 45 / 0.8);
+    color: var(--on-sleeve);
+    cursor: pointer;
+    pointer-events: auto;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      opacity 200ms var(--ease-out),
+      transform 160ms var(--ease-out);
+  }
+
+  .room-pan__arrow--start {
+    left: 0.5rem;
+  }
+
+  .room-pan__arrow--end {
+    right: 0.5rem;
+  }
+
+  /* a 44px target around the 36px round */
+  .room-pan__arrow::before {
+    content: '';
+    position: absolute;
+    inset: -4px;
+  }
+
+  .room-pan__arrow:disabled {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .room-pan__arrow:active {
+    transform: scale(0.92);
+  }
+
+  .room-pan__arrow:focus-visible {
+    outline: 2px solid var(--spot);
+    outline-offset: 2px;
+  }
+
+  .room-pan__arrow svg {
+    width: 15px;
+    height: 15px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.7;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  /* When the first-visit chip arrives, the arrows lean twice towards the room beyond them, so the
+     eye finds them. Once, on arrival; the entrance gate holds it back like the chip. */
+  .room-pan__arrow--start svg {
+    --nudge: -3px;
+  }
+
+  .room-pan__arrow--end svg {
+    --nudge: 3px;
+  }
+
+  .room-pan__arrow svg {
+    animation: pan-nudge 560ms var(--ease-out) 4.4s 2;
+  }
+
+  :root:not([data-entered]) .room-pan__arrow svg {
+    animation-play-state: paused;
+  }
+
+  @keyframes pan-nudge {
+    40% {
+      transform: translateX(var(--nudge));
+    }
   }
 }
 
 @media (max-width: 639px) and (orientation: portrait) and (pointer: coarse) and (prefers-reduced-motion: reduce) {
-  .stage-edges::before,
-  .stage-edges::after {
+  .room-pan::before,
+  .room-pan::after,
+  .room-pan__arrow {
     transition-duration: 120ms;
+  }
+
+  .room-pan__arrow svg {
+    animation: none;
+  }
+
+  .room-pan__arrow:active {
+    transform: none;
   }
 }

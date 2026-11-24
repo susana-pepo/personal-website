@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
 import { VINYL_PARTS, overlay, pctX, pctY } from '../../../scene/layout'
 import { usePlacedOverlay } from '../../../scene/layoutOverrides'
@@ -41,20 +41,47 @@ interface VinylPlayerProps {
 export function VinylPlayer({ highlighted, motionAllowed, discoveryIndex }: VinylPlayerProps) {
   const discRef = useRef<HTMLSpanElement>(null)
   const reducedMotion = usePrefersReducedMotion()
+  // In view of the room (a phone's room pans, and opens with the record player off to the left).
+  // Out of view, the record stops and gives up its own layer: iPhone Safari never paints a layer
+  // that was made while it was out of sight in a panning box, and the whole player went missing.
+  const [inView, setInView] = useState(true)
+  useEffect(() => {
+    const player = discRef.current?.closest('.scene-object')
+    if (!player || typeof IntersectionObserver === 'undefined') return
+    const observer = new IntersectionObserver(([entry]) => setInView(entry ? entry.isIntersecting : true))
+    observer.observe(player)
+    return () => observer.disconnect()
+  }, [])
   // Always playing, whenever the room may move.
   const spinning = motionAllowed && !reducedMotion
-  const spin = useRef<{ animation: Animation | null; rate: number; frame: number }>({ animation: null, rate: 0, frame: 0 })
+  const spin = useRef<{ animation: Animation | null; rate: number; frame: number; time: CSSNumberish | null }>({
+    animation: null,
+    rate: 0,
+    frame: 0,
+    time: null,
+  })
 
   useEffect(() => {
     const disc = discRef.current
     if (!disc || typeof disc.animate !== 'function') return
     const state = spin.current
+    if (!inView) {
+      // Out of sight: no animation and no layer; it carries on from the same turn when it's back.
+      cancelAnimationFrame(state.frame)
+      if (state.animation) {
+        state.time = state.animation.currentTime
+        state.animation.cancel()
+        state.animation = null
+      }
+      return
+    }
     if (!state.animation) {
       state.animation = disc.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], {
         duration: TURN_MS,
         iterations: Infinity,
         easing: 'linear',
       })
+      if (state.time !== null) state.animation.currentTime = state.time
       state.animation.pause()
     }
     const animation = state.animation
@@ -84,7 +111,7 @@ export function VinylPlayer({ highlighted, motionAllowed, discoveryIndex }: Viny
     cancelAnimationFrame(state.frame)
     state.frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(state.frame)
-  }, [spinning])
+  }, [spinning, inView])
 
   useEffect(
     () => () => {
@@ -106,7 +133,7 @@ export function VinylPlayer({ highlighted, motionAllowed, discoveryIndex }: Viny
       <span className="vinyl-player__disc" style={DISC_BOX}>
         <span className="vinyl-player__edge" style={{ transform: `translateY(${(VINYL_PARTS.edge / DH) * 100}%)` }} />
         <span className="vinyl-player__face" style={{ transform: `translateY(-50%) scaleY(${VINYL_PARTS.tilt})` }}>
-          <span ref={discRef} className="vinyl-player__spin">
+          <span ref={discRef} className="vinyl-player__spin" style={inView ? undefined : { willChange: 'auto' }}>
             <img src={VINYL_PARTS.disc} alt="" decoding="async" draggable={false} />
             <span className="vinyl-player__shade" />
             <span className="vinyl-player__shimmer" />

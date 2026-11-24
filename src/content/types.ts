@@ -291,7 +291,14 @@ export interface SiteContent {
   /** Small tooltips on the transparent objects (shown after a short hover, or on focus). */
   objectTooltips: { vinyl: string; books: string; laptop: string; deskbooks: string; woman: string; coffee: string }
   /** A quiet, dismissible first-visit hint under the room. Hidden after the first interaction. */
-  discovery: { title: string; hint: string; dismissLabel: string }
+  discovery: {
+    title: string
+    hint: string
+    dismissLabel: string
+    /** The arrows at the edges of a phone's panning room (accessible names). */
+    panStart: string
+    panEnd: string
+  }
   /** The desk lamp: clicking it changes the colour of its light (not a section). */
   lamp: {
     /** Hover tag. */

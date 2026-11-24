@@ -6,7 +6,12 @@ export interface RoomPan {
   more: { start: boolean; end: boolean }
   /** Bring a stretch of the canvas (x from `left` to `right`) into view, if it isn't already. */
   reveal: (left: number, right: number) => void
+  /** Pan most of a view to the left (-1) or the right (1), as the arrow buttons do. True if that reaches the end. */
+  step: (direction: -1 | 1) => boolean
 }
+
+/** How far an arrow pans: most of the view, so a little of what was seen stays in sight. */
+const STEP = 0.7
 
 const NONE = { start: false, end: false }
 
@@ -69,5 +74,17 @@ export function useRoomPan(frameRef: RefObject<HTMLElement | null>, pan: CoverFi
     [frameRef, pan, reducedMotion],
   )
 
-  return { more, reveal }
+  const step = useCallback(
+    (direction: -1 | 1) => {
+      const frame = frameRef.current
+      if (!frame || !pan) return false
+      const max = Math.max(0, pan.width - frame.clientWidth)
+      const left = Math.min(max, Math.max(0, frame.scrollLeft + direction * frame.clientWidth * STEP))
+      frame.scrollTo({ left, behavior: reducedMotion ? 'auto' : 'smooth' })
+      return direction < 0 ? left <= 1 : left >= max - 1
+    },
+    [frameRef, pan, reducedMotion],
+  )
+
+  return { more, reveal, step }
 }
