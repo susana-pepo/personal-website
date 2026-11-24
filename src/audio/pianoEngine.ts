@@ -80,6 +80,11 @@ let stepN = 0
 let listening = false
 
 const landscape = () => LANDSCAPES[landscapeIndex] ?? LANDSCAPES[0]!
+/**
+ * A note's pitch, tuned to the loop: the recorded loops aren't all exactly at concert pitch (A = 440
+ * Hz), so the keys, their pads and their loops play the same few cents sharp or flat as the loop does.
+ */
+const hzOf = (midi: number) => 440 * 2 ** ((midi - 69 + backingLoop().tuning / 100) / 12)
 const backingLoop = () => LOOPS[loopIndex] ?? LOOPS[0]!
 const tone = () => TONES[backingLoop().tone] ?? TONES[0]!
 const atmos = () => landscape().atmos
@@ -173,7 +178,7 @@ function noteOn(key: string) {
   const t0 = screenClock()
   if (held.has(key)) release(held.get(key)!)
   const midi = midiOf(key) + backingLoop().transpose // the white keys play the loop's scale
-  const freq = 440 * 2 ** ((midi - 69) / 12)
+  const freq = hzOf(midi)
   const vc: Voice = {
     key, midi, freq, start: t0, released: null, tau: tau(), seed: Math.random() * 6.28,
     figure: FIGURES[Math.floor(Math.random() * FIGURES.length)]!, beads: [], gone: false,
@@ -276,7 +281,7 @@ function playSample(inst: Instrument, midi: number, at: number, level: number, p
   const s = samplers[inst]
   if (!T || !samplesReady || !s || !s.sampler.loaded) return false
   s.panner.pan.setValueAtTime(Math.max(-1, Math.min(1, pan)), at)
-  s.sampler.triggerAttackRelease(T.Frequency(midi, 'midi').toNote(), 2.4, at, Math.min(1, level * 1.6))
+  s.sampler.triggerAttackRelease(hzOf(midi), 2.4, at, Math.min(1, level * 1.6))
   return true
 }
 

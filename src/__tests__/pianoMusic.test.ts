@@ -63,6 +63,7 @@ describe('the piano computer’s music', () => {
   it('brings the keyboard into each loop’s key by at most half an octave', () => {
     for (const l of LOOPS) {
       expect(Math.abs(l.transpose)).toBeLessThanOrEqual(6)
+      expect(Math.abs(l.tuning)).toBeLessThan(50) // (more than half a semitone off would be another key)
       const [tonic, mode] = l.key.split(' ')
       const pc = ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'].indexOf(tonic!)
       const major = mode === 'major' ? pc : (pc + 3) % 12

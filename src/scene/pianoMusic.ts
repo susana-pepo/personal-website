@@ -112,8 +112,9 @@ export const LANDSCAPES: readonly Landscape[] = [
 //
 // Twelve recorded loops to jam over: eight bars each, cut seamlessly from songs in Open Lo-Fi (CC0,
 // public domain; github.com/btahir/open-lofi) by scripts/piano-loops, which also measured each one's
-// tempo, key, chords and drum hits (piano-loops.json). The keyboard follows the loop's key: its
-// white keys play the loop's scale, so whatever you play fits.
+// tempo, key, tuning, chords and drum hits (piano-loops.json). The keyboard follows the loop's key
+// (its white keys play the loop's scale, so whatever you play fits) and its tuning (a few cents
+// off concert pitch, as recordings can be, so the two never beat against each other).
 
 
 export interface BackingLoop {
@@ -128,6 +129,8 @@ export interface BackingLoop {
   key: string
   /** Semitones that bring the keyboard's C major to the loop's key (its relative major). */
   transpose: number
+  /** How far the recording sits from concert pitch (A = 440 Hz), in cents: the keys play that far off too. */
+  tuning: number
   /** Which of TONES the keys take on over it. */
   tone: number
   /** Each bar's chord root (pitch class), for the screen's colour. */
