@@ -21,9 +21,9 @@ interface SiteFooterProps {
  * The player is a small glass tile: a pair of headphones (sound waves while it
  * plays, rain falling past them when it rains outside), the session's time left,
  * a fine line that fills over the session, and the controls: rain (only while it
- * rains), the room's animation, and play / pause.
+ * rains) and play / pause.
  */
-export function SiteFooter({ playback }: SiteFooterProps) {
+export function SiteFooter(_props: SiteFooterProps) {
   const radio = useRoomRadio()
   useRainFromScene()
   const progressRef = useRef<HTMLSpanElement>(null)
@@ -32,7 +32,6 @@ export function SiteFooter({ playback }: SiteFooterProps) {
   const on = radio.status === 'playing' || radio.status === 'loading'
   const inSession = on || radio.status === 'paused'
   const withRain = rainAudible(radio)
-  const roomMoving = !playback.isPausedByChoice && !playback.unavailable
 
   // Follow the session's clock without re-rendering React on every frame.
   useEffect(() => {
@@ -121,21 +120,6 @@ export function SiteFooter({ playback }: SiteFooterProps) {
             >
               <svg viewBox="0 0 24 24" aria-hidden="true">
                 <path d="M8.6 4.5 7 9M13.6 4.5 12 9M18.6 4.5 17 9M7.1 12.5l-1.6 4.5M12.1 12.5l-1.6 4.5M17.1 12.5l-1.6 4.5" />
-              </svg>
-            </button>
-          )}
-          {!playback.unavailable && (
-            <button
-              type="button"
-              className="player__tool"
-              aria-pressed={roomMoving}
-              aria-label="Room animation"
-              title={roomMoving ? 'Still the room' : 'Let the room move'}
-              onClick={playback.toggle}
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <rect x="5" y="4.5" width="14" height="15" rx="1.5" />
-                <path d="M12 4.5v15M5 12h14" />
               </svg>
             </button>
           )}
