@@ -141,8 +141,8 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
   }
   const centred = (str: string, scale = 1) => Math.round((W - textWidth(str) * scale) / 2)
   const starField = (n: number, maxY: number) => Array.from({ length: n }, () => ({ x: Math.round(rnd(0, W)), y: Math.round(rnd(1, maxY)), tw: rnd(0, 6.3), s: rnd(0.15, 0.45) }))
-  function starDust(field: ReturnType<typeof starField>, t: number, k: number) {
-    for (const d of field) put(d.x, d.y, MOON, d.s * k * (reduce ? 1 : 0.6 + 0.4 * Math.sin(t * 1.7 + d.tw)) * (1 - Math.max(dawn, daybreak) * 0.8))
+  function starDust(field: ReturnType<typeof starField>, _t: number, k: number) {
+    for (const d of field) put(d.x, d.y, MOON, d.s * k * (reduce ? 1 : 0.6 + 0.4 * Math.sin(amb * 1.7 + d.tw)) * (1 - Math.max(dawn, daybreak) * 0.8))
   }
 
   // ── the painted layers, decoded once ──
@@ -208,12 +208,12 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         px[i + 2] = Math.min(1, get(i + 2) + c[2] * k)
       }
   }
-  function reflect(top: number, t: number, stir: number, k0 = 0.42) {
+  function reflect(top: number, _t: number, stir: number, k0 = 0.42) {
     for (let y = top; y < H; y++) {
       const depth = (y - top) / (H - top)
       const src = top - 1 - Math.floor((y - top) * 1.15)
       for (let x = 0; x < W; x++) {
-        const off = reduce ? 0 : Math.round(Math.sin(y * 0.9 + t * 2.2 + x * 0.05) * (0.6 + depth * 1.4 + stir * 0.8))
+        const off = reduce ? 0 : Math.round(Math.sin(y * 0.9 + amb * 2.2 + x * 0.05) * ((0.6 + depth * 1.4) * (0.3 + 0.7 * life) + stir * 0.8))
         const j = (Math.max(0, src) * W + Math.max(0, Math.min(W - 1, x + off))) * 3
         const i = (y * W + x) * 3
         const k = k0 - depth * 0.22
@@ -240,6 +240,16 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
    * seconds), and how much a jam has built up (it grows with every note, and fades after a quiet).
    */
   const E = { bass: 0, mid: 0, high: 0, density: 0, build: 0 }
+  /**
+   * How alive the landscape is: about 0 at rest (a still picture, barely breathing), 1 while the
+   * music plays (the loop, or your playing). The scenery's own motion (clouds, mist, water, snow,
+   * sand, the lighthouse...) runs on its own clock, `amb`, which crawls at rest and runs at full
+   * speed with the music; the life that comes and goes (fireflies, fish, gulls, shooting stars...)
+   * comes only with the music.
+   */
+  let life = 0
+  let amb = 0
+  const pace = () => 0.08 + 0.92 * life
   const recent: number[] = [] // when the last notes were struck
   /** A note's colour in a phrase, by how it sits in the music: a blue note cooler, an outside note dimmer, another note of the key leaning to the chord. */
   const BLUE: Rgb = hex('#9ec8ff')
@@ -475,7 +485,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         if (mk > 0.02) for (let y = -moon.r - 3; y <= moon.r + 3; y++) for (let x = -moon.r - 3; x <= moon.r + 3; x++) if (Math.abs(Math.hypot(x, y) - moon.r - 1.5) < 1.2) put(moon.x + x, moon.y + y, MOON, mk * 0.3)
         // clouds drifting by on their own, faint
         for (const d of drifters) {
-          if (!reduce) d.x += d.sp * dt
+          if (!reduce) d.x += d.sp * dt * pace()
           if (d.x > W + 20) d.x = -20
           for (const p of d.puffs)
             for (let y = -Math.ceil(p.r); y <= p.r; y++) for (let x = -Math.ceil(p.r); x <= p.r; x++) if (x * x + y * y <= p.r * p.r) put(d.x + p.dx + x, d.y + p.dy + y, CLOUD, 0.28 * (1 - daybreak * 0.5))
@@ -553,7 +563,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         }
         particles(sparks, t, dt, (s, k) => put(s.x, s.y - k * 3, s.col, sinWave(k)))
         const flash = Math.exp(-(t - pulse()) / 0.3)
-        if (!reduce) for (const f of flies) put(f.x + Math.sin(t * 0.4 + f.ph) * 3, f.y + Math.cos(t * 0.3 + f.ph) * 1.5, FLY, Math.min(1, Math.max(0, Math.sin(t * f.sp * 2 + f.ph)) * 0.7 + flash * 0.8))
+        if (!reduce && life > 0.01) for (const f of flies) put(f.x + Math.sin(amb * 0.4 + f.ph) * 3, f.y + Math.cos(amb * 0.3 + f.ph) * 1.5, FLY, life * Math.min(1, Math.max(0, Math.sin(amb * f.sp * 2 + f.ph)) * 0.7 + flash * 0.8)) // (fireflies come out with the music)
         let stir = 0
         for (const r of ripples) stir += Math.max(0, 1 - (t - r.t0) / 2)
         blit('lake', 'lake')
@@ -562,7 +572,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         // the moon's path glitters on the water
         for (let y = WATER + 1; y < H; y++) {
           const depth = (y - WATER) / (H - WATER)
-          for (let x = Math.floor(moon.x - 1 - depth * 5); x <= moon.x + 1 + depth * 5; x++) if (reduce ? (x + y) % 3 === 0 : Math.sin(x * 2.3 + y * 1.1 + t * 3) > 0.55) put(x, y, MOON, 0.3 * (1 - depth * 0.5))
+          for (let x = Math.floor(moon.x - 1 - depth * 5); x <= moon.x + 1 + depth * 5; x++) if (reduce ? (x + y) % 3 === 0 : Math.sin(x * 2.3 + y * 1.1 + amb * 3) > 0.55) put(x, y, MOON, (0.15 + 0.15 * life) * (1 - depth * 0.5))
         }
         // each lantern draws a line of its light across the water
         for (const [vc, L] of lanterns) {
@@ -570,7 +580,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
           for (let y = WATER + 1; y < H; y += 2) put(L.x + (reduce ? 0 : Math.round(Math.sin(y * 0.8 + t * 2.5))), y, L.col, a * 0.45 * (1 - (y - WATER) / (H - WATER)))
         }
         // now and then a fish jumps
-        if (!reduce && t > nextFish) {
+        if (!reduce && life > 0.6 && t > nextFish) {
           fish.push({ x: rnd(14, W - 14), t0: t })
           nextFish = t + rnd(7, 14)
         }
@@ -614,7 +624,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         }
         blit('lake', 'shore')
         for (const [vc, L] of lanterns) lightUp('lake', 'shore', L.x, L.dy + 8, 16, L.col, amp(vc, t) * 0.6)
-        blit('lake', 'mist', 0, null, 0, reduce ? 0 : t * 0.7)
+        blit('lake', 'mist', 0, null, 0, reduce ? 0 : amb * 0.7)
       },
     }
   }
@@ -713,11 +723,11 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         starDust(field, t, 0.5)
         // a faint aurora, always breathing; the kick lights it up
         const ac = chord ? mix(AURORA, chord, 0.5) : AURORA
-        const breathe = (reduce ? 0.1 : 0.07 + 0.04 * Math.sin(t * 0.5)) + kickK(t) * 0.22 + E.mid * 0.16 // (it breathes with the loop)
+        const breathe = (reduce ? 0.1 : 0.05 + 0.04 * life + 0.04 * life * Math.sin(amb * 0.5)) + kickK(t) * 0.22 + E.mid * 0.16 // (it breathes with the loop)
         for (let x = 0; x < W; x++) {
-          const top = 8 + 5 * Math.sin(x * 0.06 + t * (reduce ? 0 : 0.25))
-          const bot = top + 14 + 4 * Math.sin(x * 0.09 - t * (reduce ? 0 : 0.3))
-          const shim = reduce ? 1 : 0.6 + 0.4 * Math.sin(x * 0.9 + t * 1.8)
+          const top = 8 + 5 * Math.sin(x * 0.06 + amb * (reduce ? 0 : 0.25))
+          const bot = top + 14 + 4 * Math.sin(x * 0.09 - amb * (reduce ? 0 : 0.3))
+          const shim = reduce ? 1 : 0.6 + 0.4 * Math.sin(x * 0.9 + amb * 1.8)
           for (let y = Math.ceil(top); y < bot; y++) put(x, y, ac, breathe * shim * ((y - top) / (bot - top)) ** 1.5)
         }
         for (const [vc, s] of dust) {
@@ -774,7 +784,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
           if (vc.released === null && Math.random() < dt * 3 && !reduce && A.chimney) smoke.push({ x: A.chimney[0]!, y: A.chimney[1]! - 1, t0: t, life: 3, col: SMOKE })
         }
         // someone's home: a thin thread of smoke, always
-        if (!reduce && A.chimney && Math.random() < dt * 0.8) smoke.push({ x: A.chimney[0]!, y: A.chimney[1]! - 1, t0: t, life: 3, col: SMOKE })
+        if (!reduce && A.chimney && Math.random() < dt * 0.8 * life) smoke.push({ x: A.chimney[0]!, y: A.chimney[1]! - 1, t0: t, life: 3, col: SMOKE })
         const win = A.cabin_window ?? []
         for (const [x, y] of win) put(x!, y!, mix(hex('#3d2f2a'), lampC, 0.25 + 0.75 * lampA), 1)
         const [wx = 0, wy = 0] = win[0] ?? []
@@ -803,8 +813,8 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         })
         for (const f of flakes) {
           if (!reduce) {
-            f.y += dt * f.s * (1 + gust)
-            f.x += Math.sin(t + f.ph) * dt * 2 + gust * dt * 34
+            f.y += dt * f.s * (pace() + gust) // (the snow hangs almost still at rest, and falls with the music)
+            f.x += Math.sin(amb + f.ph) * dt * 2 * pace() + gust * dt * 34
             if (f.x > W) f.x -= W
             if (f.y > H) {
               f.y = -1
@@ -946,7 +956,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         chordOn = held.length >= 2
         blit('dunes', 'sky', 0, tint, dawn * 0.3)
         skyLife(t, A.horizon, 0.7)
-        blit('dunes', 'wisps', 0, null, 0, reduce ? 0 : t * 0.5)
+        blit('dunes', 'wisps', 0, null, 0, reduce ? 0 : amb * 0.5)
         blit('dunes', 'stars')
         keptStars(kept, t, dt)
         for (const [vc, s] of eve) {
@@ -1008,7 +1018,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         for (const [vc, f] of flowers) lightUp('dunes', 'near-dune', f.x, top(near, f.x) - 2, 10, f.col, amp(vc, t) * 0.7)
         blit('dunes', 'cacti-and-rocks')
         // now and then a tumbleweed rolls along the near dune
-        if (!reduce && t > nextWeed) {
+        if (!reduce && life > 0.6 && t > nextWeed) {
           weeds.push({ t0: t, dir: Math.random() < 0.5 ? 1 : -1 })
           nextWeed = t + rnd(12, 20)
         }
@@ -1029,7 +1039,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         }
         for (const s of sand) {
           if (!reduce) {
-            s.x += s.sp * dt * (1 + E.high * 2.5) // (the loop's top blows the sand along)
+            s.x += s.sp * dt * (pace() + E.high * 2.5) // (the sand lies still at rest; the music, and the loop's top, blow it along)
             if (s.x > W) {
               s.x = 0
               s.y = rnd(62, H)
@@ -1167,7 +1177,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         } else if (kind === 'hat' && Math.random() < 0.6) glints.push({ x: rnd(4, W - 46), y: rnd(HZ + 3, H - 2), t0: t, col: chord ? mix(MOON, chord, 0.5) : MOON, life: 0.35 })
       },
       draw(t, dt, held) {
-        if (!reduce && t > nextGulls) {
+        if (!reduce && life > 0.6 && t > nextGulls) {
           gulls.push({ t0: t, dir: Math.random() < 0.5 ? 1 : -1, y: rnd(20, 36), n: Math.round(rnd(1, 3)) })
           nextGulls = t + rnd(12, 22)
         }
@@ -1186,7 +1196,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         drawMeteors(t)
         // the lighthouse keeps turning, its beam faint and warm, whether or not a note is on it
         if (!beams.size) {
-          const ang = Math.PI + (reduce ? -0.3 : Math.sin(t * 0.3) * 0.55 - 0.15)
+          const ang = Math.PI + (reduce ? -0.3 : Math.sin(amb * 0.3) * 0.55 - 0.15)
           for (let r = 3; r < 120; r += 0.8) put(lamp.x + Math.cos(ang) * r, lamp.y + Math.sin(ang) * r, hex('#ffe3a0'), 0.08 * (1 - r / 120) + kickK(t) * 0.1 * (1 - r / 120))
         }
         for (const [vc, b] of beams) {
@@ -1235,10 +1245,10 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
         const crestK = Math.max(kickK(t), E.bass * 0.55) // the kick (and the loop's bass) lifts the crests
         for (let y = HZ + 1; y < H; y += 2)
           for (let x = 0; x < W; x++) {
-            const crest = Math.sin(x * 0.35 + y * 1.7 + t * (reduce ? 0 : 1.4)) > 0.92 - crestK * 0.12
-            const path = Math.abs(x - moon.x - Math.sin(y * 0.7 + t * 2) * 2) < 2 + (y - HZ) * 0.15
+            const crest = Math.sin(x * 0.35 + y * 1.7 + amb * (reduce ? 0 : 1.4)) > 0.92 - crestK * 0.12
+            const path = Math.abs(x - moon.x - Math.sin(y * 0.7 + amb * 2) * 2) < 2 + (y - HZ) * 0.15
             if (crest) put(x, y, crestK > 0.05 && chord ? mix(MOON, chord, 0.5) : MOON, path ? 0.8 : 0.16 + crestK * 0.35)
-            else if (path && Math.sin(x * 2.1 + y + t * 3) > 0.3) put(x, y, MOON, 0.35)
+            else if (path && Math.sin(x * 2.1 + y + amb * 3) > 0.3) put(x, y, MOON, 0.2 + 0.15 * life)
           }
         for (const [vc, f] of foam) {
           if (!alive(vc, t)) {
@@ -1249,7 +1259,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
           const reach = 6 + 10 * ease(heldFor(vc, t) / 2.5)
           for (let y = HZ + 2; y < H; y += 2)
             for (let x = Math.floor(f.x - reach); x <= f.x + reach; x++)
-              if (Math.sin(x * 0.35 + y * 1.7 + t * (reduce ? 0 : 1.4)) > 0.75) put(x, y, f.col, a * 0.9 * (1 - Math.abs(x - f.x) / (reach + 1)) * (0.6 + (0.4 * (y - HZ)) / (H - HZ)))
+              if (Math.sin(x * 0.35 + y * 1.7 + amb * (reduce ? 0 : 1.4)) > 0.75) put(x, y, f.col, a * 0.9 * (1 - Math.abs(x - f.x) / (reach + 1)) * (0.6 + (0.4 * (y - HZ)) / (H - HZ)))
         }
         particles(glints, t, dt, (s, k) => plus(s.x, s.y, s.col, sinWave(k)))
         // each star held is mirrored on the water
@@ -1578,8 +1588,12 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     const looping = jamming() ? chord : null
     // a long jam brings first light; it goes back to night slowly when the music stops
     daybreak = Math.max(0, Math.min(0.9, daybreak + dt * (held.length || looping ? 1 / 150 : -1 / 90)))
-    // now and then a shooting star, music or not
-    if (t > nextMeteor) {
+    // the landscape comes alive with the music (in about a second) and settles back to stillness after it (over a few)
+    const lively = jamming() || held.length || t - lastNoteAt < 4 ? 1 : 0
+    life += (lively - life) * (1 - Math.exp(-dt / (lively > life ? 1 : 4)))
+    amb += dt * pace()
+    // now and then a shooting star, while the music plays
+    if (t > nextMeteor && life > 0.6) {
       meteor(mix(MOON, chord ?? MOON, 0.4))
       nextMeteor = t + rnd(9, 18)
     }
