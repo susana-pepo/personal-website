@@ -52,12 +52,12 @@
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-rows: auto auto auto;
   grid-template-areas:
-    'art title title buttons'
-    'art meta clock buttons'
-    'art bar bar buttons';
+    'art title buttons'
+    'art meta buttons'
+    'art bar buttons';
   align-content: center;
   align-items: center;
   column-gap: 0.75rem;
@@ -146,44 +146,90 @@
   object-position: 62% 55%;
 }
 
-/* The miniature is also the room's own pause: a small badge in its corner. */
-button.player__art {
-  padding: 0;
-  border: 0;
-  background: none;
-  cursor: pointer;
-}
-
-.player__art-badge {
-  position: absolute;
-  right: 0.2rem;
-  bottom: 0.2rem;
+/* ── Focus with me: a pair of headphones in a small pane of glass ── */
+.player__focus {
   display: grid;
   place-items: center;
-  width: 1rem;
-  height: 1rem;
-  border-radius: 50%;
-  background: oklch(0.15 0.01 45 / 0.55);
-  color: oklch(0.98 0.005 80);
-  opacity: 0.75;
-  transition: opacity 200ms var(--ease-out);
+  background: oklch(1 0 0 / 0.07);
+  color: var(--on-sleeve);
 }
 
-.player__art-badge svg {
-  width: 0.7rem;
-  height: 0.7rem;
+.player__focus svg {
+  width: 72%;
+  height: 72%;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.player__focus .player__cup {
   fill: currentColor;
+  stroke: none;
 }
 
-button.player__art:hover .player__art-badge,
-button.player__art:focus-visible .player__art-badge,
-button.player__art:not([data-moving]) .player__art-badge {
-  opacity: 1;
+/* While it plays, sound spills from the ear cups in slow pulses (about one a beat at lo-fi tempo). */
+.player__waves path {
+  opacity: 0;
+  transition: opacity 400ms var(--ease-out);
 }
 
-button.player__art:focus-visible {
-  outline: 2px solid var(--on-sleeve);
-  outline-offset: 2px;
+.player__focus[data-on] .player__waves path {
+  animation: focus-wave 1.6s ease-in-out infinite;
+}
+
+.player__focus[data-on] .player__wave-far {
+  animation-delay: 0.4s;
+}
+
+@keyframes focus-wave {
+  0%,
+  100% {
+    opacity: 0.15;
+  }
+  50% {
+    opacity: 0.9;
+  }
+}
+
+/* When it rains outside, a few drops fall past the headphones (whether or not anything plays). */
+.player__drops path {
+  stroke: var(--on-sleeve-2);
+  stroke-width: 1.2;
+  opacity: 0;
+}
+
+.player__focus[data-rain] .player__drops path {
+  animation: focus-drop 2.4s linear infinite;
+}
+
+.player__focus[data-rain] .player__drops path:nth-child(2) {
+  animation-delay: 0.8s;
+}
+
+.player__focus[data-rain] .player__drops path:nth-child(3) {
+  animation-delay: 1.6s;
+}
+
+@keyframes focus-drop {
+  0% {
+    transform: translateY(-4px);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translateY(9px);
+    opacity: 0;
+  }
+}
+
+/* The time left: steady digits, so the line doesn't jitter as they change. */
+.player__left {
+  font-variant-numeric: tabular-nums;
 }
 
 .player__body {
@@ -254,15 +300,6 @@ a.player__title:hover {
   background: var(--on-sleeve);
   transform: scaleX(0);
   transform-origin: 0 50%;
-}
-
-.player__clock {
-  grid-area: clock;
-  justify-self: end;
-  font-family: var(--font-sans);
-  font-size: 0.6875rem;
-  font-variant-numeric: tabular-nums;
-  color: var(--on-sleeve-3);
 }
 
 .player__buttons {
@@ -450,6 +487,13 @@ a.player__title:hover {
   .player__button[data-playing] .player__icon--play {
     transform: none;
     filter: none;
+  }
+
+  /* The headphones hold still: the sound shows as steady waves, the rain as still drops. */
+  .player__focus[data-on] .player__waves path,
+  .player__focus[data-rain] .player__drops path {
+    animation: none;
+    opacity: 0.6;
   }
 }
 

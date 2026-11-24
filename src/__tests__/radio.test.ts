@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clock, nextIndex, rainAudible, rainStarts, readPrefs } from '../audio/radio'
+import { clock, FOCUS_SECONDS, focusLeft, nextIndex, rainAudible, rainStarts, readPrefs } from '../audio/radio'
 import { PLAYLIST } from '../audio/playlist'
 
 describe('room radio', () => {
@@ -14,8 +14,17 @@ describe('room radio', () => {
     expect(rainAudible({ status: 'loading', rainOn: true, raining: true })).toBe(true)
     expect(rainAudible({ status: 'paused', rainOn: true, raining: true })).toBe(false)
     expect(rainAudible({ status: 'idle', rainOn: true, raining: true })).toBe(false)
+    expect(rainAudible({ status: 'done', rainOn: true, raining: true })).toBe(false)
     expect(rainAudible({ status: 'playing', rainOn: false, raining: true })).toBe(false)
     expect(rainAudible({ status: 'playing', rainOn: true, raining: false })).toBe(false)
+  })
+
+  it('counts a 25-minute focus session down to zero', () => {
+    expect(FOCUS_SECONDS).toBe(1500)
+    expect(clock(focusLeft(0))).toBe('25:00')
+    expect(clock(focusLeft(378))).toBe('18:42')
+    expect(focusLeft(FOCUS_SECONDS + 30)).toBe(0)
+    expect(focusLeft(-5)).toBe(FOCUS_SECONDS)
   })
 
   it('formats the clock', () => {
