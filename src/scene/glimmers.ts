@@ -15,10 +15,11 @@
  *  - The room's pace: hints ease in softly (about a second, out of a slight blur, like her
  *    greeting), drift on the room's curves, and fade as they go. Never held, never snapped.
  *  - Bolder, not bigger: noticed through a firm stroke, each covering about the same area.
- *  - Looped while unfound, one at a time: every TELL_CYCLE_MS, the unfound ones spread evenly
- *    across the cycle, so only one moves at a time. The first starts once the room's first
+ *  - Looped while unfound, one at a time, on the room's one clock (src/scene/roomCues.ts):
+ *    each unfound glimmer once every TELL_CYCLE_MS, in turn; while section objects are still
+ *    breathing, hints and breaths alternate instead. The first starts once the room's first
  *    look and her greeting are over. Never while a page is open, the room is paused, the tab
- *    is hidden or an object is being pointed at (that turn is skipped, not queued). With
+ *    is hidden or an object is being pointed at (that turn waits, it isn't queued). With
  *    reduced motion a hint fades in and out where it stands.
  *  - Their own cursors, in the room's ink (GlimmerCursor): over the cat, a hand that
  *    strokes; over the lamp, a little bulb that flicks on; over the piano, two notes that
@@ -35,20 +36,8 @@ export type GlimmerId = (typeof GLIMMERS)[number]
 
 export const isGlimmer = (id: string | null): id is GlimmerId => GLIMMERS.includes(id as GlimmerId)
 
-/** How long after the room is ready (first look and greeting over) the first hint comes. */
-export const TELL_START_MS = 900
 /** Each unfound glimmer gives its hint once per cycle (long enough for each of the three to finish its own). */
 export const TELL_CYCLE_MS = 13500
-
-/**
- * When each unfound glimmer's hints start, from the moment the room is ready: in GLIMMERS
- * order, spread evenly across a cycle (two glimmers: half a cycle apart). Each then repeats
- * every TELL_CYCLE_MS.
- */
-export function tellStarts(unfound: readonly GlimmerId[]): { id: GlimmerId; at: number }[] {
-  const order = GLIMMERS.filter((g) => unfound.includes(g))
-  return order.map((id, i) => ({ id, at: TELL_START_MS + Math.round((i * TELL_CYCLE_MS) / order.length) }))
-}
 
 // ── Which have been found, remembered in this browser only (if storage is unavailable, a
 // visitor simply finds them again next time). ──

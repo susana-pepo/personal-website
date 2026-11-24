@@ -51,7 +51,6 @@ export function SceneObject({ overlay: base, highlighted, discoveryIndex, childr
     zIndex: overlay.z,
     '--glow-rest': overlay.glow?.rest ?? 0,
     '--glow-hover': overlay.glow?.hover ?? 0,
-    '--glow-invite': overlay.glow?.invite ?? 0,
     '--lift': overlay.glow?.lift ?? 1,
     '--discover-order': discoveryIndex,
   } as CSSProperties

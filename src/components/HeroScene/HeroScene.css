@@ -269,22 +269,56 @@
 }
 
 /*
- * Invitation: until the visitor first finds an object, each halo breathes slowly
- * (3.6 s, offset per object so the light drifts round the room). It stops for
- * good, for this visit, on the first hover, focus or tap; the steady resting
- * glow stays. Reduced motion keeps the steady glow only.
- * Switched off for now (every overlay's invite is 0 in scene-layout.json); kept as an option.
+ * A breath: now and then one section object's amber halo swells softly, most of the way to its
+ * hover glow, and settles again, and the object lifts by a hair (far less than on hover): a
+ * sign it opens something. One object at a time, taking turns with the glimmers' hints on the
+ * room's one clock (src/scene/roomCues.ts), until its section has been opened in this visit.
+ * About 3.8 s (BREATH_MS): in over 1.4 s, a moment held, out over 2 s, on the room's curve.
+ * Never while it is hovered (the hover glow wins), never with reduced motion.
  */
-.scene[data-inviting] .scene-object:not([data-highlighted]) .scene-object__halo {
-  animation: halo-breathe 3.6s ease-in-out calc(var(--discover-order) * -0.9s) infinite alternate;
+.scene[data-breath='vinyl'] .scene-object--vinyl:not([data-highlighted]),
+.scene[data-breath='books'] .scene-object--books:not([data-highlighted]),
+.scene[data-breath='deskbooks'] .scene-object--deskbooks:not([data-highlighted]),
+.scene[data-breath='laptop'] .scene-object--laptop:not([data-highlighted]),
+.scene[data-breath='coffee'] .scene-object--coffee:not([data-highlighted]) {
+  animation: object-breath 3.8s var(--ease-sine) both;
 }
 
-@keyframes halo-breathe {
-  from {
+.scene[data-breath='vinyl'] .scene-object--vinyl:not([data-highlighted]) .scene-object__halo,
+.scene[data-breath='books'] .scene-object--books:not([data-highlighted]) .scene-object__halo,
+.scene[data-breath='deskbooks'] .scene-object--deskbooks:not([data-highlighted]) .scene-object__halo,
+.scene[data-breath='laptop'] .scene-object--laptop:not([data-highlighted]) .scene-object__halo,
+.scene[data-breath='coffee'] .scene-object--coffee:not([data-highlighted]) .scene-object__halo {
+  animation: halo-breath 3.8s var(--ease-sine) both;
+}
+
+@keyframes halo-breath {
+  0%,
+  100% {
     opacity: var(--glow-rest);
   }
-  to {
-    opacity: calc(var(--glow-rest) + var(--glow-invite));
+  37%,
+  45% {
+    /* about two thirds of the way to the hover glow (60% → 80% at today's levels) */
+    opacity: calc(var(--glow-rest) + (var(--glow-hover) - var(--glow-rest)) * 0.65);
+  }
+}
+
+@keyframes object-breath {
+  0%,
+  100% {
+    scale: 1;
+  }
+  37%,
+  45% {
+    scale: 1.006;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene[data-breath] .scene-object,
+  .scene[data-breath] .scene-object__halo {
+    animation: none;
   }
 }
 
@@ -892,8 +926,7 @@
     transition: none;
   }
 
-  .scene[data-discovering] .scene-object__halo,
-  .scene[data-inviting] .scene-object__halo {
+  .scene[data-discovering] .scene-object__halo {
     animation: none;
   }
 

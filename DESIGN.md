@@ -312,9 +312,19 @@ bold or an italic.
   single frames on Retina) and no new large GPU layers (`will-change`, `translateZ`, `filter`,
   `backdrop-filter` on big elements). `.cover .stage { transform: translateZ(0) }` is deliberate,
   for Safari's rounded clip.
-- **Halo invitation (off):** `halo-breathe` lets the halos breathe until the first object is
-  found. It is switched off by configuration (every `glow.invite` in `scene-layout.json` is 0);
-  raise one above 0 to bring it back. It is kept as an option, not dead code.
+- **Section breaths:** now and then one section object's amber halo swells softly, about two
+  thirds of the way to its hover glow (60% → 80%), and settles, while the object lifts by a hair
+  (0.6%, far less than on hover): a sign it opens something. About 3.8 s: in over 1.4 s, a
+  moment held, out over 2 s, on `--ease-sine`. One object at a time, in a shuffled order, never
+  the same one twice running. Breaths and the glimmers' hints share one clock
+  (`src/scene/roomCues.ts`): the first cue is a breath, half a second after the first look and her
+  greeting; while both are waiting they alternate, one start every 5.5 s; once
+  every glimmer is found, a breath comes every 9–13 s, never on a beat. An object stops
+  breathing once its section has been opened in this visit (it resets on the next visit); when
+  all are opened the room is still. Nothing before the first look and her greeting are over,
+  while a page is open, the room is paused, the tab is hidden or something is pointed at, nor
+  for 1.5 s after; never with reduced motion (the steady resting glow stays). This replaces the
+  old nonstop `halo-breathe` invitation (each `glow.invite` in `scene-layout.json` is now unused).
 - **Texture:** a 5% light grain on a fixed layer behind the page (never over the painting); a
   7% grain painted into the panel's smoked glass.
 - **Feedback:** pressable things scale to 0.94–0.97 on `:active`. Hover lifts only under

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState, type RefObject } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { content } from '../../content/content'
 import { useCoverFit } from '../../hooks/useCoverFit'
@@ -24,7 +24,7 @@ import { LampColour } from './lamp/LampColour'
 import { nextTone, splashColour, toneAt } from '../../scene/lampTones'
 import { LampSplash, type LampSplashHandle } from './lamp/LampSplash'
 import { findGlimmer, isGlimmer } from '../../scene/glimmers'
-import { useGlimmerTells } from './useGlimmerTells'
+import { useRoomCues } from './useRoomCues'
 import { TowerLight } from './window/TowerLight'
 import { LaptopTerminal } from './overlays/LaptopTerminal'
 import { useSection } from '../../hooks/useSection'
@@ -61,8 +61,13 @@ const sandboxRequested =
   import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sandbox') === '1'
 
 const OBJECTS = OVERLAYS.filter((o) => o.id !== 'cat' && o.id !== 'vinyl' && o.id !== 'coffee' && o.id !== 'woman' && o.id !== 'piano')
-// The optional breathing pulse before the first interaction (off when every object's `invite` is 0).
-const INVITE = OVERLAYS.some((o) => (o.glow?.invite ?? 0) > 0)
+/** The section objects that breathe now and then (their amber halo swells and settles) until
+ * their section has been opened: every object with a section and a halo (src/scene/roomCues.ts). */
+const GLOWING = new Set(OVERLAYS.filter((o) => o.glow).map((o) => o.id))
+const BREATHER_OF_SECTION = new Map(
+  HOTSPOTS.flatMap((h) => (h.section && h.overlay && GLOWING.has(h.overlay) ? [[h.section, h.overlay] as const] : [])),
+)
+const BREATHERS = [...BREATHER_OF_SECTION.values()]
 // The clip and its poster are drawn slightly zoomed so the painted room lines up with the objects.
 const ROOM_BOX = {
   left: pctX(ROOM_FRAME.x),
@@ -175,8 +180,15 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   const [pressed, setPressed] = useState<string | null>(null)
   const pressedOverlay = (pressed && OVERLAY_OF.get(pressed)) || null
   const section = useSection()
-  // Until the visitor first hovers, focuses or taps an object (used by the optional invitation pulse).
+  // Until the visitor first hovers, focuses or taps an object (her greeting gives way then).
   const [explored, setExplored] = useState(false)
+  // The section objects whose section has been opened in this visit: they stop breathing.
+  const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set())
+  useEffect(() => {
+    const object = section ? BREATHER_OF_SECTION.get(section) : undefined
+    if (object) setOpened((current) => (current.has(object) ? current : new Set(current).add(object)))
+  }, [section])
+  const breathers = useMemo(() => (reducedMotion ? [] : BREATHERS.filter((b) => !opened.has(b))), [opened, reducedMotion])
   // First visit: her greeting ("Hey there, I'm Susana") is part of the entrance: it rises in
   // as the room arrives, stays a few seconds, then fades away (sooner if the visitor touches
   // the room). After that it shows on hover, like every object's line.
@@ -280,10 +292,12 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   // tapping it finds it. With reduced motion there is no first look, and the hints are fades.
   // The piano computer on the shelf, brought close to be played (PianoCloseUp).
   const [pianoClose, setPianoClose] = useState(false)
-  const tells = useGlimmerTells({
+  // Glimmer hints and section breaths take turns on one clock (src/scene/roomCues.ts).
+  const { tells, breath } = useRoomCues({
     moving: playback.motionAllowed,
     ready: greetingOver && (discovery === 'done' || reducedMotion),
     busy: active !== null || pianoClose,
+    breathers,
   })
   useEffect(() => {
     if (isGlimmer(active)) findGlimmer(active)
@@ -357,7 +371,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
           data-time={lightTime}
           data-weather={weather}
           data-discovering={discovering ? '' : undefined}
-          data-inviting={INVITE && !explored && !discovering ? '' : undefined}
+          data-breath={breath ?? undefined}
         >
           {posterFailed ? (
             <div className="stage__fallback" role="img" aria-label={sceneDescription(weather)} />
