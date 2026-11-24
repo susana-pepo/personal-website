@@ -31,7 +31,7 @@
     },
     {
       "id": "books",
-      "src": "/media/scene/books.png",
+      "src": "/media/scene/books.webp",
       "intrinsic": [
         740,
         355
@@ -117,7 +117,7 @@
     },
     {
       "id": "laptop",
-      "src": "/media/scene/laptop.png",
+      "src": "/media/scene/laptop.webp",
       "intrinsic": [
         980,
         686

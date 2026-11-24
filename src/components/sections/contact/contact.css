@@ -1,0 +1,176 @@
+/*
+ * ── Contact: the last page of the insert ──
+ * The intro as the page's lede, then one small still life: "Let's chat" (the email itself,
+ * the address never printed) with LinkedIn under it, and beside them the room's own coffee
+ * (coffee-still.webp, the object that opens this page) standing on the same ground line,
+ * with the halo the lamp gives it in the room. Static: no animation, no filter, no blend
+ * mode. Hover only changes opacity and 2px of lift.
+ */
+.contact-v-cup {
+  --cup-w: 5.5rem; /* 88px: the 180px still is about 1:1 on a 2x screen */
+  --cup-halo: 0.6; /* the lamp's halo, at rest and lit, as in the room */
+  --cup-halo-lit: 0.9;
+  --cup-pool: oklch(0.82 0.09 70 / 0.1); /* lamplight on the desk around the coaster */
+  --cup-shadow: oklch(0.1 0.012 45 / 0.6); /* where the coaster meets the page */
+}
+
+/* The lede: the section's usual DM Sans lede, nothing beside it. */
+.contact-v-cup .cup__intro {
+  max-width: 34ch;
+  margin: 0;
+}
+
+/* The still life: the words, then the mug, bottoms on one line, kept together at the left. */
+.contact-v-cup .cup__still {
+  display: grid;
+  grid-template-columns: auto var(--cup-w);
+  justify-content: start;
+  align-items: end;
+  column-gap: var(--space-xl);
+}
+
+.contact-v-cup .cup__words {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3xs);
+  min-width: 0;
+}
+
+/* "Let's chat": the invitation and the email in one. A step below the page heading. */
+.contact-v-cup .cup__invite {
+  display: inline-block;
+  padding-block: 0.16em 0.2em; /* with the line height, a 44px-plus target at every size */
+  /* The serif at its one weight, a step below "Say hello" so the two never compete. */
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 1.6rem + 1.4vw, 2.6rem);
+  font-weight: 400;
+  line-height: 1.05;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+  color: var(--ink);
+  text-decoration: none;
+  /* The vermilion underline draws in from the left on hover and focus. */
+  background: linear-gradient(var(--spot-ink), var(--spot-ink)) no-repeat 0 100% / 0% 2px;
+  transition: background-size 200ms var(--ease-out);
+}
+
+.contact-v-cup .cup__invite:focus-visible {
+  outline: 2px solid var(--spot-ink);
+  outline-offset: 6px;
+  border-radius: 2px;
+}
+
+.contact-v-cup .cup__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 1rem;
+}
+
+/* The mug: the room's still, its halo behind it, a soft shadow under the coaster. */
+.contact-v-cup .cup__mug {
+  position: relative;
+  display: block;
+  width: var(--cup-w);
+  /* the coaster's foot sits on the LinkedIn line's baseline, not on the bottom of its tap area */
+  margin-bottom: 0.7rem;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.contact-v-cup span.cup__mug {
+  cursor: default;
+}
+
+/* Lamplight pooled on the desk around the coaster. */
+.contact-v-cup .cup__mug::before {
+  content: '';
+  position: absolute;
+  left: -70%;
+  width: 230%;
+  bottom: -10%;
+  height: 34%;
+  background: radial-gradient(closest-side, var(--cup-pool), transparent);
+  pointer-events: none;
+}
+
+/* Contact shadow: centred under the coaster (x 4 to 160 of the still's 180px). */
+.contact-v-cup .cup__mug::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  width: 91%;
+  bottom: -2.5%;
+  height: 7%;
+  background: radial-gradient(closest-side, var(--cup-shadow), transparent);
+  pointer-events: none;
+}
+
+.contact-v-cup .cup__halo {
+  position: absolute;
+  max-width: none;
+  object-fit: fill;
+  opacity: var(--cup-halo);
+  pointer-events: none;
+  transition: opacity 240ms var(--ease-out);
+}
+
+.contact-v-cup .cup__art {
+  position: relative;
+  z-index: 1; /* over its own shadow and halo */
+  display: block;
+  width: 100%;
+  height: auto;
+  transition: transform 240ms var(--ease-out);
+}
+
+/* Reaching for either one answers in both: the underline draws, the cup lifts, the lamp brightens. */
+.contact-v-cup .cup__invite:hover,
+.contact-v-cup .cup__invite:focus-visible,
+.contact-v-cup .cup__still:has(.cup__mug:hover) .cup__invite {
+  background-size: 100% 2px;
+}
+
+.contact-v-cup .cup__still:has(.cup__invite:hover, .cup__invite:focus-visible, .cup__mug:hover) .cup__halo {
+  opacity: var(--cup-halo-lit);
+}
+
+@media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
+  .contact-v-cup .cup__still:has(.cup__invite:hover, .cup__mug:hover) a.cup__mug .cup__art {
+    transform: translateY(-2px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .contact-v-cup .cup__invite,
+  .contact-v-cup .cup__halo,
+  .contact-v-cup .cup__art {
+    transition: none;
+  }
+}
+
+/* Phones: the same still life, smaller, still side by side (it fits down to 320px). */
+@media (max-width: 639px) {
+  .contact-v-cup {
+    --cup-w: 4.75rem; /* 76px */
+  }
+
+  .contact-v-cup .cup__still {
+    column-gap: var(--space-lg);
+  }
+
+  .contact-v-cup .cup__intro {
+    max-width: none;
+  }
+}
+
+/* 320px: a smaller cup and gap, so "Or find me on LinkedIn" stays on one line. */
+@media (max-width: 359px) {
+  .contact-v-cup {
+    --cup-w: 4rem;
+  }
+
+  .contact-v-cup .cup__still {
+    column-gap: var(--space-sm);
+  }
+}

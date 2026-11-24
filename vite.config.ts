@@ -4,6 +4,48 @@ import { fileURLToPath } from 'node:url'
 import { defineConfig, loadEnv, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import { createNowPlaying } from './server/nowPlaying'
+import { MAX_NOTE, readNotes, saveNote } from './server/bookNotes'
+
+/**
+ * Development only: the book notes page (/?notes) saves through POST /__dev/book-notes,
+ * which writes src/content/bookNotes.json. Requests from any other site are refused, so a
+ * page open in another tab can't write to the file.
+ */
+function bookNotesDevRoute(): Plugin {
+  return {
+    name: 'book-notes-dev-route',
+    apply: 'serve',
+    configureServer(server) {
+      const file = fileURLToPath(new URL('./src/content/bookNotes.json', import.meta.url))
+      server.middlewares.use('/__dev/book-notes', (req, res) => {
+        const reply = (status: number, body: unknown) => {
+          res.statusCode = status
+          res.setHeader('Content-Type', 'application/json')
+          res.end(JSON.stringify(body))
+        }
+        const origin = req.headers.origin
+        const sameSite = !origin || URL.canParse(origin) && new URL(origin).host === req.headers.host
+        if (!sameSite) return reply(403, { error: 'Not allowed from another site.' })
+        if (req.method === 'GET') return reply(200, { notes: readNotes(file) })
+        if (req.method !== 'POST') return reply(405, { error: 'Use POST.' })
+        let raw = ''
+        req.on('data', (chunk: Buffer) => {
+          raw += chunk.toString('utf8')
+          if (raw.length > MAX_NOTE * 4) req.destroy()
+        })
+        req.on('end', () => {
+          try {
+            const { title, note } = JSON.parse(raw) as { title?: unknown; note?: unknown }
+            if (typeof title !== 'string' || typeof note !== 'string') return reply(400, { error: 'A title and a note are needed.' })
+            reply(200, { notes: saveNote(file, title, note) })
+          } catch (error) {
+            reply(400, { error: error instanceof Error ? error.message : 'The note could not be saved.' })
+          }
+        })
+      })
+    },
+  }
+}
 
 /**
  * The CV download button only appears when a real file exists at
@@ -77,7 +119,7 @@ function subPathMedia(base: string): Plugin {
 
 export default defineConfig(({ mode }) => ({
   base: BASE,
-  plugins: [react(), nowPlayingDevRoute(mode), subPathMedia(BASE)],
+  plugins: [react(), nowPlayingDevRoute(mode), bookNotesDevRoute(), subPathMedia(BASE)],
   define: {
     __CV_PATH__: JSON.stringify(hasCv ? `${BASE}${CV_PUBLIC_PATH}` : ''),
   },

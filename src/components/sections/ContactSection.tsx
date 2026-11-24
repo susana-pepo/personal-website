@@ -1,79 +1,76 @@
-import { useEffect, useState } from 'react'
+import type { CSSProperties } from 'react'
 import { content } from '../../content/content'
-import { usePrefersReducedMotion, useMediaQuery } from '../../hooks/useMediaQuery'
-import { DrawnMug } from './contact/DrawnMug'
+import { COFFEE_MEDIA, HALO_MARGIN, overlay } from '../../scene/layout'
+import './contact/contact.css'
 
-/** On touch screens, once the page has arrived, the steam drifts up once, then rests. */
-const ARRIVE_MS = 900
-const STEAM_RISE_MS = 2400 // one slow drift of the wisps
+const COFFEE = overlay('coffee')
+const [MUG_W, MUG_H] = COFFEE_MEDIA.size // 180 x 385, the room's own still
+
+// The room's halo PNG covers the mug's box plus HALO_MARGIN canvas px on every side
+// (the same placement SceneObject uses), so it lands on the silhouette at any size.
+const HALO_BOX: CSSProperties = {
+  left: `${-(HALO_MARGIN / COFFEE.width) * 100}%`,
+  top: `${-(HALO_MARGIN / COFFEE.height) * 100}%`,
+  width: `${((COFFEE.width + 2 * HALO_MARGIN) / COFFEE.width) * 100}%`,
+  height: `${((COFFEE.height + 2 * HALO_MARGIN) / COFFEE.height) * 100}%`,
+}
 
 /**
- * The last page of the insert, composed like About: the intro beside Susana’s mug (drawn flat
- * like the record player and the books, on its walnut coaster), as About sets its opening beside
- * the portrait. Below a hairline, "Let’s chat", set large, is itself the email (the subject
- * filled in, the address never printed), with LinkedIn as a plain link across from it.
- * Reaching for either action sends the mug’s steam up once.
+ * The last page of the insert. The intro as the page's lede, then one small still life:
+ * "Let's chat" (the email itself, the subject filled in, the address never printed) with
+ * LinkedIn under it, and beside them the coffee from the desk, the object that opened this
+ * page, standing on the same ground line in the lamp's halo.
  */
 export default function ContactSection() {
   const { contact } = content
-  const reducedMotion = usePrefersReducedMotion()
-  const touch = useMediaQuery('(hover: none)')
-  const [steam, setSteam] = useState<'rest' | 'rising'>('rest')
   const hasDetails = Boolean(contact.email) || contact.links.length > 0
-
-  // Touch has no hover: once the page has arrived, the steam drifts up once, then rests.
-  useEffect(() => {
-    if (!touch || reducedMotion) return
-    const start = window.setTimeout(() => setSteam('rising'), ARRIVE_MS)
-    const stop = window.setTimeout(() => setSteam('rest'), ARRIVE_MS + STEAM_RISE_MS)
-    return () => {
-      window.clearTimeout(start)
-      window.clearTimeout(stop)
-    }
-  }, [touch, reducedMotion])
-
-  const warm = (on: boolean) => {
-    if (reducedMotion || touch) return
-    setSteam(on ? 'rising' : 'rest')
-  }
-
   const mailto = `mailto:${contact.email}?subject=${encodeURIComponent(contact.cta)}`
 
-  return (
-    <div className="section section--folio">
-      {/* The intro beside the mug, as About sets its opening beside the portrait. */}
-      <div className="chat-opening">
-        <p className="lede cv-lede">{contact.intro}</p>
-        <div className="chat__desk" aria-hidden="true">
-          <DrawnMug steam={steam} />
-        </div>
-      </div>
+  const mug = (
+    <>
+      {COFFEE.halo && <img className="cup__halo" src={COFFEE.halo} alt="" style={HALO_BOX} decoding="async" draggable={false} />}
+      <img className="cup__art" src={COFFEE_MEDIA.still} alt="" width={MUG_W} height={MUG_H} decoding="async" draggable={false} />
+    </>
+  )
 
-      {/* Below a hairline: the invitation, which is the email itself, and LinkedIn. */}
-      {hasDetails ? (
-        <div
-          className="chat__actions"
-          onPointerEnter={(e) => e.pointerType === 'mouse' && warm(true)}
-          onPointerLeave={() => warm(false)}
-          onFocus={() => warm(true)}
-          onBlur={() => warm(false)}
-        >
-          {contact.email && (
-            <a className="chat__invite" href={mailto}>
-              {contact.cta}
-              <span className="visually-hidden">, send me an email to {contact.email}</span>
-            </a>
+  return (
+    <div className="section section--folio contact-v-cup">
+      <p className="lede cup__intro">{contact.intro}</p>
+
+      <div className="cup__still">
+        <div className="cup__words">
+          {hasDetails ? (
+            <>
+              {contact.email && (
+                <a className="cup__invite" href={mailto}>
+                  {contact.cta}
+                  <span className="visually-hidden">, send me an email to {contact.email}</span>
+                </a>
+              )}
+              {contact.links.map((link) => (
+                <a key={link.href} className="cup__link text-link" href={link.href} target="_blank" rel="noreferrer me">
+                  {link.action ?? link.label}
+                  <span className="visually-hidden"> (opens in a new tab)</span>
+                </a>
+              ))}
+            </>
+          ) : (
+            <p className="reach__pending">{contact.pendingNote}</p>
           )}
-          {contact.links.map((link) => (
-            <a key={link.href} className="chat__link text-link" href={link.href} target="_blank" rel="noreferrer me">
-              {link.action ?? link.label}
-              <span className="visually-hidden"> (opens in a new tab)</span>
-            </a>
-          ))}
         </div>
-      ) : (
-        <p className="reach__pending">{contact.pendingNote}</p>
-      )}
+
+        {/* The mug is also the email, as it is in the room, for a pointer only: keyboard and
+            screen readers get the one "Let's chat" link above. */}
+        {contact.email ? (
+          <a className="cup__mug" href={mailto} tabIndex={-1} aria-hidden="true">
+            {mug}
+          </a>
+        ) : (
+          <span className="cup__mug" aria-hidden="true">
+            {mug}
+          </span>
+        )}
+      </div>
     </div>
   )
 }

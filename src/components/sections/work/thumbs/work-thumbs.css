@@ -1,6 +1,6 @@
 /*
  * Work thumbnails. The drawing is the object; the tile around it is only a
- * 6px-cornered print with the soft warm shadow the record covers use.
+ * 6px-cornered print with a soft dark shadow that reads on the smoked panel.
  * One small motion per drawing, played once when its tile (.wtile) is hovered,
  * focused or marked data-play. Nothing loops; reduced motion keeps them still.
  */
@@ -11,8 +11,8 @@
   aspect-ratio: 4 / 3;
   border-radius: 6px;
   box-shadow:
-    0 1px 2px oklch(0.205 0.01 45 / 0.14),
-    0 10px 22px -12px oklch(0.205 0.01 45 / 0.4);
+    0 1px 2px oklch(0 0 0 / 0.3),
+    0 10px 22px -12px oklch(0 0 0 / 0.55);
 }
 
 .wthumb .wt-note,

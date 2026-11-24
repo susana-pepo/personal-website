@@ -124,7 +124,7 @@ const range = (n: number) => Array.from({ length: n }, (_, i) => i)
 function coverSvg(r: Sample): string {
   const [m, bg, fg, ac] = r.art
   const T = (x: number, y: number, size: number, fill: string, text: string, w = 500, anchor = 'start') =>
-    `<text x="${x}" y="${y}" font-family="Newsreader Variable, Newsreader, Georgia, serif" font-weight="${w}" font-size="${size}" fill="${fill}" text-anchor="${anchor}" letter-spacing="-0.2">${esc(text)}</text>`
+    `<text x="${x}" y="${y}" font-family="Geist, 'Helvetica Neue', Arial, sans-serif" font-weight="${w}" font-size="${size}" fill="${fill}" text-anchor="${anchor}" letter-spacing="-0.2">${esc(text)}</text>`
   let g = ''
   switch (m) {
     case 'window':

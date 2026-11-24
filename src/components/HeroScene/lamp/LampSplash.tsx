@@ -25,14 +25,28 @@ const SPOTS = [
 ].map(moved)
 const LIFETIME_MS = 2000
 
+/**
+ * Its glimmer hint's glints: moonlight running up the brass, from the rim's right edge to the
+ * top of the shade (clear of her face), largest first. Canvas px from ORIGIN, size in cqi,
+ * delay in s: they come as the bulb's first dip lifts (LampLiquid's FLICK).
+ */
+const GLINTS = [
+  { dx: 75, dy: 45, size: 2.9, delay: 0.45 },
+  { dx: 49, dy: -25, size: 1.95, delay: 0.8 },
+  { dx: 12, dy: -68, size: 1.4, delay: 1.1 },
+]
+const GLINT_LIFETIME_MS = 3600
+
 export interface LampSplashHandle {
   /** Hovering: a tiny comic wiggle by the shade, as if the lamp wants to be switched. */
   tease: () => void
   /** A click: a few small action strokes, ink with a hint of the new colour. */
   burst: (colour: string) => void
+  /** Its glimmer hint: three moonlight glints twinkle up the brass, one after another. */
+  glint: () => void
 }
 
-type Kind = 'line' | 'wiggle'
+type Kind = 'line' | 'wiggle' | 'glint'
 interface Mark {
   key: number
   kind: Kind
@@ -102,7 +116,8 @@ interface LampSplashProps {
  * written: hovering makes it twitch (three tiny jiggle marks); a click sends a
  * few small, tapered action strokes out from the shade, rippling one after
  * another and easing away (ink with a hint of the new colour), unhurried like
- * the rest of the room. Each time at a different spot around the shade. Decorative only (the colour's name is announced to
+ * the rest of the room. Each time at a different spot around the shade. Until a visitor has
+ * found it, its glimmer hint adds moonlight glints up the brass (`glint`). Decorative only (the colour's name is announced to
  * screen readers elsewhere).
  */
 export function LampSplash({ ref }: LampSplashProps) {
@@ -110,14 +125,14 @@ export function LampSplash({ ref }: LampSplashProps) {
   const timers = useRef<number[]>([])
   const lastTease = useRef(Number.NEGATIVE_INFINITY) // so the very first hover always plays
 
-  const add = useCallback((more: Mark[]) => {
+  const add = useCallback((more: Mark[], lifetime = LIFETIME_MS) => {
     // Each batch clears itself when its timer fires; the cap only guards against a runaway.
     setMarks((current) => [...current, ...more].slice(-90))
     const keys = new Set(more.map((m) => m.key))
     const timer = window.setTimeout(() => {
       setMarks((current) => current.filter((m) => !keys.has(m.key)))
       timers.current = timers.current.filter((t) => t !== timer)
-    }, LIFETIME_MS)
+    }, lifetime)
     timers.current.push(timer)
   }, [])
 
@@ -132,6 +147,22 @@ export function LampSplash({ ref }: LampSplashProps) {
       },
       burst: (colour) => {
         add(actionLines(pickSpot(), colour))
+      },
+      glint: () => {
+        add(
+          GLINTS.map((g) => ({
+            key: nextKey++,
+            kind: 'glint' as const,
+            ox: toCqi(g.dx),
+            oy: toCqi(g.dy),
+            angle: 0,
+            from: 0,
+            to: 0,
+            length: g.size,
+            delay: g.delay,
+          })),
+          GLINT_LIFETIME_MS,
+        )
       },
     }),
     [add],

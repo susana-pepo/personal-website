@@ -30,7 +30,7 @@ interface WorkDesktopProps {
 
 /**
  * Things I've built, as files on the tablet's screen. On a wide panel a file
- * opens as a paper window on the screen (the other files fade and can't be
+ * opens as a window on the screen (the other files fade and can't be
  * reached meanwhile); on a narrow one it unfolds in place beneath itself.
  * Escape puts an open project back before the panel itself closes, and focus
  * returns to the file.
@@ -273,12 +273,12 @@ export function WorkDesktop({ label, projects }: WorkDesktopProps) {
                 </p>
                 {current.href ? (
                   <a className="wdesk__explore" href={current.href} target="_blank" rel="noopener noreferrer">
-                    Explore project<span aria-hidden="true"> ↗</span>
-                    <span className="visually-hidden">: {current.title} (opens in a new tab)</span>
+                    {current.linkLabel ?? current.title}<span aria-hidden="true"> ↗</span>
+                    <span className="visually-hidden">{current.linkLabel ? `: ${current.title}` : ''} (opens in a new tab)</span>
                   </a>
                 ) : (
                   <button type="button" className="wdesk__explore" onClick={() => openProject(current)}>
-                    Explore project<span className="visually-hidden">: {current.title}</span>
+                    Open<span className="visually-hidden"> {current.title}</span>
                   </button>
                 )}
               </div>

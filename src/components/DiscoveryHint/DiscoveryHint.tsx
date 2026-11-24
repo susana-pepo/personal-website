@@ -10,7 +10,7 @@ const EXIT_BACKUP_MS = 400
 
 /**
  * A tiny first-visit cue that the room is interactive: a small glass chip with
- * a sparkle, "Explore the room · Hover or tap the objects", resting just inside
+ * "Explore the room · Hover or tap the objects", resting just inside
  * the room's bottom edge above the player. It fades in after the room settles,
  * and disappears for good after the first interaction with an object or when
  * dismissed: it fades and drops away, and only then leaves the page.
@@ -34,7 +34,7 @@ export function DiscoveryHint() {
     node.setAttribute('data-leaving', '')
     const finish = () => setPresent(false)
     const onEnd = (event: AnimationEvent) => {
-      // the spark's glint and other animations inside bubble up here too
+      // animations inside the chip bubble up here too
       if (event.target === node && event.animationName === EXIT_ANIMATION) finish()
     }
     node.addEventListener('animationend', onEnd)
@@ -49,9 +49,6 @@ export function DiscoveryHint() {
   const { title, hint, dismissLabel } = content.discovery
   return (
     <aside ref={ref} className="discovery-hint" aria-label={title}>
-      <svg className="discovery-hint__spark" viewBox="0 0 16 16" aria-hidden="true" focusable="false">
-        <path d="M8 1.5c.4 3.3 2.9 5.8 6.2 6.2-3.3.4-5.8 2.9-6.2 6.2-.4-3.3-2.9-5.8-6.2-6.2C5.1 7.3 7.6 4.8 8 1.5Z" />
-      </svg>
       <p className="discovery-hint__title">{title}</p>
       <p className="discovery-hint__text">{hint}</p>
       <button

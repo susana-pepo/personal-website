@@ -59,7 +59,8 @@ export function Desk({ record, out, sleeveShown, sleeveRef, disc = true, onPutBa
 
   // Samples have a stand-in player that "plays" while open.
   const turning = out && (record.sample ? player : playing)
-  const kindLine = [record.kind, record.year].filter(Boolean).join(' · ')
+  // A podcast lies on the podcast shelf, so only records name their kind (album, playlist).
+  const kindLine = [disc ? record.kind : undefined, record.year].filter(Boolean).join(' · ')
 
   return (
     <div

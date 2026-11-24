@@ -337,7 +337,7 @@
   width: 0;
   height: 0;
   pointer-events: none;
-  font-family: var(--font-display);
+  font-family: var(--font-sans); /* small words over the painting: the sans holds up, the serif's hairlines don't */
   font-weight: 500;
   font-size: clamp(9px, 0.85cqi, 15px);
   color: oklch(0.97 0.02 80);
@@ -387,8 +387,8 @@
   width: 0;
   height: 0;
   pointer-events: none;
-  font-family: var(--font-display);
-  font-weight: 400;
+  font-family: var(--font-sans);
+  font-weight: 500;
   font-size: clamp(9px, 0.85cqi, 15px);
   color: oklch(0.97 0.02 80);
   text-shadow:
@@ -488,6 +488,49 @@
   animation-duration: 3.2s;
 }
 
+/* Its glimmer hint: three z's in moonlight, bold rather than big (Geist 700, the room's
+   label face), coming one after another and drifting up and away from its head. */
+.cat__purr--hint {
+  font-family: var(--font-sans);
+  font-weight: 700;
+  font-size: clamp(13px, 1.5cqi, 24px);
+  color: var(--moon);
+  text-shadow:
+    0 0 0.45em var(--moon-bloom),
+    0 1px 2px oklch(0.2 0.03 45 / 0.4);
+}
+
+.cat__hint {
+  position: absolute;
+  left: 0;
+  bottom: -0.9em; /* from just above its nose, a little below the purr's anchor */
+  line-height: 1;
+  opacity: 0;
+  animation: cat-hint 3s var(--ease-drift) both;
+}
+
+/* Out of a slight blur, rising, the opacity easing up over most of a second; from there it
+   fades as it floats, never held and never cut (like her greeting). */
+@keyframes cat-hint {
+  0% {
+    opacity: 0;
+    filter: blur(3px);
+    transform: translate(calc(var(--dx) * -0.15), 0.4em) rotate(-6deg) scale(calc(var(--size) * 0.88));
+  }
+  28% {
+    opacity: 0.95;
+    filter: blur(0);
+  }
+  55% {
+    opacity: 0.75;
+  }
+  100% {
+    opacity: 0;
+    filter: blur(1px);
+    transform: translate(var(--dx), var(--dy)) rotate(var(--rot)) scale(var(--size));
+  }
+}
+
 @keyframes cat-puff {
   0% {
     opacity: 0;
@@ -506,6 +549,12 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .cat__hint {
+    animation-name: cat-fade;
+    filter: none;
+    transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5)) scale(var(--size));
+  }
+
   .cat__puff {
     animation-name: cat-fade;
     transform: translate(calc(var(--dx) * 0.5), calc(var(--dy) * 0.5));
@@ -703,7 +752,7 @@
   transition-delay: 0ms;
 }
 
-/* A small tag on the object: the serif italic, on near-black. */
+/* A small tag on the object: the sans, on near-black. */
 .hotspot-label__text {
   display: block;
   padding: 0.32em 0.72em 0.36em;
@@ -1146,6 +1195,11 @@
 
 .window-view__layer > img {
   object-fit: fill;
+}
+
+/* A looping clip plays as two copies taking turns (LoopClip): the one waiting at its start is hidden. */
+.loop-clip[data-waiting] {
+  opacity: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1822,7 +1876,64 @@
   }
 }
 
+/* Its glimmer hint: moonlight glints twinkling up the brass, one after another. A four-point
+   star (two tapered arms and a bright core), easing in over most of a second, turning a
+   little as it breathes out. */
+.lamp-splash__glint {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--len);
+  height: var(--len);
+  margin: calc(var(--len) / -2) 0 0 calc(var(--len) / -2);
+  background: radial-gradient(circle, var(--moon-core) 0 9%, transparent 21%);
+  filter: drop-shadow(0 0 0.35cqi var(--moon-bloom));
+  opacity: 0;
+  animation: lamp-glint 2.2s var(--ease-sine) both;
+}
+
+.lamp-splash__glint::before,
+.lamp-splash__glint::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 100%;
+  height: max(2px, 0.19cqi);
+  translate: 0 -50%;
+  border-radius: 1cqi;
+  background: linear-gradient(to right, transparent, var(--moon) 38% 62%, transparent);
+}
+
+.lamp-splash__glint::after {
+  rotate: 90deg;
+}
+
+@keyframes lamp-glint {
+  0% {
+    opacity: 0;
+    transform: translate(var(--ox), var(--oy)) rotate(-14deg) scale(0.45);
+  }
+  34% {
+    opacity: 1;
+    transform: translate(var(--ox), var(--oy)) rotate(0deg) scale(1);
+  }
+  62% {
+    opacity: 0.8;
+    transform: translate(var(--ox), var(--oy)) rotate(10deg) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--ox), var(--oy)) rotate(22deg) scale(0.55);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .lamp-splash__glint {
+    animation-name: cat-fade;
+    transform: translate(var(--ox), var(--oy));
+  }
+
   .lamp-splash__line,
   .lamp-splash__wiggle {
     animation-name: cat-fade;

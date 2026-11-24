@@ -8,8 +8,8 @@ Requires Pillow and numpy. Reads (never changes):
   portfolio-website-assets/public/media/originals/chair.png  the armchair with its throw
 Writes public/media/scene/woman/:
   woman-<clip>.webm   each clip, without the chair (the chair is drawn over it), as transparent
-  woman-<clip>.mov    video (what the page plays; scripts/clip_video.py), and as animated WebP
-  woman-<clip>.webp   (the fallback)
+  woman-<clip>.mov    video (what the page plays; scripts/clip_video.py); its animated WebP, which
+                      later steps read back, is kept in portfolio-website-assets/built/
   chair.webp          the chair, drawn over her
   woman-still.webp    the shared first frame with the chair on top: shown with reduced motion or a
                       paused room, and the source of her hover outline
@@ -27,6 +27,16 @@ Writes public/media/scene/woman/:
   4. Before anything else, each frame is prepared: one clean pen (steady_pen), the light held
      to the home frame (hold_light), the hair gaps filled (fill_hair_gaps), and the generated
      video's shimmer calmed along optical flow (calm_shimmer). Movement is never changed.
+     Once finished, the export's one-frame specks are quieted (quiet_specks): small flecks that
+     flash for a single frame in a still place, mostly on her outline.
+  4d. Her neck (paint_neck_seq): the export left it out, so the room's curtain showed through;
+     it's painted in her skin tone behind her hair, following her head, and the collar's top edge
+     takes the sweater's own colour.
+  4e. The notebook's outline (notebook_outline): the export's stair-stepped edge with a grey
+     line on its steps is smoothed and redrawn as one continuous line.
+  4c. Her hair's outer lock (hair_rim): the export left it a mottled grey-green, its old
+     background mixed in; it takes the colour of the hair just inside, keeping its own light
+     and shade.
   4a. The pen (steady_pen): the export's flickering pen is replaced in every frame by one clean
      pen, moved exactly as the frame's pen moves (wherever it can be followed).
   4b. Hair gaps (fill_hair_gaps): the export's see-through slivers between her outer strands,
@@ -44,7 +54,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageFilter, ImageSequence
 
-from clip_video import write_videos
+from clip_video import kept, write_videos
 
 ROOT = Path(__file__).resolve().parent.parent
 # Her clips, in the order the page lists them. The first is the home clip: its first frame is the
@@ -272,7 +282,7 @@ def chair_only():
     im = chair.resize((round(chair.width * s), round(chair.height * s)), Image.LANCZOS)
     chair_box = Image.new('RGBA', (W, H), (0, 0, 0, 0))
     chair_box.paste(im, (round((CHAIR['x'] - box[0]) * k), round((CHAIR['y'] - box[1]) * k)), im)
-    her_first = next(ImageSequence.Iterator(Image.open(OUT / f'woman-{HOME}.webp'))).convert('RGBA')
+    her_first = next(ImageSequence.Iterator(Image.open(kept(OUT / f'woman-{HOME}.webp')))).convert('RGBA')
     finish_chair(chair_box, her_first, room_in_box(box, (W, H)), k)
     print('chair.webp and woman-still.webp rebuilt')
 
@@ -505,6 +515,238 @@ def hold_light(frames, ref):
     return out, gains
 
 
+HAIR_RIM_ZONE = (0, 700, 400, 1500)  # source px: the hair down her back whose outer lock the export left grey
+                                     # (not her nape, collar or jaw)
+HAIR_RIM = 22  # canvas px: how far in from her outline the outer lock reaches
+HAIR_RIM_CALM = 0.45  # how much of the lock's mottle is calmed towards the hair just inside
+
+
+# Her neck: the export left it out (see-through under the jaw, between her hair and her collar),
+# so the room's peach curtain showed through, its folds reading as noise on her skin. Source px.
+NECK_X = (520, 700)  # columns where the neck can be
+NECK_Y = (700, 900)
+THROAT_TOP = 0.42  # where the throat leaves the jaw: this far from the back of the jaw to the chin
+THROAT_LEAN = 0.3  # how far forward the throat runs, per px down
+NECK_SHADE = (0.86, 0.98)  # right under the jaw (its shadow, about 9 px deep), and below it
+
+
+def _neck_masks(a):
+    rgb, al = a[..., :3].astype(np.int32), a[..., 3]
+    skin = (al > 200) & (rgb[..., 0] > 160) & (rgb[..., 1] > 100) & (rgb[..., 0] - rgb[..., 2] > 40)
+    sweater = (al > 200) & (rgb[..., 2] > rgb[..., 0] + 8)
+    return skin, sweater
+
+
+def _neck_measure(a):
+    """The jaw's underside and the collar's top per column of the neck (-1 where none), the jaw's
+    back and chin, and the neck's skin tone (the lighter half of the jaw a little above its underside)."""
+    skin, sweater = _neck_masks(a)
+    (x0, x1), (y0, y1) = NECK_X, NECK_Y
+    jaw = np.full(x1 - x0, -1.0)
+    col = np.full(x1 - x0, -1.0)
+    for i, x in enumerate(range(x0, x1)):
+        s = np.nonzero(skin[y0:y1, x])[0]
+        if len(s):
+            jaw[i] = s.max() + y0
+        w = np.nonzero(sweater[y0:y1 + 120, x])[0]
+        if len(w):
+            col[i] = w.min() + y0
+    have = np.nonzero(jaw >= 0)[0]
+    back, chin = (have.min() + x0, have.max() + x0) if len(have) else (x0, x1)
+    top_x = back + THROAT_TOP * (chin - back)
+    i_top = int(round(top_x)) - x0
+    jy = jaw[i_top] if 0 <= i_top < len(jaw) else -1
+    tone = None
+    if jy > 0:
+        # the lit skin along the front of the jaw (behind it, near the ear, it's in shadow and
+        # made the neck read grey against her face)
+        sx0, sx1 = int(top_x), int(chin) - 12
+        samp = a[int(jy) - 45:int(jy) - 15, sx0:sx1, :3].astype(np.float32)
+        ok = skin[int(jy) - 45:int(jy) - 15, sx0:sx1]
+        px = samp[ok]
+        if len(px):
+            lum = luma(px)
+            tone = px[lum >= np.median(lum)].mean(0)
+    return {'jaw': jaw, 'col': col, 'top_x': top_x, 'jy': jy, 'tone': tone}
+
+
+def _neck_paint(a, m):
+    """One frame (RGBA array) with the neck painted behind whatever is there."""
+    import cv2
+    if m['jy'] <= 0 or m['tone'] is None:
+        return a
+    a = a.astype(np.float32).copy()
+    H, W = a.shape[:2]
+    x0, x1 = NECK_X
+    top_x, jy, jaw, col = m['top_x'], m['jy'], m['jaw'], m['col']
+    fill = np.zeros((H, W), np.float32)
+    shade = np.zeros((H, W), np.float32)
+    lo, hi = NECK_SHADE
+    for i, x in enumerate(range(x0, x1)):
+        if jaw[i] < 0 and x > top_x:
+            continue
+        ytop = jaw[i] if jaw[i] >= 0 else jy
+        ybot = col[i] if col[i] >= 0 else ytop + 60
+        for y in range(int(ytop) - 2, min(H, int(ybot) + 3)):
+            front = top_x + (y - jy) * THROAT_LEAN  # the throat's line at this height
+            if x > front + 1:
+                continue
+            fill[y, x] = np.clip(front + 1 - x, 0, 1)
+            # a short soft shadow right under the jaw, then skin close to the face's own tone
+            shade[y, x] = hi - (hi - lo) * np.exp(-max(0, y - ytop) / 9)
+            if front - 1.6 < x <= front + 1:  # the drawing's thin warm outline along the throat
+                shade[y, x] *= 0.78
+    fill = cv2.GaussianBlur(fill, (0, 0), 0.8)
+    shade = cv2.GaussianBlur(shade, (0, 0), 1.0)
+    neck = m['tone'][None, None, :] * np.where(shade > 0, shade, 1)[..., None]
+    al = a[..., 3:4] / 255
+    junk = (a[..., 3] < 200) & (fill > 0.5)  # half-see-through leftovers of the old background give way
+    al = np.where(junk[..., None], 0, al)
+    a[..., :3] = a[..., :3] * al + neck * (1 - al) * fill[..., None] + a[..., :3] * (1 - al) * (1 - fill[..., None])
+    a[..., 3] = np.maximum(np.where(junk, 0, a[..., 3]), fill * 255)
+    # the collar's top edge against the new neck takes the sweater's own colour (no old-background fringe)
+    _, sweater = _neck_masks(a.astype(np.uint8))
+    near = cv2.dilate((fill > 0.3).astype(np.uint8), np.ones((3, 3), np.uint8), iterations=4).astype(bool)
+    deep = cv2.erode(sweater.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=5).astype(bool)
+    num = cv2.GaussianBlur(a[..., :3] * deep[..., None], (0, 0), 6)
+    den = cv2.GaussianBlur(deep.astype(np.float32), (0, 0), 6)
+    inner = num / np.maximum(den, 1e-4)[..., None]
+    rim = near & (a[..., 3] > 0) & (den > 0.05) & ~(fill > 0.5) & (a[..., 2] + 30 > a[..., 0])
+    t = inner + ((luma(a[..., :3]) - luma(inner)) * 0.5)[..., None]
+    a[..., :3] = np.where(rim[..., None], t, a[..., :3])
+    return np.clip(a, 0, 255).round().astype(np.uint8)
+
+
+def paint_neck_seq(frames):
+    """Every frame (RGBA arrays) with her neck painted in, following her head. The jaw, collar and
+    throat are measured per frame, then evened out over neighbouring frames, so the neck never
+    jitters; its tone is one for the whole clip."""
+    ms = [_neck_measure(f) for f in frames]
+    tones = [m['tone'] for m in ms if m['tone'] is not None]
+    tone = np.median(np.stack(tones), 0) if tones else None
+    out = []
+    for t, m in enumerate(ms):
+        near = ms[max(0, t - 2):t + 3]
+        sm = dict(m)
+        sm['tone'] = tone
+        sm['top_x'] = float(np.median([n['top_x'] for n in near]))
+        sm['jy'] = float(np.median([n['jy'] for n in near]))
+        for key in ('jaw', 'col'):
+            stack = np.stack([n[key] for n in near])
+            med = np.median(np.where(stack >= 0, stack, np.nan), 0)
+            sm[key] = np.where(np.isnan(med), -1.0, med)
+        out.append(_neck_paint(frames[t], sm))
+    return out
+
+
+def hair_rim(rgba, zone, rim, calm=HAIR_RIM_CALM):
+    """rgba: a frame in the box (float RGBA, straight alpha); zone: 0-1, where the hair down her
+    back is. The export left the outer lock of that hair a mottled grey-green (its old background
+    mixed in, darker than the pale leftovers refine_edges repaints), which reads as a dirty outline
+    against the warm bookshelf. Within `rim` px of her outline, each pixel takes the colour of the
+    hair just inside, keeping its own light and shade (so the strands stay), its mottle calmed by
+    `calm`. Everything else, and everything outside the zone, is left as it is."""
+    import cv2
+    rgb, a = rgba[..., :3], rgba[..., 3]
+    dist = cv2.distanceTransform((a > 128).astype(np.uint8), cv2.DIST_L2, 5)
+    L = luma(rgb)
+    hairish = (L < 135) & (rgb[..., 0] >= rgb[..., 1]) & (rgb[..., 1] >= rgb[..., 2] - 4)
+    seed = ((dist > rim + 2) & hairish & (zone > 0.5)).astype(np.float32)
+    # the hair's colour nearby: a wide, smooth average of the hair inside, so no single lit
+    # strand streaks into the rim
+    sig = rim * 0.8
+    num = cv2.GaussianBlur(rgb * seed[..., None], (0, 0), sig)
+    den = cv2.GaussianBlur(seed, (0, 0), sig)
+    inner = num / np.maximum(den, 1e-4)[..., None]
+    Li = luma(inner)
+    ramp = np.clip((rim - dist) / 8, 0, 1)  # all of it at the outline, easing off over 8 px inside
+    ramp[(a > 0) & (a <= 128)] = 1
+    # only pixels that are hair themselves (or its grey leftovers): never the teal sweater or skin
+    own = cv2.GaussianBlur(((L < 140) & (rgb[..., 2] - rgb[..., 0] < 6)).astype(np.float32), (0, 0), 1.0)
+    weight = (ramp * zone * (den > 0.02) * own)[..., None]
+    Lout = L * (1 - calm) + Li * calm  # the rim's own light and shade, its mottle calmed
+    # the hair's hue at that light: its colour offset, never made stronger where the rim is lighter
+    target = Lout[..., None] + (inner - Li[..., None]) * np.clip(Lout / np.maximum(Li, 1), 0.4, 1.0)[..., None]
+    out = rgba.copy()
+    out[..., :3] = np.clip(rgb * (1 - weight) + target * weight, 0, 255)
+    return out
+
+
+NOTEBOOK_ZONE = (714, 1000, 1288, 1400)  # source px: the open notebook on the desk (right of the pen)
+
+
+def notebook_outline(rgba, zone, sigma=1.8, line=1.6, ink=0.58):
+    """rgba: a frame in the box (float RGBA); zone: 0-1, where the notebook is. The export drew the
+    notebook's outer edge stair-stepped (its coverage jumps from clear to solid within a pixel along
+    a slanted line) with a thin grey line on the steps, a dotted, saw-toothed outline against the
+    desk. The outline is smoothed (the coverage blurred and re-sharpened to a clean anti-aliased
+    edge), and the edge redrawn as one continuous line: the paper's or the cover's own colour, a
+    little darker at the very edge, like the paper's thickness. Inside, nothing changes."""
+    import cv2
+    rgb, a = rgba[..., :3], rgba[..., 3] / 255
+    new_a = np.clip((cv2.GaussianBlur(a, (0, 0), sigma) - 0.5) * 1.9 + 0.5, 0, 1)
+    dist = cv2.distanceTransform((new_a > 0.5).astype(np.uint8), cv2.DIST_L2, 5)
+    deep = ((dist > 3.5) & (a > 0.98)).astype(np.float32)
+    num = cv2.GaussianBlur(rgb * deep[..., None], (0, 0), 3)
+    den = cv2.GaussianBlur(deep, (0, 0), 3)
+    inner = num / np.maximum(den, 1e-4)[..., None]
+    edge_line = np.clip((line + 0.6 - dist) / 1.2, 0, 1)  # the outer ~1.6 px: the edge's line
+    band = np.clip((3.5 - dist) / 1.5, 0, 1) * (den > 0.05)  # within 3.5 px of the edge
+    target = inner * (1 - edge_line[..., None] * (1 - ink))
+    w = (band * zone)[..., None]
+    out = rgba.copy()
+    out[..., :3] = np.clip(rgb * (1 - w) + target * w, 0, 255)
+    out[..., 3] = (a * (1 - zone) + new_a * zone) * 255
+    return out
+
+
+def quiet_specks(frames, max_area=60, jump=24, back=14, still=6, pad=8):
+    """frames: finished RGBA frames (uint8 arrays, changed in place). Removes the export's
+    one-frame specks: a small patch (up to max_area px) that jumps away for exactly one frame and
+    comes straight back, in a place where nothing else moves (the ring around it is still in the
+    frames before and after). Mostly white flecks on her outline and faint ghosts in the clear
+    area around her, which flash for a frame against the room. Real movement is never touched:
+    a blink, the pen, a page edge or a moving arm all move their surroundings too.
+    Returns how many pixels were replaced (by the average of the frames either side)."""
+    import cv2
+    k3 = np.ones((3, 3), np.uint8)
+
+    def lum(x):
+        a = x[..., 3:4].astype(np.float32) / 255
+        return (x[..., :3].astype(np.float32).mean(-1, keepdims=True) * a + 128 * (1 - a))[..., 0]
+
+    ls = [lum(f) for f in frames]
+    src = [f.copy() for f in frames]
+    fixed = 0
+    for i in range(1, len(frames) - 1):
+        m = (np.abs(ls[i] - ls[i - 1]) > jump) & (np.abs(ls[i + 1] - ls[i - 1]) < back)
+        if not m.any():
+            continue
+        n, lab, stats, _ = cv2.connectedComponentsWithStats(m.astype(np.uint8), connectivity=8)
+        H, W = m.shape
+        before, after = np.abs(ls[i] - ls[i - 1]), np.abs(ls[i + 1] - ls[i])
+        fix = np.zeros_like(m)
+        for c in range(1, n):
+            x, y, w, h, area = stats[c]
+            if area > max_area:
+                continue
+            x0, y0, x1, y1 = max(0, x - pad), max(0, y - pad), min(W, x + w + pad), min(H, y + h + pad)
+            comp = (lab[y0:y1, x0:x1] == c).astype(np.uint8)
+            near = cv2.dilate(comp, k3, iterations=2).astype(bool)
+            ring = cv2.dilate(comp, k3, iterations=pad).astype(bool) & ~near
+            if not ring.any():
+                continue
+            if np.percentile(before[y0:y1, x0:x1][ring], 90) > still or np.percentile(after[y0:y1, x0:x1][ring], 90) > still:
+                continue  # something moves around it: that's motion, not a speck
+            fix[y0:y1, x0:x1] |= near
+        fix &= np.abs(ls[i + 1] - ls[i - 1]) < back
+        if fix.any():
+            mean = (src[i - 1][fix].astype(np.float32) + src[i + 1][fix].astype(np.float32)) / 2
+            frames[i][fix] = np.round(mean).astype(np.uint8)
+            fixed += int(fix.sum())
+    return fixed
+
+
 def calm_shimmer(frames, keep=None):
     """frames (straight RGBA uint8 arrays) with the generated video's shimmer calmed: each blended
     with its flow-followed matches in the CALM_REACH frames either side, only where the match is
@@ -634,13 +876,30 @@ def build_clip(name, width, quality):
 
     room = room_in_box(box, (W, H))
 
+    # where her hair's outer lock gets its colour back (hair_rim), in the box's pixels, softly edged
+    zx0, zy0, zx1, zy1 = HAIR_RIM_ZONE
+    rim_zone = np.zeros((H, W), np.float32)
+    rim_zone[max(0, round((WOMAN['y'] + zy0 * WOMAN['scale'] - by0) * k)):round((WOMAN['y'] + zy1 * WOMAN['scale'] - by0) * k),
+             max(0, round((WOMAN['x'] + zx0 * WOMAN['scale'] - bx0) * k)):round((WOMAN['x'] + zx1 * WOMAN['scale'] - bx0) * k)] = 1
+    rim_zone = np.asarray(Image.fromarray((rim_zone * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(12)), np.float32) / 255
+
+    # where the notebook's outline is smoothed (notebook_outline), in the box's pixels, softly edged
+    nx0, ny0, nx1, ny1 = NOTEBOOK_ZONE
+    nb_zone = np.zeros((H, W), np.float32)
+    nb_zone[max(0, round((WOMAN['y'] + ny0 * WOMAN['scale'] - by0) * k)):round((WOMAN['y'] + ny1 * WOMAN['scale'] - by0) * k),
+            max(0, round((WOMAN['x'] + nx0 * WOMAN['scale'] - bx0) * k)):round((WOMAN['x'] + nx1 * WOMAN['scale'] - bx0) * k)] = 1
+    nb_zone = np.asarray(Image.fromarray((nb_zone * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6)), np.float32) / 255
+
     def finished(img, pen=None):  # the source frame is already prepared (pen, light, hair, shimmer)
-        raw = np.asarray(to_box(img, WOMAN), np.float32)
+        raw = hair_rim(np.asarray(to_box(img, WOMAN), np.float32), rim_zone, HAIR_RIM * k)
+        m = None
+        if pen is not None:
+            m = np.asarray(to_box(Image.fromarray((np.clip(pen, 0, 1) * 255).astype(np.uint8)).convert('RGBA'), WOMAN).getchannel('R'), np.float32)[..., None] / 255
+        raw = notebook_outline(raw, nb_zone if m is None else nb_zone * (1 - m[..., 0]))  # never the pen
         done_ = edge_finish(raw, k, room, WRAP['woman'])
-        if pen is None:
+        if m is None:
             return done_
         # the clean pen goes through untouched: the edge clean-up would repaint its gold cap
-        m = np.asarray(to_box(Image.fromarray((np.clip(pen, 0, 1) * 255).astype(np.uint8)).convert('RGBA'), WOMAN).getchannel('R'), np.float32)[..., None] / 255
         return (done_.astype(np.float32) * (1 - m) + raw * m).round().clip(0, 255).astype(np.uint8)
 
     layers = source_layers(CLIPS[name])
@@ -648,11 +907,12 @@ def build_clip(name, width, quality):
     home_src = source_layers(CLIPS[HOME])[0][0]
     # the home frame itself, prepared the same way (steady pen and hair; it's its own light)
     home_steady, home_pen = steady_pen([home_src], home_src)
-    home_ready = np.asarray(fill_hair_gaps(home_steady[0]))
+    home_ready = paint_neck_seq([np.asarray(fill_hair_gaps(home_steady[0]))])[0]
     srcs, pens = steady_pen([f for f, _ in layers], home_src)  # 1. one clean pen
     srcs, gains = hold_light([np.asarray(f) for f in srcs], home_ready)  # 2. the light held to the home frame
     print(f'  light held: gains {gains.min():.3f}-{gains.max():.3f}', flush=True)
     srcs = [np.asarray(f) for f in fill_hair_gaps_seq([Image.fromarray(f) for f in srcs])]  # 3. hair gaps filled, evened over time
+    srcs = paint_neck_seq(srcs)  # 3b. her neck, which the export left out, painted in
     srcs = calm_shimmer(srcs, keep=pens)  # 4. the shimmer calmed (not the clean pen)
     # 5. what the edge clean-up must leave alone: the clean pen, and the frame's own pen
     # wherever that shows (lifted to turn a page, the clean pen can't follow it)
@@ -666,6 +926,7 @@ def build_clip(name, width, quality):
         holds.append(hold)
         if i % 30 == 0:
             print(f'{name}: {i}/{len(layers)} frames finished', flush=True)
+    print(f'{name}: {quiet_specks(out)} px of one-frame specks quieted', flush=True)  # 6. the export's specks
     if home is None:
         home = out[0]
     else:  # ease in from the shared first frame over the first ENTRY frames
@@ -692,8 +953,8 @@ def build_clip(name, width, quality):
     del out
 
     OUT.mkdir(parents=True, exist_ok=True)
-    anim = OUT / f'woman-{name}.webp'
-    tmp = OUT / f'.woman-{name}.tmp.webp'  # written aside, then swapped in: the live file is never half-written
+    anim = kept(OUT / f'woman-{name}.webp')  # kept out of the site: the page plays the videos
+    tmp = anim.with_name(f'.woman-{name}.tmp.webp')  # written aside, then swapped in: the live file is never half-written
     # Played once per turn (loop=1): if the page is a moment late starting the next clip, she
     # simply rests on the shared first frame, which the bridge ends on.
     frames[0].save(tmp, save_all=True, append_images=frames[1:], duration=ms, loop=1, lossless=False,
@@ -742,7 +1003,7 @@ def breath_lift(W, H, amount):
 def build_breath(quality):
     """woman-breath.webp: one calm breath from the home pose and back to it, exactly (played once
     or twice at rest between clips). Made by lifting her upper body a few px along breath_lift."""
-    home = next(ImageSequence.Iterator(Image.open(OUT / f'woman-{HOME}.webp'))).convert('RGBA')
+    home = next(ImageSequence.Iterator(Image.open(kept(OUT / f'woman-{HOME}.webp')))).convert('RGBA')
     W, H = home.size
     pm = premul(home)
     lift = breath_lift(W, H, BREATH_LIFT * W)
@@ -762,8 +1023,8 @@ def build_breath(quality):
         g = np.take_along_axis(pm, y0[..., None].repeat(4, -1), 0) * (1 - f) + np.take_along_axis(pm, y1[..., None].repeat(4, -1), 0) * f
         frames.append(Image.fromarray(fill_transparent(unpremul(g))))
     ms = [round((i + 1) * 1000 / BREATH_FPS) - round(i * 1000 / BREATH_FPS) for i in range(len(frames))]
-    anim = OUT / 'woman-breath.webp'
-    tmp = OUT / '.woman-breath.tmp.webp'
+    anim = kept(OUT / 'woman-breath.webp')
+    tmp = anim.with_name('.woman-breath.tmp.webp')
     frames[0].save(tmp, save_all=True, append_images=frames[1:], duration=ms, loop=1, lossless=False,
                    quality=quality, alpha_quality=100, method=6, exact=True, minimize_size=True)
     os.replace(tmp, anim)

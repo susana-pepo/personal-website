@@ -111,6 +111,18 @@ const SWELL_MS = 620 // back to full strength
 const COLOUR_FROM_MS = 70
 /** Hovering the lamp warms it up a little, as an invitation to click. */
 const HOVER_GAIN = 1.1
+/**
+ * Its glimmer hint (src/scene/glimmers.ts): the bulb catches, as if a switch had been touched:
+ * a soft dip and back, then a smaller one, each eased in and out (never a cut). [ms, strength]
+ */
+const FLICK: readonly (readonly [number, number])[] = [
+  [0, 1],
+  [320, 0.76],
+  [660, 1],
+  [900, 0.88],
+  [1220, 1],
+]
+const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2
 
 interface LampLiquidProps {
   /** Which light colour is on (index into LAMP_TONES). */
@@ -119,9 +131,11 @@ interface LampLiquidProps {
   hovered?: boolean
   /** The room is allowed to move: the light flows only then. */
   motionAllowed: boolean
+  /** Bumped to ask for its glimmer hint: the bulb catches (FLICK). Not with reduced motion. */
+  flick?: number
 }
 
-export function LampLiquid({ motionAllowed, tone = 0, hovered = false }: LampLiquidProps) {
+export function LampLiquid({ motionAllowed, tone = 0, hovered = false, flick = 0 }: LampLiquidProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const reducedMotion = usePrefersReducedMotion()
   const [failed, setFailed] = useState(false)
@@ -131,7 +145,7 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false }: LampLiq
   const draw = useRef<((time: number) => void) | null>(null)
   const timeRef = useRef(12.0) // start mid-flow, not at a symmetric moment
   // The light as drawn right now; the click choreography and hover move it.
-  const light = useRef({ core: [...LAMP_TONES[0]!.core] as Rgb, glow: [...LAMP_TONES[0]!.glow] as Rgb, gain: 1, flicker: 1, hover: 1 })
+  const light = useRef({ core: [...LAMP_TONES[0]!.core] as Rgb, glow: [...LAMP_TONES[0]!.glow] as Rgb, gain: 1, flicker: 1, hover: 1, catch: 1 })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -170,7 +184,7 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false }: LampLiq
         const l = light.current
         gl.uniform3f(uCore, l.core[0], l.core[1], l.core[2])
         gl.uniform3f(uGlow, l.glow[0], l.glow[1], l.glow[2])
-        gl.uniform1f(uGain, l.gain * l.flicker * l.hover)
+        gl.uniform1f(uGain, l.gain * l.flicker * l.hover * l.catch)
         gl.viewport(0, 0, canvas.width, canvas.height)
         gl.uniform2f(uRes, canvas.width, canvas.height)
         gl.uniform1f(uTime, time)
@@ -281,6 +295,29 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false }: LampLiq
     frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frame)
   }, [hovered])
+
+  // The glimmer hint: the bulb catches (its own frames, like the colour change above).
+  useEffect(() => {
+    if (flick === 0 || reducedRef.current) return
+    const l = light.current
+    const start = performance.now()
+    const end = FLICK[FLICK.length - 1]![0]
+    let frame = 0
+    const step = (now: number) => {
+      const ms = Math.min(end, now - start)
+      const i = Math.max(0, FLICK.findIndex(([at]) => at >= ms) - 1)
+      const [a, from] = FLICK[i]!
+      const [b, to] = FLICK[i + 1] ?? FLICK[i]!
+      l.catch = b > a ? from + (to - from) * easeInOutSine((ms - a) / (b - a)) : to
+      draw.current?.(timeRef.current)
+      if (ms < end) frame = requestAnimationFrame(step)
+    }
+    frame = requestAnimationFrame(step)
+    return () => {
+      cancelAnimationFrame(frame)
+      l.catch = 1
+    }
+  }, [flick])
 
   if (failed) return LAMP_TONES[tone] ? <LampLight motionAllowed={motionAllowed} /> : null // the still version, unless the light is off
   return <canvas ref={canvasRef} className="lamp-liquid" width={640} height={360} aria-hidden="true" data-ready={ready ? '' : undefined} />

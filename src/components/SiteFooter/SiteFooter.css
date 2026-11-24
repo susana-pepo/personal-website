@@ -280,7 +280,7 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 0.9375rem;
   line-height: 1.15;
@@ -599,7 +599,7 @@ a.player__title:hover {
 }
 
 .sound__name {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 0.875rem;
   line-height: 1.25;

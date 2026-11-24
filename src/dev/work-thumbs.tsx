@@ -6,8 +6,7 @@
  */
 import { StrictMode, useState } from 'react'
 import { createRoot } from 'react-dom/client'
-import '@fontsource-variable/newsreader/opsz.css'
-import '@fontsource-variable/dm-sans/opsz.css'
+import '../styles/fonts.css'
 import '../styles/tokens.css'
 import '../styles/base.css'
 import { WorkThumb } from '../components/sections/work/thumbs/WorkThumb'

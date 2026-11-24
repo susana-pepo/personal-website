@@ -1,7 +1,8 @@
 # Susana Pérez Posada — illustrated portfolio
 
 An interactive personal website built around a single hand-painted room. Visitors explore by
-touching objects in the room: each opens a section in a paper panel that slides over the scene.
+touching objects in the room: each opens a section in a dark smoked-glass panel that slides over
+the scene.
 A slim masthead above the room holds the name, a quiet menu (About · Work · Contact) and the
 scene control (time of day and weather); a small player sits beneath it. Every object is a
 real, labelled link for keyboards and screen readers, touch screens get a small dot on each
@@ -51,7 +52,8 @@ The `scene:*` builders (Python, needing Pillow and numpy) read the raw artwork f
 run on a machine that has it. The built media in `public/media/` is committed, so the site
 itself builds and runs from a fresh clone.
 
-Nothing has been deployed. `dist/` is a plain static site that works on any static host
+The site is published to GitHub Pages by `.github/workflows/pages.yml`, which tests, builds and
+deploys on every push to `main`. `dist/` is a plain static site that works on any static host
 (Netlify, Vercel, GitHub Pages, Cloudflare Pages) with no server configuration, because
 sections use URL hashes.
 
@@ -61,6 +63,8 @@ All copy lives in one file: **`src/content/content.ts`**. Types are in `src/cont
 
 - Optional fields (`organization`, `period`, `href`, `email`, `links`, `education`, …) are
   simply not shown when empty. Fill them in and they appear.
+- Each section's `summary` in `content.sections` is not shown on the page; the title stands
+  alone. Keep copy plain and short: no counts, no labels that repeat a heading.
 - In development, the browser console prints a **Content checklist** of what still needs your
   input. Nothing about it appears on the page or in the production build.
 - The About and Music copy are drafts written in your voice from the brief. Please read
@@ -70,24 +74,27 @@ All copy lives in one file: **`src/content/content.ts`**. Types are in `src/cont
 
 The draft deliberately invents nothing, so these are empty right now:
 
-1. **Contact details** (`contact.email`, `contact.links`): a public email address and any
-   profiles (LinkedIn etc.) you want listed. Until then the Contact panel shows a short
-   "details coming soon" note and no links.
+1. **Contact details** (`contact.email`, `contact.links`): filled in (an email address and
+   LinkedIn). The email is reached through "Let's chat" and is never printed on the page. Empty
+   both and the Contact page shows `contact.pendingNote` instead.
 2. **Experience details** (`experience.entries[*].organization` / `period` / `location`):
    employers, dates and locations for each thread, if you want them shown. Add or reorder
    entries freely. Add `experience.education` entries if you want an Education list.
 3. **CV**: put the PDF at `public/cv/susana-perez-posada-cv.pdf` and rebuild. The
    "Download CV" button appears only when that file exists.
 4. **Case studies** (optional): add `href` to any work theme to link it.
-5. **Books** (`bookshelf.books`): title, author, shelf (`reading`, `loved` or
-   `recommended`) and an optional note in your words. In development the shelves show
+5. **Books** (`bookshelf.books`): title, author, shelf (`reading`, `work` or
+   `loved`) and an optional note in your words. In development the shelves show
    clearly labelled sample spines so you can see the design; the live site shows only yours.
 6. **Record collection** (`music.collection.items`): paste Spotify share links (Share → Copy
    link) to albums or playlists. Covers and titles load from Spotify automatically; add a
-   `subtitle` (artist) and an optional `note`. Choosing a cover opens Spotify's own player.
-   In development the grid shows labelled sample sleeves; the live site shows only yours.
+   `subtitle` (artist) and an optional `note`. Choosing a sleeve takes it out to the desk below,
+   with an opt-in Spotify player. Podcasts go in `music.podcasts.items` (set `title` and
+   `cover` for shows). Shelves show only their heading: no counts, no descriptions. In
+   development they show labelled sample sleeves; the live site shows only yours.
 7. **Spotify "What I'm listening to"**: connect it by following
-   [docs/spotify-now-playing.md](docs/spotify-now-playing.md). Until then it stays hidden.
+   [docs/spotify-now-playing.md](docs/spotify-now-playing.md). Until then the turntable shows
+   the record set in `music.listening.onTurntable`, labelled "On the turntable".
 8. **Music links** (optional): add `link` to a music card only for content you own or are
    free to share.
 9. **Social preview image**: once you have a domain, change `og:image` in `index.html` to an
@@ -121,7 +128,8 @@ src/
                                 drawing shared by Bookshelf and Experience
   hooks/                        URL section, media queries, room playback, Spotify feed
   lib/router.ts                 tiny hash router with tidy history
-  styles/                       tokens (palette sampled from the artwork) + base
+  styles/                       tokens (palette sampled from the artwork), fonts + base
+  assets/fonts/geist/           Geist and Geist Serif (woff2), with their licence
 server/, api/, netlify/         the "now playing" endpoint (one implementation, two hosts)
 scripts/                        offline builders for the scene's media (Python) and Spotify sign-in
 ```
@@ -193,16 +201,25 @@ and on which side it sits.
 
 ## Design notes
 
-See `.impeccable.md` for the design brief. The room sits on a near-black page with softly
-rounded corners, under an editorial masthead (name, menu, scene control); beneath it are a low
-liquid-glass player bar (centre) and the copyright (right). Panels are off-white card with near-black ink and one spot colour, the vermilion of
-the record label in the illustration.
+See `.impeccable.md` for the design brief and `DESIGN.md` for the full system. The room sits on
+a near-black page with softly rounded corners, under an editorial masthead (name, menu, scene
+control); beneath it are a low liquid-glass player bar (centre) and the copyright (right).
+Panels are one opaque sheet of smoked glass: the glass is simulated in paint (a warm gradient,
+grain, a rim of lamp light, an inset top highlight and a directional shadow), with no
+backdrop-filter, filter or will-change, because the room behind animates. The panel redefines
+the `--card` and `--ink` tokens for everything inside it, and the room behind is dimmed by half.
+Light ink and one spot colour, the vermilion of the record label in the illustration. Inside a
+page there are no dividers; space does the grouping.
 
-**Type.** Newsreader for the name, headings, ledes and book spines, DM Sans for navigation,
-body paragraphs and controls (chosen by Susana; upright only, no italics anywhere). Both are self-hosted, so
-there are no third-party requests. To change them, edit `--font-display`, `--font-serif` and
-`--font-sans` in `src/styles/tokens.css` and the imports in `src/main.tsx`.
+**Type.** Geist Serif (one weight, 400, no italic) for page and section titles, the wordmark and
+the few invitations set like titles ("Let's chat"); Geist (variable, 100–900) for everything
+else: reading text, item titles (500), the room's labels and greeting, navigation and
+controls. Chosen by Susana. Both are self-hosted from Vercel's official release (SIL Open Font
+Licence 1.1, `src/assets/fonts/geist/LICENSE.txt`), so there are no third-party requests, and
+`font-synthesis: none` stops the browser faking a bold or an italic. To change them, edit
+`--font-display`, `--font-serif` (the reading voice, now Geist) and `--font-sans` in
+`src/styles/tokens.css` and the `@font-face` rules in `src/styles/fonts.css`.
 
-**Motion.** Strong ease-out curves; hover feedback ~200ms; panels arrive in 420ms and leave
-in 240ms; the room settles in once on first load; buttons press down slightly; hover effects
+**Motion.** Strong ease-out curves; hover feedback ~200ms; panels arrive in 460ms and leave
+in 260ms, each page entering as one movement; the room settles in once on first load; buttons press down slightly; hover effects
 only on devices with a real pointer; reduced-motion keeps fades and drops movement.

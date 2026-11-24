@@ -3,46 +3,51 @@
  * kept as a Blob, so a clip can be played again and again from a fresh copy (a new object
  * URL always starts at its first frame) without downloading it twice.
  *
- * Each clip is named by its animated WebP, but where the browser can show transparent video the
- * clip is played as video instead (scripts/clip_video.py writes both): video is decoded by the
- * graphics chip and always holds its last frame, where a large animated WebP can blink out for a
- * frame while the browser catches up. Safari's engine plays HEVC with alpha (.mov), the others
- * VP9 with alpha (.webm). Chrome on a Mac can also play HEVC, but without its alpha (a black
- * box), so the choice is made by engine, and the first video's first frame is checked for
- * transparency before any is shown. Anything that goes wrong falls back to the WebP for the visit.
+ * Every clip plays as transparent video (scripts/clip_video.py): video is decoded by the
+ * graphics chip and always holds its last frame, where a large animated picture blinked out for
+ * single frames. Safari's engine plays HEVC with alpha (.mov), the others VP9 with alpha (.webm).
+ * Chrome on a Mac can also play HEVC, but without its alpha (a black box), so the choice is made
+ * by engine, and the first video's first frame is checked for transparency before any is shown.
+ * A clip is named by its old animated WebP path (`…/woman-writing.webp`), which is no longer
+ * served: only its videos are. Where video can't play (no alpha, an old browser, or iOS Low
+ * Power Mode refusing to start it), nothing animates for the visit and each figure rests on its
+ * still picture, which is what reduced motion shows too.
  */
 
-export type ClipFormat = 'webm' | 'mov' | 'webp'
+export type ClipFormat = 'webm' | 'mov' | 'none'
 
 function engineFormat(): ClipFormat {
-  if (typeof document === 'undefined') return 'webp'
+  if (typeof document === 'undefined') return 'none'
   const probe = document.createElement('video')
-  if (typeof probe.canPlayType !== 'function') return 'webp'
+  if (typeof probe.canPlayType !== 'function') return 'none'
   const ua = navigator.userAgent
   // Safari, and every browser on iOS (all WebKit): HEVC with alpha. Chrome, Edge, Opera and
   // Firefox say "Chrome/", "Edg/", "OPR/" or "Firefox/" on the desktop; their iOS versions don't.
   const webkit = /AppleWebKit/.test(ua) && !/Chrome\/|Chromium\/|Edg\/|OPR\/|Firefox\//.test(ua)
-  if (webkit) return probe.canPlayType('video/mp4; codecs="hvc1"') ? 'mov' : 'webp'
-  return probe.canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'webp'
+  if (webkit) return probe.canPlayType('video/mp4; codecs="hvc1"') ? 'mov' : 'none'
+  return probe.canPlayType('video/webm; codecs="vp9"') ? 'webm' : 'none'
 }
 
 let format: ClipFormat | null = null
 /** Whether a video's transparency has been seen to work (null: not checked yet). */
 let alphaWorks: boolean | null = null
 
-/** How clips play in this browser, for this visit. */
+/** How clips play in this browser, for this visit ('none': they don't, the stills stay). */
 export function clipFormat(): ClipFormat {
   if (format === null) format = engineFormat()
   return format
 }
 
-/** Plays the WebP from now on (video failed: no alpha, or the browser won't play it). */
-export function fallBackToWebp() {
-  format = 'webp'
+/** Whether the clips can play at all in this visit (else every figure rests on its still). */
+export const clipsCanPlay = () => clipFormat() !== 'none'
+
+/** Video failed (no alpha, or the browser won't play it): nothing animates from now on. */
+export function noVideo() {
+  format = 'none'
 }
 
-/** The file to fetch for a clip named by its WebP, in this visit's format. */
-export const clipFileUrl = (src: string, as: ClipFormat = clipFormat()) => (as === 'webp' ? src : src.replace(/\.webp$/, `.${as}`))
+/** A clip's video file, from its name (its old WebP path). */
+export const clipFileUrl = (src: string, as: 'webm' | 'mov') => src.replace(/\.webp$/, `.${as}`)
 
 const files = new Map<string, Promise<Blob | null>>()
 const arrived = new Map<string, Blob>()
@@ -63,16 +68,17 @@ function fetchUrl(url: string): Promise<Blob | null> {
   return file
 }
 
-/** A clip's file (named by its WebP), in this visit's format; a missing video falls back to the WebP. */
+/** A clip's video, in this visit's format (null where clips don't play, or if it can't be had). */
 export async function fetchClipFile(src: string): Promise<Blob | null> {
   const as = clipFormat()
-  if (as === 'webp') return fetchUrl(src)
-  const blob = await fetchUrl(clipFileUrl(src, as))
-  return blob ?? fetchUrl(src)
+  return as === 'none' ? null : fetchUrl(clipFileUrl(src, as))
 }
 
-/** The file, if it has already arrived (no waiting). */
-export const arrivedClipFile = (src: string): Blob | undefined => arrived.get(clipFileUrl(src)) ?? arrived.get(src)
+/** The video, if it has already arrived (no waiting). */
+export const arrivedClipFile = (src: string): Blob | undefined => {
+  const as = clipFormat()
+  return as === 'none' ? undefined : arrived.get(clipFileUrl(src, as))
+}
 
 /** The clips that aren't needed at once load later, one after another, and only for visitors not saving data. */
 export const LATER_CLIPS_AFTER_MS = 12_000
@@ -118,7 +124,7 @@ const VIDEO_READY_MS = 5000
 export function videoAlphaWorks(video: HTMLVideoElement): boolean {
   if (alphaWorks === null) {
     alphaWorks = cornerIsClear(video)
-    if (!alphaWorks) fallBackToWebp()
+    if (!alphaWorks) noVideo()
   }
   return alphaWorks
 }
@@ -177,7 +183,7 @@ function prepareVideo(blob: Blob, name: string): Promise<PreparedClip | null> {
           try {
             await video.play()
           } catch {
-            fallBackToWebp() // e.g. Low Power Mode on iOS won't play video by itself
+            noVideo() // e.g. iOS Low Power Mode won't start video by itself: the stills stay
             throw new Error('video would not play')
           }
           await shown
@@ -194,46 +200,15 @@ function prepareVideo(blob: Blob, name: string): Promise<PreparedClip | null> {
   })
 }
 
-async function preparePicture(blob: Blob, name: string): Promise<PreparedClip | null> {
-  const url = URL.createObjectURL(blob)
-  const img = new Image()
-  img.alt = ''
-  img.draggable = false
-  // decoded before it's drawn: an animated picture this large would otherwise be drawn blank
-  // (the whole figure blinking out) while the browser catches up with its first frames
-  img.decoding = 'sync'
-  img.dataset.clip = name
-  img.src = url
-  try {
-    await img.decode()
-  } catch {
-    URL.revokeObjectURL(url)
-    return null
-  }
-  return {
-    el: img,
-    start: () => afterPainted(0),
-    release: () => {
-      img.remove()
-      URL.revokeObjectURL(url)
-    },
-  }
-}
-
 /**
- * A fresh copy of a clip (named by its WebP), ready to go on screen at its first frame: as video
- * where that works, otherwise as the animated picture. Null if it couldn't be had.
+ * A fresh copy of a clip (named by its old WebP path), ready to go on screen at its first frame.
+ * Null if it can't be had, or if clips don't play in this visit.
  */
 export async function prepareClip(src: string, name: string): Promise<PreparedClip | null> {
+  if (!clipsCanPlay()) return null
   const blob = arrivedClipFile(src) ?? (await fetchClipFile(src))
-  if (!blob) return null
-  // a video file, unless it's the WebP (a video missing on the server falls back to it)
-  const isVideo = blob.type.startsWith('video/') || (!blob.type.startsWith('image/') && clipFormat() !== 'webp')
-  if (!isVideo) return preparePicture(blob, name)
+  if (!blob || !clipsCanPlay()) return null
   const video = await prepareVideo(blob, name)
-  if (video) return video
-  // video didn't work here: the picture instead, from now on
-  fallBackToWebp()
-  const picture = await fetchUrl(src)
-  return picture ? preparePicture(picture, name) : null
+  if (!video && alphaWorks === false) noVideo()
+  return video
 }

@@ -1,19 +1,19 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
-import { content } from '../../content/content'
-import type { EducationEntry, ExperienceRole } from '../../content/types'
-import { prefersReducedMotion } from '../../lib/motion'
-import { objectLabel, pad } from '../SectionPanel/folio'
-import { DeskPile, pileColours, type DeskItem } from './experience/DeskPile'
-import { spineTitle, startYear, yearsOf } from './experience/years'
-import { Topics } from './Topics'
+import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { content } from "../../content/content";
+import type { EducationEntry, ExperienceRole } from "../../content/types";
+import { prefersReducedMotion } from "../../lib/motion";
+import { objectLabel } from "../SectionPanel/folio";
+import { DeskPile, pileColours, type DeskItem } from "./experience/DeskPile";
+import { spineTitle, startYear, yearsOf } from "./experience/years";
+import { Topics } from "./Topics";
 
-const TOOLKIT = 'toolkit'
-const tabId = (item: { id: string }) => `cv-tab-${item.id}`
-const pageId = (item: { id: string }) => `cv-page-${item.id}`
+const TOOLKIT = "toolkit";
+const tabId = (item: { id: string }) => `cv-tab-${item.id}`;
+const pageId = (item: { id: string }) => `cv-page-${item.id}`;
 
 interface PileItem extends DeskItem {
-  role?: ExperienceRole
-  education?: EducationEntry
+  role?: ExperienceRole;
+  education?: EducationEntry;
 }
 
 /**
@@ -29,9 +29,10 @@ interface PileItem extends DeskItem {
  * Figures from the PDF are left out until they can be backed up.
  */
 export default function ExperienceSection() {
-  const { experience } = content
-  const { employer, roles, education } = experience
-  const hasToolkit = experience.languages.length > 0 || experience.tools.length > 0
+  const { experience } = content;
+  const { employer, roles, education } = experience;
+  const hasToolkit =
+    experience.languages.length > 0 || experience.tools.length > 0;
   const work = useMemo<PileItem[]>(
     () =>
       roles.map((role) => ({
@@ -42,25 +43,33 @@ export default function ExperienceSection() {
         role,
       })),
     [roles],
-  )
+  );
 
   /** Top of the pile first: the notebook, then the degrees. */
   const beyond = useMemo<PileItem[]>(
     () => [
-      ...(hasToolkit ? [{ id: TOOLKIT, title: experience.toolkitTitle, kind: 'notebook' as const }] : []),
+      ...(hasToolkit
+        ? [
+            {
+              id: TOOLKIT,
+              title: experience.toolkitTitle,
+              kind: "notebook" as const,
+            },
+          ]
+        : []),
       ...education.map((entry) => ({
         id: entry.id,
         title: entry.spine ?? entry.qualification,
         byline: entry.spineNote,
         label: `${entry.qualification}, ${entry.institution}`,
-        colour: 'oxblood' as const,
+        colour: "oxblood" as const,
         education: entry,
       })),
     ],
     [education, hasToolkit, experience.toolkitTitle],
-  )
+  );
 
-  if (work.length === 0 && beyond.length === 0) return null
+  if (work.length === 0 && beyond.length === 0) return null;
 
   return (
     <div className="section section--folio">
@@ -74,7 +83,7 @@ export default function ExperienceSection() {
             items={work}
             // Closed at first: the pile and its spines are the overview; a book opens its role.
             initial={null}
-            label={objectLabel('experience') || 'The books on the desk'}
+            label={objectLabel("experience") || "The books on the desk"}
             lead={
               <div className="cv-company">
                 {employer && (
@@ -83,15 +92,17 @@ export default function ExperienceSection() {
                   </p>
                 )}
                 <h3 id="cv-employer" className="cv-company__name">
-                  {employer?.name ?? 'Work'}
+                  {employer?.name ?? "Work"}
                 </h3>
-                {employer?.focus && <p className="cv-company__focus">{employer.focus}</p>}
+                {employer?.focus && (
+                  <p className="cv-company__focus">{employer.focus}</p>
+                )}
                 <p className="cv-company__hint">{experience.pileHint}</p>
               </div>
             }
             render={(item) =>
               item.role ? (
-                <RoleBody role={item.role} n={roles.length - roles.indexOf(item.role)} employer={employer?.name} />
+                <RoleBody role={item.role} employer={employer?.name} />
               ) : null
             }
           />
@@ -110,20 +121,21 @@ export default function ExperienceSection() {
                 {experience.beyondTitle}
               </h3>
             }
-            render={(item) => (item.education ? <EducationBody entry={item.education} /> : <ToolkitBody title={item.title} />)}
+            beside={
+              __CV_PATH__ ? <CvSheet label={experience.cvLabel} /> : undefined
+            }
+            render={(item) =>
+              item.education ? (
+                <EducationBody entry={item.education} />
+              ) : (
+                <ToolkitBody title={item.title} />
+              )
+            }
           />
         )}
       </div>
-
-      {__CV_PATH__ && (
-        <p className="section__actions">
-          <a className="text-link" href={__CV_PATH__} download>
-            {experience.cvLabel}
-          </a>
-        </p>
-      )}
     </div>
-  )
+  );
 }
 
 /**
@@ -141,27 +153,36 @@ function Pile({
   head,
   lead,
   small = false,
+  beside,
   render,
 }: {
-  id?: string
-  items: PileItem[]
-  initial: string | null
-  label: string
-  head?: ReactNode
-  lead?: ReactNode
+  id?: string;
+  items: PileItem[];
+  initial: string | null;
+  label: string;
+  head?: ReactNode;
+  lead?: ReactNode;
   /** Drawn at about two thirds of the size, for supporting details. */
-  small?: boolean
-  render: (item: PileItem) => ReactNode
+  small?: boolean;
+  /** Something standing on the same board beside the books. */
+  beside?: ReactNode;
+  render: (item: PileItem) => ReactNode;
 }) {
-  const [selected, setSelected] = useState<string | null>(initial)
-  const closable = initial === null
+  const [selected, setSelected] = useState<string | null>(initial);
+  const closable = initial === null;
   // A page chosen with the keyboard changes instantly; one chosen by pointer fades in.
-  const [instant, setInstant] = useState(true)
-  const colours = useMemo(() => pileColours(items), [items])
+  const [instant, setInstant] = useState(true);
+  const colours = useMemo(() => pileColours(items), [items]);
 
   return (
     <section
-      className={['cv-pile', lead && 'cv-pile--beside', small && 'cv-pile--small'].filter(Boolean).join(' ')}
+      className={[
+        "cv-pile",
+        lead && "cv-pile--beside",
+        small && "cv-pile--small",
+      ]
+        .filter(Boolean)
+        .join(" ")}
       aria-labelledby={id}
       aria-label={id ? undefined : label}
     >
@@ -170,25 +191,33 @@ function Pile({
       <DeskPile
         entries={items}
         label={label}
-        selected={selected ?? ''}
+        selected={selected ?? ""}
         tabId={tabId}
         panelId={pageId}
+        beside={beside}
         onSelect={(item, byKeyboard) => {
-          setInstant(byKeyboard)
-          const next = closable && !byKeyboard && item.id === selected ? null : item.id
-          setSelected(next)
+          setInstant(byKeyboard);
+          const next =
+            closable && !byKeyboard && item.id === selected ? null : item.id;
+          setSelected(next);
           // On a phone the page opens below the fold: bring it up, or the tap seems to do nothing.
           // Not for the keyboard, whose focus stays on the pile.
-          if (next && !byKeyboard) revealPage(pageId(item))
+          if (next && !byKeyboard) revealPage(pageId(item));
         }}
       />
       {items.map((item, i) => (
-        <Page key={item.id} item={item} colour={colours[i]!} hidden={item.id !== selected} instant={instant}>
+        <Page
+          key={item.id}
+          item={item}
+          colour={colours[i]!}
+          hidden={item.id !== selected}
+          instant={instant}
+        >
           {render(item)}
         </Page>
       ))}
     </section>
-  )
+  );
 }
 
 /**
@@ -197,14 +226,20 @@ function Pile({
  */
 function revealPage(id: string) {
   requestAnimationFrame(() => {
-    const page = document.getElementById(id)
-    const scroller = page?.closest('.panel__body')
-    if (!page || !scroller) return
+    const page = document.getElementById(id);
+    const scroller = page?.closest(".panel__body");
+    if (!page || !scroller) return;
     // Less than about four lines of it showing: bring its top up.
-    if (page.getBoundingClientRect().top > scroller.getBoundingClientRect().bottom - 96) {
-      page.scrollIntoView({ block: 'start', behavior: prefersReducedMotion() ? 'auto' : 'smooth' })
+    if (
+      page.getBoundingClientRect().top >
+      scroller.getBoundingClientRect().bottom - 96
+    ) {
+      page.scrollIntoView({
+        block: "start",
+        behavior: prefersReducedMotion() ? "auto" : "smooth",
+      });
     }
-  })
+  });
 }
 
 /** One open page, under the desk, in the colour of the book it came from. */
@@ -215,11 +250,11 @@ function Page({
   instant,
   children,
 }: {
-  item: PileItem
-  colour: string
-  hidden: boolean
-  instant: boolean
-  children: ReactNode
+  item: PileItem;
+  colour: string;
+  hidden: boolean;
+  instant: boolean;
+  children: ReactNode;
 }) {
   return (
     <article
@@ -228,24 +263,26 @@ function Page({
       aria-labelledby={tabId(item)}
       className="cv-page"
       hidden={hidden}
-      data-instant={instant ? '' : undefined}
-      style={{ '--book': colour } as CSSProperties}
+      data-instant={instant ? "" : undefined}
+      style={{ "--book": colour } as CSSProperties}
     >
       {children}
     </article>
-  )
+  );
 }
 
-function RoleBody({ role, n, employer }: { role: ExperienceRole; n: number; employer?: string }) {
+function RoleBody({
+  role,
+  employer,
+}: {
+  role: ExperienceRole;
+  employer?: string;
+}) {
   return (
     <>
-      <p className="cv-page__chapter">
-        <span className="cv-page__n">{pad(n)}</span>
-        <span>{role.stage}</span>
-      </p>
       <h4 className="cv-page__title">{role.title}</h4>
       <p className="cv-page__period">
-        {employer ? `${employer}, ` : ''}
+        {employer ? `${employer}, ` : ""}
         {role.period}
       </p>
       {role.points.length > 0 && (
@@ -261,26 +298,23 @@ function RoleBody({ role, n, employer }: { role: ExperienceRole; n: number; empl
         </div>
       )}
     </>
-  )
+  );
 }
 
 function EducationBody({ entry }: { entry: EducationEntry }) {
   return (
     <>
-      <p className="cv-page__chapter">
-        <span>Education</span>
-      </p>
       <h4 className="cv-page__title">{entry.qualification}</h4>
       <p className="cv-page__period">
         {entry.institution}
-        {entry.period ? `, ${entry.period}` : ''}
+        {entry.period ? `, ${entry.period}` : ""}
       </p>
     </>
-  )
+  );
 }
 
 function ToolkitBody({ title }: { title: string }) {
-  const { languages, tools } = content.experience
+  const { languages, tools } = content.experience;
   return (
     <>
       <h4 className="cv-page__title">{title}</h4>
@@ -303,5 +337,28 @@ function ToolkitBody({ title }: { title: string }) {
         )}
       </dl>
     </>
-  )
+  );
+}
+
+/**
+ * My CV as what it is, a printed page: a small copy of its first page standing on the
+ * desk beside the background books, leaning a little like the portrait print on About.
+ * The page and its label are one link, which downloads the PDF.
+ */
+function CvSheet({ label }: { label: string }) {
+  return (
+    <a className="xp-cv" href={__CV_PATH__} download>
+      <span className="xp-cv__sheet" aria-hidden="true">
+        <img
+          src="/cv/cv-page.webp"
+          alt=""
+          width={240}
+          height={339}
+          decoding="async"
+          loading="lazy"
+        />
+      </span>
+      <span className="xp-cv__label">{label}</span>
+    </a>
+  );
 }

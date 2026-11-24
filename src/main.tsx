@@ -1,7 +1,6 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import '@fontsource-variable/newsreader/opsz.css'
-import '@fontsource-variable/dm-sans/opsz.css'
+import './styles/fonts.css'
 import './styles/tokens.css'
 import './styles/base.css'
 import { App } from './App'
@@ -14,8 +13,20 @@ if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('trac
 const root = document.getElementById('root')
 if (!root) throw new Error('Missing #root element')
 
-createRoot(root).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// Development only: /?notes opens the book notes page instead of the room (see dev/bookNotes).
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('notes')) {
+  void import('./dev/bookNotes/BookNotes').then(({ BookNotes }) => {
+    document.title = 'Book notes'
+    createRoot(root).render(
+      <StrictMode>
+        <BookNotes />
+      </StrictMode>,
+    )
+  })
+} else {
+  createRoot(root).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  )
+}

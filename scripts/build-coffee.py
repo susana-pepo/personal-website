@@ -26,7 +26,7 @@ from fractions import Fraction
 
 from PIL import Image, ImageSequence
 
-from clip_video import write_videos
+from clip_video import kept, write_videos
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'portfolio-website-assets/public/media/coffee-transparent.webp'
@@ -118,8 +118,8 @@ def build(width, quality, out_dir=OUT, prefix='coffee', split=None, light=False)
         print(f'{out_dir}: cup {W}x{H - y}, steam {W}x{y}, {len(steam)} frames, '
               f'{os.path.getsize(anim) / 1e6:.2f} MB, crop {crop}')
         return
-    anim = out_dir / f'{prefix}-steam.webp'
-    tmp = out_dir / f'.{prefix}-steam.tmp.webp'  # written aside, then swapped in: the live file is never half-written
+    anim = kept(out_dir / f'{prefix}-steam.webp')  # kept out of the site: the page plays the videos
+    tmp = anim.with_name(f'.{prefix}-steam.tmp.webp')  # written aside, then swapped in: the live file is never half-written
     out[0].save(tmp, save_all=True, append_images=out[1:], duration=frame_ms, loop=0, lossless=False,
                 quality=quality, alpha_quality=100, method=6, exact=True)
     os.replace(tmp, anim)

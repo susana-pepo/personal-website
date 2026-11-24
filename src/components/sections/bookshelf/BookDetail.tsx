@@ -50,8 +50,10 @@ export function BookDetail({ placed, onPutBack }: BookDetailProps) {
       </div>
 
       <div className="bs-detail__text">
-        <h4 className="bs-detail__title">{book.title}</h4>
-        <p className="bs-detail__author">{book.author}</p>
+        <div className="bs-detail__head">
+          <h4 className="bs-detail__title">{book.title}</h4>
+          <p className="bs-detail__author">{book.author}</p>
+        </div>
         {book.note && <p className="bs-detail__note">{book.note}</p>}
         <p className="bs-detail__actions">
           {book.href && (

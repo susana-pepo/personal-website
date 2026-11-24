@@ -19,7 +19,6 @@ import { sectionComponent } from '../sections/registry'
 import {
   inkTransform,
   tabRowScroll,
-  pad,
   readDuration,
   readingProgress,
   tabIndexForKey,
@@ -28,6 +27,7 @@ import {
 import '../sections/sections.css'
 import '../sections/panel-sections.css'
 import './SectionPanel.css'
+import { HeaderArt } from './HeaderArt'
 
 /** The outgoing page's slide in SectionPanel.css, for when its animations can't be read. */
 const LEAVE_FALLBACK_MS = 260
@@ -41,7 +41,7 @@ interface Page {
   /** Opening rises; turning moves with the direction of travel. */
   enter: 'open' | 'turn'
   dir: 1 | -1
-  /** The section turned from, for the rolling number. */
+  /** The section turned from. */
   from: SectionId | null
 }
 
@@ -320,7 +320,20 @@ export function SectionPanel({ section }: SectionPanelProps) {
     >
       <div ref={sheetRef} className="panel__sheet">
         <div className="panel__bar">
-          <nav ref={navRef} className="panel__nav" aria-label="Sections" onKeyDown={onTabsKeyDown}>
+          <nav
+            ref={navRef}
+            className="panel__nav"
+            aria-label="Sections"
+            onKeyDown={onTabsKeyDown}
+            // The row rests on a tab's edge; only when it stops mid-word (at the very end of the row)
+            // does its start fade too, so a cut word never shows and a whole tab is never faded.
+            onScroll={(event) => {
+              const nav = event.currentTarget
+              const x = nav.scrollLeft
+              const onEdge = Array.from(nav.querySelectorAll('a')).some((a) => Math.abs(a.offsetLeft - x) <= 2)
+              nav.toggleAttribute('data-scrolled', x > 2 && !onEdge)
+            }}
+          >
             <div ref={tabsRef} className="panel__tabs">
               <ul role="list">
                 {SECTION_IDS.map((id) => (
@@ -368,11 +381,8 @@ interface FolioPageProps {
 }
 
 function FolioPage({ page, leaving, headingRef }: FolioPageProps) {
-  const { id, enter, dir, from } = page
+  const { id, enter, dir } = page
   const meta = content.sections[id]
-  const index = SECTION_IDS.indexOf(id)
-  const fromIndex = from ? SECTION_IDS.indexOf(from) : -1
-  const rolls = !leaving && enter === 'turn' && fromIndex >= 0
   // Chosen once per page: a preloaded section renders at once with no fallback.
   // Swapping from lazy to plain on a later render would remount the content.
   const [Content] = useState(() => sectionComponent(id))
@@ -387,22 +397,10 @@ function FolioPage({ page, leaving, headingRef }: FolioPageProps) {
       inert={leaving ? true : undefined}
     >
       <header className="panel__header">
-        <p className="panel__meta">
-          <span className="panel__count">
-            <span className="panel__num" data-roll={rolls ? '' : undefined}>
-              {rolls && (
-                <span className="panel__num-from" aria-hidden="true">
-                  {pad(fromIndex + 1)}
-                </span>
-              )}
-              <span className="panel__num-to">{pad(index + 1)}</span>
-            </span>{' '}
-            / {pad(SECTION_IDS.length)}
-          </span>
-        </p>
         <h2 id={leaving ? undefined : 'panel-title'} ref={headingRef} tabIndex={-1} className="panel__title">
           {meta.title}
         </h2>
+        <HeaderArt id={id} />
       </header>
 
       <Suspense fallback={<p className="panel__loading">Opening…</p>}>

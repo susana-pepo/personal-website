@@ -33,7 +33,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageFilter
 
-from clip_video import write_videos
+from clip_video import kept, write_videos
 
 ROOT = Path(__file__).resolve().parent.parent
 MEDIA = ROOT / 'portfolio-website-assets/public/media'
@@ -186,8 +186,8 @@ def build_clip(name, width, quality):
     ms = durations_ms(holds)
     frames = [Image.fromarray(x) for x in out]
     OUT.mkdir(parents=True, exist_ok=True)
-    anim = OUT / f'cat-{name}.webp'
-    tmp = OUT / f'.cat-{name}.tmp.webp'
+    anim = kept(OUT / f'cat-{name}.webp')  # kept out of the site: the page plays the videos
+    tmp = anim.with_name(f'.cat-{name}.tmp.webp')
     # every clip plays once and rests on the sleeping pose; the page starts the next one
     frames[0].save(tmp, save_all=True, append_images=frames[1:], duration=ms, loop=1,
                    lossless=False, quality=quality, alpha_quality=100, method=6, exact=True)

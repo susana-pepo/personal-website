@@ -28,7 +28,7 @@ export function CoffeeOverlay({ motionAllowed, highlighted, discoveryIndex }: Co
   return (
     <SceneObject overlay={COFFEE} highlighted={highlighted} discoveryIndex={discoveryIndex} className="coffee">
       {moving && entered ? (
-        <LoopClip src={COFFEE_MEDIA.animated} alpha size={COFFEE_MEDIA.size} />
+        <LoopClip src={COFFEE_MEDIA.animated} still={COFFEE_MEDIA.still} alpha size={COFFEE_MEDIA.size} />
       ) : (
         <img
           src={COFFEE_MEDIA.still}

@@ -43,6 +43,25 @@ HEVC_Q = 0.6
 HEVC_ALPHA = 0.8
 HEVC_TOOL_SRC = Path(__file__).resolve().parent / 'hevc-alpha.m'
 
+ROOT = Path(__file__).resolve().parent.parent
+# The animated WebP of each clip is still written (the builds read frames back from it: her breath,
+# the chair, the window's light detection), but it's no longer served: the page plays only video,
+# and shows a still where video can't play. So it's kept here, beside the sources, out of the site.
+KEPT = ROOT / 'portfolio-website-assets/built'
+
+
+def kept(path):
+    """Where a clip's animated WebP named by its place in public/media is kept instead (paths
+    outside public/media are left as they are)."""
+    p = Path(path).resolve()
+    try:
+        rel = p.relative_to((ROOT / 'public/media').resolve())
+    except ValueError:
+        return Path(path)
+    out = KEPT / rel
+    out.parent.mkdir(parents=True, exist_ok=True)
+    return out
+
 
 def hevc_tool():
     """Apple's HEVC-with-alpha encoder (scripts/hevc-alpha.m), built once per change of its source."""

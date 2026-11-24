@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
 import { WOMAN_MEDIA, overlay } from '../../../scene/layout'
 import { HOME_CLIP, WOMAN_BREATH, WOMAN_CLIPS, nextClip, restAfter, stillRest, type WomanClip } from '../../../scene/womanClips'
-import { afterPainted, arrivedClipFile, fetchClipFile, fetchLater, prepareClip, type PreparedClip } from '../../../scene/clipFiles'
+import { afterPainted, arrivedClipFile, clipsCanPlay, fetchClipFile, fetchLater, prepareClip, type PreparedClip } from '../../../scene/clipFiles'
 import { whenSettled } from '../../../scene/entrance'
 import { SceneObject } from './SceneObject'
 
@@ -96,8 +96,9 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
 
     const show = async (clip: WomanClip, fade: boolean) => {
       if (!(await mount(clip, fade))) {
-        // this one didn't arrive: try again with another (or the first) shortly
-        if (!stopped) timer = window.setTimeout(next, 1000)
+        // this one didn't arrive: try again with another (or the first) shortly, unless clips
+        // can't play here at all (then she rests on her still picture)
+        if (!stopped && clipsCanPlay()) timer = window.setTimeout(next, 1000)
         return
       }
       recent.push(clip.name)

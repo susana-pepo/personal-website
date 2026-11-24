@@ -9,6 +9,8 @@ html {
   text-size-adjust: 100%;
   background: var(--sleeve);
   color-scheme: dark;
+  /* Geist Serif has one weight and no italic: never let the browser fake either. */
+  font-synthesis: none;
 }
 
 body {

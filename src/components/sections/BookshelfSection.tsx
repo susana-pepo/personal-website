@@ -13,6 +13,8 @@ const BOOKS = import.meta.env.DEV && content.bookshelf.books.length === 0 ? SAMP
 const BY_SHELF = new Map<ShelfId, Book[]>(content.bookshelf.shelves.map((s) => [s.id, BOOKS.filter((b) => b.shelf === s.id)]))
 // A shelf appears once it has a book.
 const SHELVES = content.bookshelf.shelves.filter((s) => (BY_SHELF.get(s.id)?.length ?? 0) > 0)
+// With both, Reading now and Books for work can share a row (bookshelf.css), their drawers opening beneath it.
+const PAIRED = SHELVES.some((s) => s.id === 'reading') && SHELVES.some((s) => s.id === 'work')
 
 export default function BookshelfSection() {
   const { bookshelf } = content
@@ -64,7 +66,7 @@ export default function BookshelfSection() {
 
       {BOOKS.length === 0 && <p className="bs-empty">{bookshelf.emptyNote}</p>}
 
-      <div className="bs-shelves">
+      <div className="bs-shelves" data-paired={PAIRED ? '' : undefined}>
         {SHELVES.map((shelf) => (
           <ShelfRow
             key={shelf.id}

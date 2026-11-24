@@ -14,7 +14,7 @@ import {
   type PetStyle,
 } from '../../../scene/catReaction'
 import { CAT_MEDIA, overlay } from '../../../scene/layout'
-import { afterPainted, arrivedClipFile, fetchClipFile, fetchLater, prepareClip, type PreparedClip } from '../../../scene/clipFiles'
+import { afterPainted, arrivedClipFile, clipsCanPlay, fetchClipFile, fetchLater, prepareClip, type PreparedClip } from '../../../scene/clipFiles'
 import { whenSettled } from '../../../scene/entrance'
 import { SceneObject } from './SceneObject'
 
@@ -30,7 +30,7 @@ interface CatOverlayProps {
   discoveryIndex: number
   /** `reaction` names what it did: 'asleep' (a purr and z's), or a reaction clip's name. */
   onReaction?: (phase: CatPhase, style: PetStyle | null, reaction: string | null) => void
-  /** Bumped by the room to ask for its tell (a dream), so a visitor finds it: src/scene/glimmers.ts. */
+  /** Bumped by the room to ask for its glimmer hint (moonlight z's), so a visitor finds it: src/scene/glimmers.ts. */
   tell?: number
 }
 
@@ -89,6 +89,20 @@ function makeDream(): Puff[] {
   }))
 }
 
+/** Its glimmer hint's z's: how long the last one takes to drift away (its delay included). */
+const HINT_MS = 4400
+
+/**
+ * Its glimmer hint: three z's in moonlight, each a little larger, coming one after another
+ * and drifting up and away from its head (src/scene/glimmers.ts). Offsets are in em of the
+ * hint's size; steady on purpose (the same small climb each time reads as breathing).
+ */
+const HINT: readonly Puff[] = [
+  { text: 'z', kind: 'z', dx: 0.8, dy: -2, rotate: 8, delay: 0, size: 0.9 },
+  { text: 'z', kind: 'z', dx: 1.7, dy: -3.4, rotate: 8, delay: 0.7, size: 1.15 },
+  { text: 'z', kind: 'z', dx: 2.8, dy: -5, rotate: 8, delay: 1.4, size: 1.45 },
+]
+
 /**
  * The sleeping cat: its sleeping clip (breathing, a slow sweep of the tail) loops,
  * exactly as exported (animated WebP, so it keeps its transparency in every browser,
@@ -104,8 +118,9 @@ function makeDream(): Puff[] {
  *
  * Left alone, it now and then lets out a couple of z's on its own (a dream),
  * so it feels alive between visits to it: only while the room moves, the page
- * is in view and nobody is petting it; silent for screen readers. A dream is also
- * its tell: until a visitor has found it, the room asks for one now and then (`tell`).
+ * is in view and nobody is petting it; silent for screen readers. Until a visitor
+ * has found it, the room also asks it for its glimmer hint once a cycle (`tell`): three
+ * z's in moonlight, which come with reduced motion too, as fades.
  */
 export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, onReaction, tell = 0 }: CatOverlayProps) {
   const reducedMotion = usePrefersReducedMotion()
@@ -200,6 +215,7 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       sleepingTurns = variation ? 0 : sleepingTurns + 1
       const ok = await mount(clip, entrance)
       if (stopped || reacting) return
+      if (!ok && !clipsCanPlay()) return // clips can't play here: it rests on its still picture
       idleTimer = window.setTimeout(() => {
         if (document.hidden) waitingForVisible = true
         else void sleepOn('cut')
@@ -280,8 +296,6 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
 
   // Dreams: a z or two now and then, while the room is moving.
   const [dream, setDream] = useState<{ id: number; puffs: Puff[] } | null>(null)
-  // Set while the room moves: lets out a dream now and starts the wait for the next one afresh.
-  const dreamNow = useRef<(() => void) | null>(null)
   useEffect(() => {
     if (!moving) {
       setDream(null)
@@ -303,23 +317,20 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       }, nextDreamDelay(first, Math.random()))
       first = false
     }
-    dreamNow.current = () => {
-      window.clearTimeout(next)
-      first = false
-      dreamOnce()
-      schedule()
-    }
     schedule()
     return () => {
-      dreamNow.current = null
       window.clearTimeout(next)
       window.clearTimeout(fade)
     }
   }, [moving])
 
-  // The room asks for its tell: a dream now (and the wait for its own next one starts afresh).
+  // The room asks for its glimmer hint: moonlight z's, unless it is being petted.
+  const [hint, setHint] = useState(0)
   useEffect(() => {
-    if (tell > 0) dreamNow.current?.()
+    if (tell === 0 || document.hidden || phaseRef.current !== 'idle') return
+    setHint(tell)
+    const done = window.setTimeout(() => setHint(0), HINT_MS)
+    return () => window.clearTimeout(done)
   }, [tell])
 
   return (
@@ -342,12 +353,34 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
           draggable={false}
         />
       )}
-      {dream && phase === 'idle' && (
+      {/* never over its moonlight hint: one voice at a time */}
+      {dream && phase === 'idle' && hint === 0 && (
         <span key={dream.id} className="cat__purr cat__purr--dream" aria-hidden="true">
           {dream.puffs.map((puff, i) => (
             <span
               key={i}
               className="cat__puff cat__puff--z"
+              style={
+                {
+                  '--dx': `${puff.dx}em`,
+                  '--dy': `${puff.dy}em`,
+                  '--rot': `${puff.rotate}deg`,
+                  '--size': puff.size,
+                  animationDelay: `${puff.delay}s`,
+                } as CSSProperties
+              }
+            >
+              {puff.text}
+            </span>
+          ))}
+        </span>
+      )}
+      {hint > 0 && phase === 'idle' && (
+        <span key={hint} className="cat__purr cat__purr--hint" aria-hidden="true">
+          {HINT.map((puff, i) => (
+            <span
+              key={i}
+              className="cat__hint"
               style={
                 {
                   '--dx': `${puff.dx}em`,

@@ -10,17 +10,16 @@ describe('the clips’ files', () => {
   it('names each clip by its WebP and finds its video beside it', () => {
     expect(clipFileUrl('/media/scene/cat/cat-sleep.webp', 'webm')).toBe('/media/scene/cat/cat-sleep.webm')
     expect(clipFileUrl('/media/scene/cat/cat-sleep.webp', 'mov')).toBe('/media/scene/cat/cat-sleep.mov')
-    expect(clipFileUrl('/media/scene/cat/cat-sleep.webp', 'webp')).toBe('/media/scene/cat/cat-sleep.webp')
   })
 
-  it('plays the WebP where there is no browser to play video', () => {
-    expect(clipFormat()).toBe('webp')
+  it('plays nothing where there is no browser to play video (the stills stay)', () => {
+    expect(clipFormat()).toBe('none')
   })
 
-  it('has every clip of the woman and the cat as WebM, as HEVC for Safari, and as the WebP fallback', () => {
+  it('has every clip of the woman and the cat as WebM, and as HEVC for Safari', () => {
     const clips = [HOME_CLIP, ...WOMAN_CLIPS, WOMAN_BREATH, CAT_MEDIA.sleep, ...CAT_MEDIA.variations, ...CAT_MEDIA.reactions]
     for (const clip of clips) {
-      for (const as of ['webp', 'webm', 'mov'] as const) {
+      for (const as of ['webm', 'mov'] as const) {
         const file = clipFileUrl(clip.src, as)
         expect(FILES.has(file), file).toBe(true)
       }

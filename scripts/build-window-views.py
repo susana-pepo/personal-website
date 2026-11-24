@@ -44,7 +44,7 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
-from clip_video import write_opaque_video
+from clip_video import kept, write_opaque_video
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT / 'portfolio-website-assets/public/media/window-views'
@@ -751,7 +751,7 @@ def find_city_windows(mean, low, motion, glass, box, tower_x, count=8):
 
 def detect(time, glass, box):
     """Tower lights, lit windows and facade colour, found in the finished loop."""
-    im = Image.open(OUT_DIR / f'{time}-loop.webp')
+    im = Image.open(kept(OUT_DIR / f'{time}-loop.webp'))
     frames = []
     for i in range(im.n_frames):
         im.seek(i)
@@ -806,9 +806,9 @@ def build(time, painted, glass, box, out_size):
           f'{len(loop)} output frames x {OUT_FRAME_MS} ms = {len(loop) * OUT_FRAME_MS / 1000:.1f} s per cycle')
     loop = np.clip(np.round(calm(loop)), 0, 255).astype(np.uint8)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
-    anim = OUT_DIR / f'{time}-loop.webp'
+    anim = kept(OUT_DIR / f'{time}-loop.webp')  # kept out of the site: the page plays the video
     still = OUT_DIR / f'{time}-still.webp'
-    tmp = OUT_DIR / f'.{time}-loop.tmp.webp'  # written aside, then swapped in: the live file is never half-written
+    tmp = anim.with_name(f'.{time}-loop.tmp.webp')  # written aside, then swapped in: the live file is never half-written
     for quality in ENCODINGS:
         save_webp(loop, tmp, OUT_FRAME_MS, quality)
         size = tmp.stat().st_size

@@ -31,7 +31,7 @@ export const kindLabel = (kind: SpotifyKind) => KIND_LABEL[kind]
 
 /** Spotify's own embeddable player for this item. */
 export function embedUrl(ref: SpotifyRef): string {
-  return `https://open.spotify.com/embed/${ref.kind}/${ref.id}?utm_source=generator&theme=0`
+  return `https://open.spotify.com/embed/${ref.kind}/${ref.id}?utm_source=generator`
 }
 
 /** Compact player for single items, full height for collections. */

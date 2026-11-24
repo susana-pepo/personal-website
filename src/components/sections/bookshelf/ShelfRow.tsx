@@ -18,8 +18,11 @@ const OPEN_FALLBACK_MS = 460
 /** A frame to spare after the drawer stops. */
 const SPARE_MS = 20
 
-/** Below this width (bookshelf.css's `shelves` container, 30rem) a pile lies on a board of its own. */
-const NARROW_PX = 480
+/** At or below this width (bookshelf.css's `shelves` and `bs-detail` containers, max-width 30rem,
+    which is inclusive) a pile lies on a board of its own. In rem, as the CSS is, so the two still
+    agree when the reader has set a larger or smaller default text size. */
+const NARROW_REM = 30
+const remPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
 
 const vars = (v: Record<string, string | number>) => v as CSSProperties
 const units = (n: number) => `calc(${n} * var(--u))`
@@ -58,7 +61,7 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
   useLayoutEffect(() => {
     const el = sectionRef.current
     if (!el) return
-    const update = () => setNarrow(el.clientWidth > 0 && el.clientWidth < NARROW_PX)
+    const update = () => setNarrow(el.clientWidth > 0 && el.clientWidth <= NARROW_REM * remPx())
     update()
     if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(update)
@@ -124,8 +127,14 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
         data-book-key={key}
         data-reading={shelf.id === 'reading' ? '' : undefined}
         onClick={() => onToggle(key)}
-        onPointerEnter={() => setPeekKey(key)}
-        onPointerLeave={() => setPeekKey((k) => (k === key ? null : k))}
+        // A finger "enters" a book on touchstart; naming it then would change the caption before
+        // the tap lands. Touch names a book through focus instead, as the keyboard does.
+        onPointerEnter={(event) => {
+          if (event.pointerType !== 'touch') setPeekKey(key)
+        }}
+        onPointerLeave={(event) => {
+          if (event.pointerType !== 'touch') setPeekKey((k) => (k === key ? null : k))
+        }}
         onFocus={() => setPeekKey(key)}
         onBlur={() => setPeekKey((k) => (k === key ? null : k))}
       >
@@ -232,8 +241,10 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
         )}
         {featured && (
           <div className="bs-feature__text">
-            <p className="bs-feature__title">{featured.book.title}</p>
-            <p className="bs-feature__author">{featured.book.author}</p>
+            <div className="bs-feature__name">
+              <p className="bs-feature__title">{featured.book.title}</p>
+              <p className="bs-feature__author">{featured.book.author}</p>
+            </div>
             {featured.book.note && <p className="bs-feature__note">{featured.book.note}</p>}
           </div>
         )}

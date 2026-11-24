@@ -39,9 +39,6 @@ interface RecordCrateProps {
   variant?: CrateVariant
 }
 
-const countLabel = (n: number, variant: CrateVariant) =>
-  variant === 'podcasts' ? (n === 1 ? '1 show' : `${n} shows`) : n === 1 ? '1 record' : `${n} records`
-
 const describe = (r: CrateRecord) =>
   [r.title || 'Untitled', r.artist, r.kind.toLowerCase()].filter(Boolean).join(', ') + (r.sample ? ' (sample)' : '')
 
@@ -259,7 +256,7 @@ export function RecordCrate({ records, heading, description, variant = 'records'
         <h3 id={`${baseId}-heading`} className="music-head__title">
           {heading}
         </h3>
-        <p className="music-head__description">{description}</p>
+        {description && <p className="music-head__description">{description}</p>}
       </div>
 
       <div>
@@ -325,13 +322,12 @@ export function RecordCrate({ records, heading, description, variant = 'records'
           ))}
         </ul>
         <p className="crate__caption" aria-hidden="true">
-          {captionRecord ? (
+          {/* Only the sleeve you point at is named; on the podcast shelf every show is a podcast, so it isn't said. */}
+          {captionRecord && (
             <>
               <b>{captionRecord.title || 'Loading…'}</b>
-              <span>{[captionRecord.artist, captionRecord.kind].filter(Boolean).join(' · ')}</span>
+              <span>{[captionRecord.artist, disc ? captionRecord.kind : undefined].filter(Boolean).join(' · ')}</span>
             </>
-          ) : (
-            <span>{countLabel(count, variant)}</span>
           )}
         </p>
       </div>

@@ -44,10 +44,11 @@
 
 .folio-subhead {
   font-family: var(--font-display);
-  font-weight: 500;
-  font-size: var(--text-lg);
-  line-height: 1.2;
-  letter-spacing: -0.015em;
+  font-weight: 400;
+  font-size: var(--text-section);
+  line-height: 1.15;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
   color: var(--ink);
 }
 
@@ -61,7 +62,8 @@
 .section--folio .topics li:not(:last-child)::after {
   margin: 0;
   padding-inline: 0.5em;
-  color: var(--rule-card-strong);
+  /* A quiet light dot on the smoked panel, still visible where a list wraps. */
+  color: oklch(0.93 0.012 80 / 0.4);
 }
 
 /* ── Numbered entries (Experience; Work borrows .entry__status) ── */
@@ -78,7 +80,6 @@
   grid-template-columns: 2.75rem minmax(0, 1fr);
   row-gap: var(--rhythm-inline);
   padding: var(--rhythm-block) 0 var(--space-lg);
-  border-top: 1px solid var(--rule-card);
   scroll-margin-top: var(--rhythm-block);
 }
 
@@ -124,11 +125,11 @@
 }
 
 .entry__title {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 500;
-  font-size: var(--text-lg);
-  line-height: 1.15;
-  letter-spacing: -0.005em;
+  font-size: clamp(1.25rem, 1.15rem + 0.35vw, 1.375rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   color: var(--ink);
   text-wrap: balance;
 }
@@ -198,15 +199,15 @@
   display: grid;
   gap: var(--space-3xs);
   padding: var(--space-sm) 0;
-  border-top: 1px solid var(--rule-card);
 }
 
 .folio-education__qualification {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: 1.15rem;
   letter-spacing: -0.01em;
   color: var(--ink);
+  text-wrap: balance;
 }
 
 .folio-education__institution {
@@ -216,20 +217,26 @@
 }
 
 /* ── About: the sentence it all hangs on (the greeting is the panel heading), then a quiet closing ── */
-.section--folio .about-intro {
-  max-width: 30ch;
-}
-
-/* The opening sentence with my photo beside it, as a print laid on the page. */
-.about-opening--portrait {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+/* The lead belongs to the heading above it, so the body follows closer than the usual 3rem. */
+.panel__page[data-section='about'] > .section {
   gap: var(--space-lg);
 }
 
+/* The lead in the serif, as the page's own voice; the body stays in the sans. */
+.section--folio .about-intro {
+  max-width: 32ch;
+  font-family: var(--font-serif);
+  font-weight: 400;
+  font-size: clamp(1.35rem, 1.2rem + 0.45vw, 1.5rem);
+  line-height: 1.42;
+  /* no word left alone on the last line (on a phone, "I do.") */
+  text-wrap: pretty;
+}
+
+/* My photo beside the greeting, as a print laid on the page (SectionPanel's HeaderArt).
+   Its paper stays light on any surface: it is a photograph, not part of the panel. */
 .about-print {
-  width: 12rem;
+  width: 8.5rem;
   margin: 0;
   padding: 0.5rem 0.5rem 0.75rem;
   background: oklch(0.975 0.005 85);
@@ -238,7 +245,7 @@
     0 0 0 1px oklch(0.205 0.01 45 / 0.06),
     0 1px 2px oklch(0.205 0.01 45 / 0.12),
     0 16px 30px -16px oklch(0.205 0.02 45 / 0.45);
-  transform: rotate(2deg);
+  transform: rotate(1deg);
   transition: transform 260ms var(--ease-out);
 }
 
@@ -262,166 +269,38 @@
   }
 
   .about-print:hover {
-    transform: rotate(2deg);
+    transform: rotate(1deg);
   }
 }
 
+/* Phones: a small print beside the two-line greeting, so the lead stays on the first screen. */
 @media (max-width: 639px) {
-  .about-opening--portrait {
-    grid-template-columns: minmax(0, 1fr);
+  .panel__page[data-section='about'] > .section {
     gap: var(--space-md);
   }
 
   .about-print {
-    order: -1;
-    width: 9rem;
+    width: 5.5rem;
+    padding: 0.3rem 0.3rem 0.45rem;
+    transform: rotate(1.5deg);
+  }
+}
+
+/* Very narrow phones: the print goes under the greeting rather than squeeze it. */
+@media (max-width: 359px) {
+  .panel__header:has(.panel__header-art) {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 
 .about-closing {
   max-width: 60ch;
-  padding-top: var(--rhythm-block);
-  border-top: 1px solid var(--rule-card);
+  padding-top: var(--space-xs);
   font-family: var(--font-sans);
   font-size: 1.0625rem;
   line-height: 1.6;
   color: var(--ink-3);
   text-wrap: pretty;
-}
-
-/*
- * ── Contact: the last page of the insert ──
- * Composed like About: the intro beside the mug (as About's lede sits beside the portrait),
- * then a hairline, then "Let’s chat", set large, which is the email itself, with LinkedIn as a
- * plain link across from it on the same baseline. No card, no tilt, no shadows of its own.
- */
-.chat-opening {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: var(--space-lg);
-}
-
-.chat-opening .lede {
-  margin: 0;
-}
-
-/* The mug, standing on its coaster on the page (as the record player does in Music). */
-.chat__desk {
-  width: 10.5rem;
-}
-
-.chat-mug {
-  display: block;
-  width: 100%;
-  height: auto;
-  overflow: visible;
-}
-
-.chat__actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-xs) var(--space-md);
-  padding-top: var(--space-lg); /* the section's own rhythm spaces it from the opening */
-  border-top: 1px solid var(--rule-card);
-}
-
-/* "Let’s chat": the invitation and the email in one, in the display serif. */
-.chat__invite {
-  display: inline-block;
-  padding-block: 0.1em 0.15em;
-  font-family: var(--font-serif);
-  font-size: clamp(2.2rem, 1.7rem + 2vw, 3.1rem);
-  font-weight: 500;
-  line-height: 1.05;
-  letter-spacing: -0.015em;
-  color: var(--ink);
-  text-decoration: none;
-  /* The vermilion underline draws in from the left on hover and focus. */
-  background: linear-gradient(var(--spot-ink), var(--spot-ink)) no-repeat 0 100% / 0% 2px;
-  transition:
-    background-size 200ms var(--ease-out),
-    color 200ms var(--ease-out);
-}
-
-.chat__invite:hover,
-.chat__invite:focus-visible {
-  background-size: 100% 2px;
-}
-
-.chat__invite:focus-visible {
-  outline: 2px solid var(--spot-ink);
-  outline-offset: 6px;
-  border-radius: 2px;
-}
-
-/* LinkedIn: the site's plain text link, tall enough to tap. */
-.chat__link {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  font-size: 1rem;
-}
-
-/* The steam: three faint wisps, still at rest; reaching for an action sends them up once. */
-.chat-mug__steam {
-  opacity: 0.6;
-}
-
-.chat-mug[data-steam='rising'] .chat-mug__steam {
-  animation: chat-steam 2.4s var(--ease-out) both;
-}
-
-@keyframes chat-steam {
-  0% {
-    opacity: 0.6;
-    transform: translateY(0);
-  }
-  45% {
-    opacity: 1;
-    transform: translateY(-4px);
-  }
-  100% {
-    opacity: 0.6;
-    transform: translateY(0);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .chat__invite {
-    transition: none;
-  }
-
-  .chat-mug[data-steam='rising'] .chat-mug__steam {
-    animation: none;
-  }
-}
-
-/* Phones: the mug above the intro (as About's portrait goes above), then the actions, stacked. */
-@media (max-width: 639px) {
-  .chat-opening {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-md);
-  }
-
-  .chat__desk {
-    order: -1;
-    width: 8.5rem;
-    margin-left: -1.6rem; /* the coaster's left edge, not the drawing's margin, lines up with the text */
-  }
-
-  .chat__actions {
-    display: grid;
-    justify-items: start;
-    gap: 0.25rem;
-    padding-top: var(--space-md);
-  }
-
-  .chat__invite {
-    font-size: 2.4rem;
-  }
 }
 
 .reach__pending {
@@ -490,6 +369,12 @@
     justify-self: start;
   }
 
+  /* The stacked grid's row gap already sits above the page; this keeps the
+     space under the board the same as on a wide screen. */
+  .cv-pile--beside > .cv-page {
+    margin-top: var(--space-md);
+  }
+
   .cv-pile--beside .xp-pile,
   .cv-pile--beside .xp-desk__board {
     --u: 1.08px;
@@ -500,6 +385,15 @@
   .cv-pile--small .xp-pile,
   .cv-pile--small .xp-desk__board {
     --u: 1.08px;
+  }
+
+  /* With the CV standing beside it, the small pile steps down a touch so both fit a phone. */
+  .cv-pile--small .xp-desk:has(.xp-cv) {
+    --u: 0.98px;
+  }
+
+  .cv-pile--small .xp-desk:has(.xp-cv) :is(.xp-pile, .xp-desk__board) {
+    --u: 0.98px;
   }
 }
 
@@ -525,6 +419,8 @@
 .cv-desk .xp-desk__board {
   width: calc(100% + 12 * var(--u));
   margin-left: calc(-6 * var(--u));
+  /* Darker and denser than the shelf board's shadow, which vanishes on the smoked panel. */
+  filter: drop-shadow(0 calc(5 * var(--u)) calc(6 * var(--u)) oklch(0.1 0.02 45 / 0.55));
 }
 
 .cv-company {
@@ -541,13 +437,16 @@
   color: var(--ink-3);
 }
 
+/* The company is an item on the page, like a role: the sans at 500, a step under the
+   serif section title over the other pile. */
 .cv-company__name {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 500;
-  font-size: clamp(1.45rem, 1.2rem + 0.6vw, 1.65rem);
-  line-height: 1.05;
-  letter-spacing: -0.02em;
+  font-size: clamp(1.375rem, 1.2rem + 0.45vw, 1.5rem);
+  line-height: 1.1;
+  letter-spacing: -0.015em;
   color: var(--ink);
+  text-wrap: balance;
 }
 
 .cv-company__focus {
@@ -569,24 +468,22 @@
 /* The lighter heading over the supporting books. */
 .cv-background__title {
   font-family: var(--font-display);
-  font-weight: 500;
-  font-size: var(--text-lg);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  font-weight: 400;
+  font-size: var(--text-section);
+  line-height: 1.15;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
   color: var(--ink);
 }
 
 /*
- * The open book's page, directly under the desk. Its top rule and chapter
- * number take the chosen book's colour (--book), so the page reads as the
- * book it came from.
+ * The open book's page, directly under the desk. No rule above it: the space
+ * alone separates it from the pile, and the slid-out book says which page it is.
  */
 .cv-page {
   display: grid;
   gap: var(--rhythm-inline);
-  padding-top: var(--space-lg);
-  margin-top: var(--space-lg);
-  border-top: 2px solid var(--book, var(--rule-card-strong));
+  margin-top: var(--space-xl);
 }
 
 .cv-page[hidden] {
@@ -626,27 +523,12 @@
   }
 }
 
-.cv-page__chapter {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25em 0.75em;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  color: var(--ink-3);
-}
-
-.cv-page__n {
-  font-variant-numeric: tabular-nums;
-  color: var(--book, var(--spot-ink));
-}
-
 .cv-page__title {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 500;
-  font-size: var(--text-lg);
-  line-height: 1.15;
-  letter-spacing: -0.005em;
+  font-size: clamp(1.25rem, 1.15rem + 0.35vw, 1.375rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   color: var(--ink);
   text-wrap: balance;
 }

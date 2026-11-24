@@ -32,7 +32,7 @@
      finishes landing as the halo sweep's last object peaks. The sweep starts 3400ms in
      (settled at 1300 + DISCOVERY_DELAY_MS 2100, HeroScene.tsx), its sixth object 5 x 180ms
      later, peaking 45% into its 820ms swell: 3400 + 900 + 369 = 4669ms, less this 700ms
-     arrival. The glint below keys off it too. */
+     arrival. */
   --hint-delay: 3.97s;
   /* It rests visible: the backwards fill keeps it hidden through the delay (and while the
      entrance gate holds it paused), and nothing is held once it has arrived. */
@@ -62,27 +62,9 @@
   pointer-events: none;
 }
 
-/* A small sparkle that glints once, just as the chip finishes arriving. A cue in the chrome
-   plays once; only the painting loops. */
-.discovery-hint__spark {
-  flex: none;
-  width: 0.8rem;
-  height: 0.8rem;
-  fill: var(--lamp-wash, oklch(0.88 0.08 75));
-  filter: drop-shadow(0 0 4px oklch(0.88 0.08 75 / 0.55));
-  opacity: 0.85;
-  animation: hint-glint 900ms ease-in-out calc(var(--hint-delay, 3.97s) + 700ms);
-}
-
-/* The chip waits for the entrance gate (HeroScene.css); its glint waits with it, so the one
-   glint isn't spent while the chip is still hidden. */
-:root:not([data-entered]) .discovery-hint__spark {
-  animation-play-state: paused;
-}
-
 .discovery-hint__title {
   margin: 0;
-  font-family: var(--font-display);
+  font-family: var(--font-sans); /* small type over the room: the sans (the display serif comes in one thin weight) */
   font-weight: 500;
   font-size: 0.9375rem;
   line-height: 1.2;
@@ -205,18 +187,6 @@
   }
 }
 
-@keyframes hint-glint {
-  0%,
-  100% {
-    opacity: 0.85;
-    transform: scale(1) rotate(0deg);
-  }
-  40% {
-    opacity: 1;
-    transform: scale(1.25) rotate(20deg);
-  }
-}
-
 /* On a phone the room is small: the title alone, a little closer to the edge. */
 @media (max-width: 639px) {
   .discovery-hint,
@@ -240,10 +210,6 @@
   .credits > .discovery-hint {
     animation: none;
     opacity: 1;
-  }
-
-  .discovery-hint__spark {
-    animation: none;
   }
 
   /* Leaving is a short fade only, with no drop. */

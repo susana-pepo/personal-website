@@ -1,4 +1,4 @@
-/* Content inside the panel: serif for reading, sans for small labels. */
+/* Content inside the panel. --font-serif is the reading voice (Geist, tokens.css). */
 .section {
   display: grid;
   gap: var(--space-lg);
@@ -46,7 +46,7 @@
   padding: 0;
   list-style: none;
   font-family: var(--font-sans);
-  font-size: 0.8125rem;
+  font-size: var(--text-sm);
   color: var(--ink-3);
 }
 
@@ -91,20 +91,21 @@
   align-content: start;
   gap: var(--space-2xs);
   padding-top: var(--space-xs);
-  border-top: 1px solid var(--rule-card);
 }
 
 .music-card__eyebrow {
   font-family: var(--font-sans);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   color: var(--spot-ink);
 }
 
 .music-card__title {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 1.2rem;
-  line-height: 1.2;
+  font-size: 1.125rem;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
 }
 
 .music-card__body {

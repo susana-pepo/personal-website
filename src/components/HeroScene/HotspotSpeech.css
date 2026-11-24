@@ -64,7 +64,9 @@
   background: none;
   border-radius: 0;
   box-shadow: none;
-  font-family: var(--font-display);
+  /* small words over the painting: the sans (Geist), whose strokes hold up; the display serif's
+     hairlines go thin at this size */
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: clamp(12px, 1.02cqi, 17px);
   letter-spacing: 0.01em;

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { FIRST_LOOK_TELL_GAP_MS, FIRST_LOOK_TELL_MS, GLIMMERS, TELL_EVERY_MS, firstLookTells, isGlimmer, nextTell, tellDelay } from '../scene/glimmers'
+import { GLIMMERS, TELL_CYCLE_MS, TELL_START_MS, isGlimmer, tellStarts } from '../scene/glimmers'
 import { HOTSPOTS } from '../scene/hotspots'
 
 describe('the room’s small surprises (glimmers)', () => {
@@ -11,30 +11,24 @@ describe('the room’s small surprises (glimmers)', () => {
     expect(isGlimmer(null)).toBe(false)
   })
 
-  it('each give their tell once, in turn, right after the room’s first look', () => {
-    expect(firstLookTells(['cat', 'lamp'])).toEqual([
-      { id: 'cat', at: FIRST_LOOK_TELL_MS },
-      { id: 'lamp', at: FIRST_LOOK_TELL_MS + FIRST_LOOK_TELL_GAP_MS },
+  it('give their hints once a cycle, spread evenly across it, so only one moves at a time', () => {
+    expect(tellStarts(['cat', 'lamp'])).toEqual([
+      { id: 'cat', at: TELL_START_MS },
+      { id: 'lamp', at: TELL_START_MS + TELL_CYCLE_MS / 2 },
     ])
-    expect(firstLookTells(['lamp'])).toEqual([{ id: 'lamp', at: FIRST_LOOK_TELL_MS }])
-    expect(firstLookTells([])).toEqual([])
   })
 
-  it('then take turns, one at a time, among the ones not yet found', () => {
-    expect(nextTell(['cat', 'lamp'], null)).toBe('cat')
-    expect(nextTell(['cat', 'lamp'], 'cat')).toBe('lamp')
-    expect(nextTell(['cat', 'lamp'], 'lamp')).toBe('cat')
-    expect(nextTell(['lamp'], 'lamp')).toBe('lamp')
-    expect(nextTell(['cat'], 'cat')).toBe('cat')
+  it('start at once for the one left when the other has been found', () => {
+    expect(tellStarts(['lamp'])).toEqual([{ id: 'lamp', at: TELL_START_MS }])
+    expect(tellStarts(['cat'])).toEqual([{ id: 'cat', at: TELL_START_MS }])
   })
 
   it('stop once every one has been found', () => {
-    expect(nextTell([], 'cat')).toBeNull()
+    expect(tellStarts([])).toEqual([])
   })
 
-  it('come every 12 to 20 seconds, never on a beat', () => {
-    expect(tellDelay(0)).toBe(TELL_EVERY_MS[0])
-    expect(tellDelay(1)).toBe(TELL_EVERY_MS[1])
-    expect(new Set([0.1, 0.4, 0.8].map(tellDelay)).size).toBe(3)
+  it('leave each hint room to finish before the next one starts', () => {
+    // the longest hint (the cat's z's, about 4.4 s) fits in half a cycle
+    expect(TELL_CYCLE_MS / GLIMMERS.length).toBeGreaterThanOrEqual(4400)
   })
 })

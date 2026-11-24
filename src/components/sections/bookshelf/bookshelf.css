@@ -27,100 +27,181 @@
 }
 
 /*
- * With room, Reading now and Books for work sit side by side and Books I love
- * runs the full width beneath. The two upper shelves share rows (a subgrid),
- * so their headings line up and their boards stand at the same height.
+ * With room, Reading now and Books for work share a row and Books I love runs the full
+ * width beneath. Both upper shelves span the whole width and the same four rows, as
+ * subgrids both ways: their headings, boards and names fall into the two columns, and
+ * the fourth row runs the full width under both. That row holds the note on the current
+ * read until a book from either shelf is opened; its drawer then opens in the same cell,
+ * cover beside words, as on Books I love.
  */
 @container bookshelf (min-width: 34rem) {
-  .bs-shelves {
+  .bs-shelves[data-paired] {
     grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
     column-gap: var(--space-xl);
     row-gap: 0;
   }
 
-  .bs-shelf[data-shelf='reading'],
-  .bs-shelf[data-shelf='work'] {
+  /*
+   * Careful: these two sections lie one on top of the other in the same grid area, each a
+   * transparent box the full width of both columns, Books for work (later in the source) on
+   * top. Reading now's books still take clicks because its bays are positioned (.bs-bay,
+   * position: relative), and so are hit-tested above any unpositioned box; its drawer's inside
+   * is a stacking context (contain: paint, below). Its title, name and note are not, so Books
+   * for work lets the pointer through itself (pointer-events, just below) and takes it back
+   * only on its own pieces. A future background, padding, position, z-index, transform or
+   * pointer-events on either section would cover the other shelf and swallow its clicks and
+   * hovers; style the children (titles, bays, captions, drawers) instead.
+   */
+  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) {
     display: grid;
+    grid-column: 1 / -1;
     grid-row: 1 / span 4;
+    grid-template-columns: subgrid;
     grid-template-rows: subgrid;
+    /* `normal` in a subgrid means "use the parent grid's gap", so both sections take the
+       shelves' --space-xl between the columns. Without it Reading now would keep the
+       --space-md it sets for itself when it stands alone, and its column line would no
+       longer match the one Books for work lays out against. */
+    column-gap: normal;
     align-content: start;
   }
 
-  .bs-shelf[data-shelf='reading'] .bs-feature,
-  .bs-shelf[data-shelf='work'] .bs-plain {
+  .bs-shelves[data-paired] > [data-shelf='work'] .bs-plain {
     display: contents;
   }
 
-  .bs-shelf[data-shelf='reading'] .bs-bay,
-  .bs-shelf[data-shelf='work'] .bs-bay {
+  /* See the note above: the section on top is see-through to the pointer, its pieces are not,
+     so Reading now's title, name and note can be selected and the work books still answer. */
+  .bs-shelves[data-paired] > [data-shelf='work'] {
+    pointer-events: none;
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='work'] :is(.bs-shelf__title, .bs-bay, .bs-caption, .bs-drawer) {
+    pointer-events: auto;
+  }
+
+  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) > .bs-shelf__title {
+    grid-row: 1;
+  }
+
+  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) .bs-bay {
+    grid-row: 2;
     align-self: end;
   }
 
-  .bs-shelf[data-shelf='loved'] {
+  .bs-shelves[data-paired] > [data-shelf='reading'] > .bs-shelf__title,
+  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-bay,
+  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name {
+    grid-column: 1;
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='work'] > .bs-shelf__title,
+  .bs-shelves[data-paired] > [data-shelf='work'] .bs-bay,
+  .bs-shelves[data-paired] > [data-shelf='work'] .bs-caption {
+    grid-column: 2;
+  }
+
+  /* The current read's title and author sit under its board, level with the caption under the other. */
+  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name,
+  .bs-shelves[data-paired] > [data-shelf='work'] .bs-caption {
+    grid-row: 3;
+    align-self: start;
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name {
+    margin-top: var(--space-2xs);
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__note,
+  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) > .bs-drawer {
     grid-column: 1 / -1;
-    margin-top: var(--space-md);
+    grid-row: 4;
   }
 
-  /* Alone on its row, either upper shelf takes the full width. */
-  .bs-shelf[data-shelf='reading']:only-child,
-  .bs-shelf[data-shelf='work']:first-child,
-  .bs-shelf[data-shelf='reading']:has(+ [data-shelf='loved']) {
+  /* A book from either upper shelf opens where the note was; the note steps back meanwhile. */
+  .bs-shelves[data-paired]:has(> [data-shelf='work'] > .bs-drawer[data-open]) .bs-feature__note {
+    opacity: 0;
+    visibility: hidden;
+    transition:
+      opacity var(--dur-quick) ease,
+      visibility 0s linear var(--dur-quick);
+  }
+
+  /* Two drawers share that cell. Going straight from a book on one shelf to a book on the
+     other, the drawer that is closing goes at once, in the same frame the other opens: the
+     incoming book only fades in after a beat (bs-detail-in's delay) and turns two frames later
+     (BookDetail), so two books never show in the cell together. Put back on its own, a drawer
+     still closes with its usual fade. */
+  .bs-shelves[data-paired]:has(> :is([data-shelf='reading'], [data-shelf='work']) > .bs-drawer[data-open])
+    > :is([data-shelf='reading'], [data-shelf='work'])
+    > .bs-drawer:not([data-open])
+    > .bs-drawer__inner {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='loved'] {
     grid-column: 1 / -1;
-  }
-
-  .bs-shelf[data-shelf='loved']:first-child {
-    margin-top: 0;
-  }
-
-  /* In a half-width column, an opened book stacks its cover above its note. */
-  [data-shelf='reading'] .bs-detail,
-  [data-shelf='work'] .bs-detail {
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--space-sm);
-  }
-
-  [data-shelf='reading'] .bs-stage,
-  [data-shelf='work'] .bs-stage {
-    justify-self: start;
+    margin-top: var(--space-lg);
   }
 }
 
 .bs-shelf__title {
   margin-bottom: var(--space-2xs);
   font-family: var(--font-display);
-  font-weight: 500;
-  font-size: var(--text-lg);
-  letter-spacing: -0.015em;
+  font-weight: 400;
+  font-size: var(--text-section);
+  line-height: 1.15;
+  letter-spacing: -0.012em;
+  text-wrap: balance;
 }
 
-/* Reading now: the cover, larger, on a short board, its title and author beside it. */
-.bs-feature {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  column-gap: var(--space-xl);
-  row-gap: var(--space-sm);
+/* Reading now: the cover, larger, on a short board, its title and author beside it and her
+   note beneath both, the full width of the column. Opened, the book's drawer takes the note's
+   cell (row 3 here, row 4 beside Books for work) and the note steps back, so it never shows twice. */
+.bs-shelf[data-shelf='reading'] {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: var(--space-md);
+}
+
+.bs-shelf[data-shelf='reading'] > .bs-shelf__title {
+  grid-column: 1 / -1;
+}
+
+.bs-feature,
+.bs-feature__text {
+  display: contents;
 }
 
 .bs-feature .bs-bay {
   --u: 1.25px;
-  flex: none;
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .bs-feature .bs-row {
-  padding-right: calc(44 * var(--u));
+  padding-right: calc(18 * var(--u));
 }
 
-.bs-feature__text {
-  flex: 1 1 10rem;
-  max-width: 24rem;
+.bs-feature__name {
+  grid-column: 2;
+  grid-row: 2;
+  align-self: center;
+}
+
+.bs-feature__note,
+.bs-shelf[data-shelf='reading'] > .bs-drawer {
+  grid-column: 1 / -1;
+  grid-row: 3;
 }
 
 .bs-feature__title {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 500;
-  font-size: var(--text-lg);
-  line-height: 1.15;
+  font-size: clamp(1.25rem, 1.15rem + 0.3vw, 1.375rem);
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
 
@@ -132,7 +213,8 @@
 }
 
 .bs-feature__note {
-  max-width: 40ch;
+  /* about 60 to 65 characters a line at its widest (DM Sans runs wide, so not in ch) */
+  max-width: 30rem;
   margin-top: var(--space-sm);
   font-family: var(--font-sans);
   font-size: 1rem;
@@ -228,7 +310,8 @@
   height: calc(18 * var(--u));
   margin-top: calc(-4 * var(--u));
   border-radius: 1.5px;
-  filter: drop-shadow(0 calc(9 * var(--u)) calc(8 * var(--u)) oklch(0.25 0.03 45 / 0.22));
+  /* Dark enough to read on the smoked panel, so the board sits on the wall instead of floating. */
+  filter: drop-shadow(0 calc(6 * var(--u)) calc(7 * var(--u)) oklch(0.1 0.02 45 / 0.6));
 }
 
 /* A slot holds one book (or a pile, or an object) and its shadows. */
@@ -249,9 +332,9 @@
   width: calc(var(--w) * var(--u));
   height: calc(var(--h) * var(--u));
   border-radius: 3px;
-  background: oklch(0.22 0.03 45);
+  background: oklch(0.1 0.02 45);
   filter: blur(calc(4 * var(--u)));
-  opacity: 0.26;
+  opacity: 0.42;
   transform: translate(calc(-5 * var(--u)), calc(-1 * var(--u)));
   transition:
     transform var(--dur-soft) var(--ease-out),
@@ -277,6 +360,10 @@
 
 /* ── A book ── */
 .bs-book {
+  /* A faint light edge, so dark spines and sleeves keep their shape on the smoked panel
+     (an outline, so it never replaces the object's own shadows). */
+  outline: 1px solid oklch(1 0 0 / 0.1);
+  outline-offset: -1px;
   position: relative;
   display: block;
   flex: none;
@@ -310,14 +397,18 @@
   opacity: var(--shade, 0);
 }
 
+/* The lettering on a spine, in the sans so it reads like foil stamping at every size
+   (the display serif's one light weight turns to hairlines on cloth). */
 .bs-t-d {
-  font-family: var(--font-display);
-  font-weight: 500;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .bs-t-s {
   font-family: var(--font-sans);
-  font-weight: 450;
+  font-weight: 500;
+  letter-spacing: 0.01em;
 }
 
 /* The slip of paper between the pages: pale on books being read, vermilion on the chosen one. */
@@ -356,7 +447,7 @@
 
   .bs-slot:has(> .bs-book:hover)::before {
     transform: translate(calc(-11 * var(--u)), calc(-4 * var(--u))) scale(1.03);
-    opacity: 0.18;
+    opacity: 0.3;
   }
 
   .bs-slot:has(> .bs-book:hover)::after {
@@ -390,6 +481,12 @@
   transform: translateY(calc(-12 * var(--u)));
 }
 
+/* Lifted this far, a 4px-offset ring would run past the row's top padding and be clipped,
+   so the ring of an open, focused book closes in to hug it. */
+.bs-book:not(.bs-book--flat)[aria-expanded='true']:focus-visible {
+  outline-offset: clamp(-1px, calc(2 * var(--u) - 3px), 4px);
+}
+
 .bs-book--flat:focus-visible {
   transform: translateX(calc(9 * var(--u)));
 }
@@ -400,7 +497,7 @@
 
 .bs-slot:has(> .bs-book[aria-expanded='true'])::before {
   transform: translate(calc(-12 * var(--u)), calc(-6 * var(--u)));
-  opacity: 0.16;
+  opacity: 0.26;
 }
 
 .bs-slot:has(> .bs-book[aria-expanded='true'])::after {
@@ -417,10 +514,21 @@
   transition: transform 320ms var(--ease-out);
 }
 
+/* A face-out cover is tilted, so its light edge goes on the tilted cover, not the flat box
+   (the box keeps its outline only for the focus ring, which wins on specificity). */
+.bs-book--face {
+  outline-color: transparent;
+}
+
+.bs-book--face .bs-book__tilt {
+  outline: 1px solid oklch(1 0 0 / 0.1);
+  outline-offset: -1px;
+}
+
 .bs-slot--face::before {
   transform: translate(calc(-6 * var(--u)), calc(5 * var(--u))) scale(0.96, 0.94);
   transform-origin: 50% 100%;
-  opacity: 0.2;
+  opacity: 0.32;
 }
 
 /* A book leaning on its neighbour. */
@@ -454,9 +562,9 @@
   inset: 0;
   z-index: -1;
   border-radius: 2px;
-  background: oklch(0.22 0.03 45);
+  background: oklch(0.1 0.02 45);
   filter: blur(calc(3 * var(--u)));
-  opacity: 0.24;
+  opacity: 0.4;
   transform: translate(calc(-5 * var(--u)), calc(-2 * var(--u)));
 }
 
@@ -523,11 +631,28 @@
  * (its own height changes). Containment only keeps work inside this box from
  * spreading outward. It already clips at its edge, so paint containment hides
  * nothing new.
+ *
+ * `contain: paint` also matters for stacking and hit-testing: it makes this box a
+ * stacking context and clips it, so the 3D book and anything else inside can never
+ * paint over, or take clicks from, the other shelf's drawer or boards that share its
+ * grid cell (above, beside Books for work). Keep it if the containment is ever revisited.
+ *
+ * It is also the `bs-detail` container: the opened book lays itself out by the
+ * drawer's own width, which is the shelves' width, so it narrows exactly when the
+ * shelves do (both at 30rem).
  */
 .bs-drawer__inner {
   min-height: 0;
   overflow: hidden;
   contain: layout paint;
+  container: bs-detail / inline-size;
+  /* The clip reaches a little past the column on each side (padding out, margin back), so a
+     focus ring at the column's edge, Put it back's on a phone, is not cut off. The content stays
+     where it was and the container's width (its content box) is unchanged. This only ever widens
+     the clip: never pull the drawer or the stage in with a negative margin of their own, which
+     would cut off the turned book's spine at the left. */
+  padding-inline: 0.5rem;
+  margin-inline: -0.5rem;
 }
 
 .bs-detail {
@@ -575,7 +700,7 @@
   bottom: 0.35rem;
   height: 0.9rem;
   border-radius: 50%;
-  background: radial-gradient(closest-side, oklch(0.2 0.03 45 / 0.42), transparent);
+  background: radial-gradient(closest-side, oklch(0.1 0.02 45 / 0.7), transparent);
   filter: blur(2px);
   transform: translateX(6%);
   transition:
@@ -639,6 +764,14 @@
   border-radius: 2px;
 }
 
+/* The same faint light edge as the books on the shelf, so a black or dark-brown cover and
+   spine keep their outline against the smoked panel. */
+.bs-f--front,
+.bs-f--spine {
+  outline: 1px solid oklch(1 0 0 / 0.08);
+  outline-offset: -1px;
+}
+
 .bs-f--spine {
   left: calc((var(--cw) - var(--t)) / 2);
   width: var(--t);
@@ -671,11 +804,11 @@
 }
 
 .bs-detail__title {
-  font-family: var(--font-display);
+  font-family: var(--font-sans);
   font-weight: 500;
   font-size: var(--text-lg);
-  line-height: 1.15;
-  letter-spacing: -0.015em;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
   text-wrap: balance;
 }
 
@@ -728,12 +861,6 @@
 
   .bs-feature .bs-bay {
     --u: 1.45px;
-  }
-
-  /* Side by side, the current read's title and author sit under its board. */
-  .bs-feature__text {
-    max-width: none;
-    margin-top: var(--space-2xs);
   }
 
   .bs-feature__title {
@@ -801,23 +928,13 @@
     margin-left: 0 !important;
   }
 
-  /* On a phone the title and author stay beside the cover. */
-  .bs-feature {
-    column-gap: var(--space-md);
-    flex-wrap: nowrap;
-  }
-
   .bs-feature .bs-bay {
     --u: 1.1px;
   }
 
-  .bs-feature__text {
-    flex: 1 1 auto;
-    min-width: 0;
-  }
-
   .bs-feature__title {
     font-size: var(--text-md);
+    text-wrap: balance;
   }
 
   [data-shelf='work'] .bs-bay {
@@ -828,37 +945,99 @@
     padding-inline: calc(14 * var(--u));
   }
 
-  .bs-feature .bs-row {
-    padding-right: calc(18 * var(--u));
+  /* Two lines kept for the name under a shelf, whatever its length: a long title wraps, and if
+     the caption grew and shrank with each book touched, at the foot of the panel the page would
+     shift under the finger between touching a book and lifting off it, and the tap would miss. */
+  .bs-caption {
+    min-height: 3em;
+    text-wrap: balance;
   }
 }
 
-@media (max-width: 639px) {
-  /* The opened book beside its title, as the book being read stands beside its own: smaller
-     (zoom, so its box shrinks too), the words given the rest of the width. */
+/* The same two-line reserve wherever a finger does the choosing: touch names a book on focus,
+   just before the tap's click, so the caption must not grow then and move what is beneath it. */
+@media (pointer: coarse) {
+  .bs-caption {
+    min-height: 3em;
+  }
+}
+
+/* Measured on the drawer itself (the `bs-detail` container), whose width is the shelves' width,
+   so the opened book narrows at the same 30rem as the shelves above it, never one without the other. */
+@container bs-detail (max-width: 30rem) {
+  /* The opened book, smaller (zoom, so its box shrinks too), its title and author beside it
+     and the note beneath both at the full width of the column, not in a sliver beside the cover. */
   .bs-detail {
     grid-template-columns: auto minmax(0, 1fr);
-    gap: var(--space-sm);
+    grid-template-areas:
+      'stage head'
+      'note note'
+      'actions actions';
+    column-gap: var(--space-sm);
+    row-gap: 0;
     align-items: center;
   }
 
+  .bs-detail__text {
+    display: contents;
+  }
+
   .bs-stage {
+    grid-area: stage;
     zoom: 0.72;
   }
 
+  .bs-detail__head {
+    grid-area: head;
+  }
+
+  .bs-detail__note {
+    grid-area: note;
+    align-self: start;
+    max-width: 32rem;
+    margin-top: var(--space-xs);
+  }
+
+  .bs-detail__actions {
+    grid-area: actions;
+  }
+
+  /* The title keeps its size beside the smaller cover, balanced so a long one breaks evenly. */
+  .bs-detail__title {
+    text-wrap: balance;
+  }
+}
+
+/* Only in the narrowest drawers (a 320px phone) does the title step down a size. */
+@container bs-detail (max-width: 20rem) {
   .bs-detail__title {
     font-size: var(--text-md);
   }
 }
 
-/* Reading now: its title already stands beside the cover, so while the book is out the drawer
-   names it and the words beside the shelf step back. */
-.bs-feature__text {
+/* Reading now: while its book is out the drawer names it and holds the note, so the words by
+   the cover step back and the note gives the drawer its cell. The note returns a beat after the
+   drawer's words have gone. */
+.bs-feature__name {
   transition: opacity var(--dur-soft) ease;
 }
 
-[data-shelf='reading']:has(.bs-drawer[data-open]) .bs-feature__text {
+.bs-feature__note {
+  transition:
+    opacity var(--dur-soft) ease 120ms,
+    visibility 0s linear 0s;
+}
+
+[data-shelf='reading']:has(> .bs-drawer[data-open]) .bs-feature__name {
   opacity: 0;
+}
+
+[data-shelf='reading']:has(> .bs-drawer[data-open]) .bs-feature__note {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-quick) ease,
+    visibility 0s linear var(--dur-quick);
 }
 
 /* ── Reduced motion: no lift, tilt or turn; every change is a short fade ── */
@@ -916,5 +1095,24 @@
 
   .bs-drawer {
     transition: none;
+  }
+
+  /* The current read's name and note: a short fade each way, the note's return without its
+     beat of delay; visibility follows the fade out, and comes back at once. */
+  .bs-feature__name {
+    transition: opacity 140ms ease;
+  }
+
+  .bs-feature__note {
+    transition:
+      opacity 140ms ease,
+      visibility 0s linear 0s;
+  }
+
+  [data-shelf='reading']:has(> .bs-drawer[data-open]) .bs-feature__note,
+  .bs-shelves[data-paired]:has(> [data-shelf='work'] > .bs-drawer[data-open]) .bs-feature__note {
+    transition:
+      opacity 140ms ease,
+      visibility 0s linear 140ms;
   }
 }

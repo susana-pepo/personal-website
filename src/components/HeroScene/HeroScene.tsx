@@ -81,8 +81,6 @@ const discoveryIndex = (id: string) => DISCOVERY_ORDER.indexOf(id)
 const DISCOVERY_DELAY_MS = 2100
 const DISCOVERY_STEP_MS = 180
 const DISCOVERY_TOTAL_MS = DISCOVERY_DELAY_MS + (DISCOVERY_ORDER.length - 1) * DISCOVERY_STEP_MS + 820 + 100
-/** How long the lamp's bulb stays warm when it gives its tell. */
-const LAMP_TELL_MS = 900
 
 /** The lamp's current light, as announced (or that it's off). */
 const lampName = (step: number) => {
@@ -182,6 +180,8 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   // as the room arrives, stays a few seconds, then fades away (sooner if the visitor touches
   // the room). After that it shows on hover, like every object's line.
   const [greetingOn, setGreetingOn] = useState(false)
+  // Her greeting's time has passed (whether or not it showed): the glimmers' hints may begin.
+  const [greetingOver, setGreetingOver] = useState(false)
   useEffect(() => {
     let live = true
     let on: number | undefined
@@ -189,7 +189,10 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
     void whenEntered().then(() => {
       if (!live) return
       on = window.setTimeout(() => setGreetingOn(true), GREETING_IN_MS)
-      off = window.setTimeout(() => setGreetingOn(false), GREETING_IN_MS + GREETING_FOR_MS)
+      off = window.setTimeout(() => {
+        setGreetingOn(false)
+        setGreetingOver(true)
+      }, GREETING_IN_MS + GREETING_FOR_MS)
     })
     return () => {
       live = false
@@ -271,24 +274,21 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   }, [lampLit])
 
   // The room's small surprises (the cat, the lamp) have no glow or label: until a visitor has
-  // found them, each gives its tell now and then (src/scene/glimmers.ts). Pointing at one,
-  // focusing it or tapping it finds it.
+  // found them, each gives its moonlight hint once a cycle, in turn (src/scene/glimmers.ts),
+  // from the end of the room's first look and her greeting. Pointing at one, focusing it or
+  // tapping it finds it. With reduced motion there is no first look, and the hints are fades.
   const tells = useGlimmerTells({
-    moving: playback.motionAllowed && !reducedMotion,
-    firstLookDone: discovery === 'done',
+    moving: playback.motionAllowed,
+    ready: greetingOver && (discovery === 'done' || reducedMotion),
     busy: active !== null,
   })
   useEffect(() => {
     if (isGlimmer(active)) findGlimmer(active)
   }, [active])
-  // The lamp's tell: its tease (the wiggle by the shade) and its bulb warming, for a moment.
-  const [lampTelling, setLampTelling] = useState(false)
+  // The lamp's hint: its bulb catches (LampLiquid's flick, from the same counter) and moonlight
+  // glints run up its brass.
   useEffect(() => {
-    if (tells.lamp === 0) return
-    lampSplash.current?.tease()
-    setLampTelling(true)
-    const done = window.setTimeout(() => setLampTelling(false), LAMP_TELL_MS)
-    return () => window.clearTimeout(done)
+    if (tells.lamp > 0) lampSplash.current?.glint()
   }, [tells.lamp])
   const onAction = useCallback((action: HotspotAction) => {
     setExplored(true)
@@ -451,7 +451,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
           <span className="time-light time-light--night" aria-hidden="true" />
           <PowerLight highlighted={litOverlay === 'vinyl'} motionAllowed={playback.motionAllowed} />
 
-          <LampLiquid motionAllowed={playback.motionAllowed} tone={lampTone} hovered={lampLit || lampTelling} />
+          <LampLiquid motionAllowed={playback.motionAllowed} tone={lampTone} hovered={lampLit} flick={tells.lamp} />
           <LampColour tone={lampTone} />
           <LampSplash ref={lampSplash} />
 

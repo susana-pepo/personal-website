@@ -1,4 +1,5 @@
 import type { SiteContent } from './types'
+import { withNotes } from './notes'
 
 /**
  * ─────────────────────────────────────────────────────────────────────────────
@@ -58,7 +59,7 @@ export const content: SiteContent = {
       id: 'music',
       navLabel: 'Music',
       title: 'Music',
-      summary: 'Playing, listening and learning.',
+      summary: '',
       roomLabel: 'Music',
       objectName: 'the record player',
     },
@@ -75,7 +76,7 @@ export const content: SiteContent = {
 
   work: {
     intro:
-      'A little collection of tools, experiments, and ideas I’ve turned into something real. Some started with a problem I wanted to solve, others simply because I was curious to see if I could make them work.',
+      'A little collection of tools and experiments. Some started with a problem I wanted to solve, others simply because I was curious to see if I could make them work.',
     // The map: each area of focus fills one quadrant (see `place` below). The axis
     // words come from the intro above; change them freely.
     map: {
@@ -131,7 +132,7 @@ export const content: SiteContent = {
           title: 'Interactive chord builder',
           line: 'A concept-heavy topic turned into something learners can inspect and play.',
           summary:
-            'Choose a root note and a chord type, see the chord on the keyboard and tap the keys to hear it. A topic that is usually only explained becomes something learners can inspect, test and move between explanation and practice.',
+            'Choose a root note and a chord type, see the chord on the keyboard and tap the keys to hear it.',
           status: 'Live',
           area: 'notation-learning',
           thumb: 'keys',
@@ -175,7 +176,7 @@ export const content: SiteContent = {
           title: 'Rights Intelligence',
           line: 'An independent exploration of tooling for music rights data.',
           summary:
-            'A personal exploration of data-driven tooling for musical-work identification, ownership, contract coverage and rights reconciliation. I use it to test ideas about how rights information could become easier to trust and act on. It is an independent project, not a commercial product.',
+            'A personal exploration of tooling for musical-work identification, ownership, contract coverage and rights reconciliation. I use it to test ideas about how rights information could become easier to trust and act on. It is an independent project, not a commercial product.',
           status: 'Exploration in progress',
           thumb: 'network',
           topics: ['Work identification', 'Ownership data', 'Contract coverage', 'Reconciliation'],
@@ -191,7 +192,7 @@ export const content: SiteContent = {
     paragraphs: [
       'I work on products that bring music, learning and technology together. Most of all, I try to make complicated experiences feel a bit easier and more enjoyable.',
       'I’m interested in what keeps people going when something gets difficult. Learning music can be wonderful, but also incredibly frustrating. I know the feeling of trying something over and over until it finally clicks. When I build learning experiences, I think most about the person who’s just about ready to give up.',
-      'I ask lots of questions and want to know how things work. I love the behind-the-scenes side too: the little details, the unexpected problems, the conversations that make you reconsider an idea, all the pieces that have to come together to make something work. I like being somewhere between the creative and the technical.',
+      'I ask lots of questions and want to know how things work. I love the behind-the-scenes side too: the little details, the unexpected problems, the conversations that make you reconsider an idea. I like being somewhere between the creative and the technical.',
       'Outside of work, I enjoy long walks, cooking for friends, slow mornings with coffee, and getting completely absorbed in projects of my own. This website is one of them.',
     ],
     closing:
@@ -300,6 +301,8 @@ export const content: SiteContent = {
     ],
     // Add your books here. Each needs a title, an author and a shelf ('reading', 'work' or 'loved');
     // a note is optional. e.g. { title: '…', author: '…', shelf: 'work', note: '…' }
+    // The easiest way to write notes: run `npm run dev` and open http://localhost:5173/?notes.
+    // It asks a few quick questions per book and saves your note in bookNotes.json.
     // A shelf with no books yet stays hidden.
     // Each book is drawn from its data. Optional extras: kind ('cloth' | 'leather' | 'jacket' | 'paperback'),
     // colour (a room colour such as 'teal' or 'ochre'), pose ('upright' | 'face' | 'lean' | 'flat'),
@@ -307,7 +310,7 @@ export const content: SiteContent = {
     // cover is a photo of the real front cover (put it in public/media/books/), and spineColour
     // the real spine colour as a hex value, picked from the cover. Heights are the editions' formats:
     // 23 cm literary paperbacks, 19 cm pocket editions (Debolsillo, Booket), 24 cm hardbacks.
-    books: [
+    books: withNotes([
       // Debolsillo edition.
       { title: 'El infinito en un junco', author: 'Irene Vallejo', shelf: 'reading', kind: 'paperback', cover: '/media/books/el-infinito-en-un-junco.webp', heightMm: 190, spineColour: '#fefbe8' },
 
@@ -330,7 +333,7 @@ export const content: SiteContent = {
       { title: 'La vegetariana', author: 'Han Kang', shelf: 'loved', spineAuthor: 'Han Kang', pose: 'flat', kind: 'paperback', cover: '/media/books/la-vegetariana.webp', heightMm: 230, spineColour: '#ffffff' },
       // Booket edition.
       { title: 'La ridícula idea de no volver a verte', author: 'Rosa Montero', shelf: 'loved', kind: 'paperback', cover: '/media/books/la-ridicula-idea-de-no-volver-a-verte.webp', heightMm: 190, spineColour: '#ffffff' },
-    ],
+    ]),
     emptyNote: 'The shelf is being arranged. Books will be here soon.',
   },
 
@@ -351,7 +354,7 @@ export const content: SiteContent = {
     },
     collection: {
       heading: 'On my shelf of records',
-      description: 'Albums and playlists I keep coming back to.',
+      description: '',
       // Paste Spotify share links (Share → Copy link). Title and cover load automatically.
       // e.g. { url: 'https://open.spotify.com/album/…', subtitle: 'Artist name', note: 'Why I love it.' }
       items: [
@@ -386,7 +389,7 @@ export const content: SiteContent = {
     },
     podcasts: {
       heading: 'On my podcast shelf',
-      description: 'Shows I keep coming back to.',
+      description: '',
       // Spotify show links (Share → Copy link). Set title and cover for shows: Spotify's public
       // lookup returns the latest episode instead of the show. Optional: note, startWith, length.
       items: [
@@ -441,7 +444,7 @@ export const content: SiteContent = {
   contact: {
     heading: 'Say hello',
     intro:
-      'I’d love to hear from you if you’d like to chat about music, learning, licensing, or product ideas. And if you have a song you think I’d enjoy, I’m always happy to discover something new.',
+      'I’d love to chat about music, learning, licensing or product ideas. And if you have a song you think I’d enjoy, I’m always happy to discover something new.',
     // The invitation, and the email action itself: it opens an email to this address with it as the subject.
     cta: 'Let’s chat',
     email: 'susipp93@gmail.com',

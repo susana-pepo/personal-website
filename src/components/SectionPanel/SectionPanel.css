@@ -8,10 +8,11 @@ html:has(.panel[open]) {
 }
 
 /*
- * The folio: one sheet of uncoated card taken from the room. Its depth comes
- * from light, not outlines: a soft shadow on the room side and a faint curve
- * of shade inside the spine edge. Every section is a page in it, with one
- * header and one rhythm.
+ * The folio: one sheet of smoked glass taken from the room at night. Opaque, so
+ * nothing behind it is blurred or redrawn: its depth comes from a warm gradient,
+ * a thin rim of lamp light and a soft shadow on the room side. Every section is a
+ * page in it, with one header and one rhythm, and no rules between the parts:
+ * space does the grouping.
  */
 .panel {
   /* Motion: the panel steps of tokens.css, named here so phones and reduced motion
@@ -28,7 +29,19 @@ html:has(.panel[open]) {
   /* Gentle exit: moves from the first frame instead of hanging before it goes. */
   --folio-ease-exit: var(--ease-exit);
 
-  /* Paper */
+  /* The surface. These redefine the card's tokens for everything inside the panel,
+     so the sections keep writing var(--ink) and var(--card) on any surface. The inks
+     are bright enough for long reading on dark (body about APCA Lc 75, small text 60+). */
+  --card: oklch(0.255 0.016 50);
+  --card-shade: oklch(0.22 0.014 48);
+  --ink: oklch(0.93 0.012 80);
+  --ink-2: oklch(0.89 0.012 75);
+  --ink-3: oklch(0.8 0.014 70);
+  --rule-card: oklch(0.93 0.012 80 / 0.13);
+  --rule-card-strong: oklch(0.93 0.012 80 / 0.24);
+  --spot-ink: oklch(0.78 0.12 45);
+
+  /* Grain, so the gradient reads as a material and never bands */
   --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 
   /* One 4pt scale, three named rhythms */
@@ -74,7 +87,8 @@ html:has(.panel[open]) {
  * the sheet, because dialog.close() removes the backdrop at once.
  */
 .panel::backdrop {
-  background: oklch(0.12 0.008 45 / 0.56);
+  /* Half: the room stays present beside the page, but never brighter than it. */
+  background: oklch(0.12 0.008 45 / 0.5);
   opacity: 0;
   transition: opacity 460ms ease 40ms;
 }
@@ -112,16 +126,34 @@ html:has(.panel[open]) {
   height: 100%;
   overflow: hidden;
   border-radius: var(--sheet-radius);
-  /* The spine curve: card turning very slightly away from the light at the gutter. */
+  /* Smoked glass, all of it opaque paint: a bloom of lamp light at the top, a little more
+     shade toward the bottom, grain, the smoke itself, and a warm rim drawn in the border.
+     No backdrop-filter, filter or will-change: the room behind animates, and a blur
+     would be redrawn every frame (DESIGN.md, the flicker notes). */
+  border: 1px solid transparent;
   background:
-    linear-gradient(90deg, oklch(0.42 0.03 60 / 0.07), oklch(0.42 0.03 60 / 0) 2.75rem),
-    var(--fibre),
-    var(--card);
-  /* Contact shadow first (tight, on the room side), then the long fall-off. */
+    radial-gradient(120% 40% at 18% -8%, oklch(0.92 0.04 70 / 0.08), transparent 60%) padding-box,
+    linear-gradient(180deg, transparent 60%, oklch(0.1 0.01 45 / 0.14)) padding-box,
+    var(--fibre) padding-box,
+    linear-gradient(150deg, oklch(0.29 0.02 50), oklch(0.2 0.012 45)) padding-box,
+    linear-gradient(
+        140deg,
+        oklch(0.88 0.05 70 / 0.42),
+        oklch(0.88 0.05 70 / 0.06) 38%,
+        oklch(0.88 0.05 70 / 0.03) 62%,
+        oklch(0.88 0.05 70 / 0.2)
+      )
+      border-box;
+  /* Lamp light along the top edge, then the contact shadow (tight, on the room side) and
+     the long fall-off. */
   box-shadow:
+    inset 0 1px 0.5px oklch(1 0 0 / 0.16),
+    inset 0 -1px 0.5px oklch(1 0 0 / 0.04),
     -1px 0 2px oklch(0.06 0.01 45 / 0.28),
     -14px 6px 32px -12px oklch(0.06 0.01 45 / 0.45),
     0 36px 80px -32px oklch(0.06 0.01 45 / 0.7);
+  /* Blend modes inside the sections (music.css) stay inside the sheet. */
+  isolation: isolate;
   opacity: 0;
   transform: translateX(3rem);
   transition:
@@ -163,7 +195,6 @@ html:has(.panel[open]) {
   justify-content: space-between;
   gap: var(--space-sm);
   padding: 0 var(--space-2xs) 0 var(--page-pad);
-  border-bottom: 1px solid var(--rule-card);
 }
 
 .panel__nav {
@@ -367,30 +398,10 @@ html:has(.panel[open]) {
   }
 }
 
-/* The incoming page settles in block by block, 45ms apart: header, then each part
-   of the section. Opening rises; turning moves with the direction
-   of travel, so the two feel different. */
-.panel__page > .panel__header {
-  --i: 0;
-}
-.panel__page > .section > :nth-child(1) {
-  --i: 1;
-}
-.panel__page > .section > :nth-child(2) {
-  --i: 2;
-}
-.panel__page > .section > :nth-child(3) {
-  --i: 3;
-}
-.panel__page > .section > :nth-child(4) {
-  --i: 4;
-}
-.panel__page > .section > :nth-child(5) {
-  --i: 5;
-}
-.panel__page > .section > :nth-child(n + 6) {
-  --i: 6;
-}
+/* The incoming page arrives as one movement, header and section together (no
+   paragraph-by-paragraph cascade). Opening rises; turning moves with the direction
+   of travel, so the two feel different. --i stays available for a section that wants
+   one deliberate beat of its own. */
 
 /* Backwards only: the keyframes below have just a `from`, so each block rests on
    its own styles afterwards instead of the animation holding them, and its own
@@ -448,78 +459,24 @@ html:has(.panel[open]) {
   }
 }
 
-/* ── Header ── */
+/* ── Header ──
+   Just the heading: the tabs already say where you are, so there is no page count, and
+   space sets it apart from the page rather than a rule. A section can place one picture
+   beside it (About's portrait, .panel__header-art). */
 .panel__header {
   display: grid;
-  gap: var(--space-xs);
-  margin-bottom: var(--rhythm-section);
-  padding-bottom: var(--space-lg);
-  border-bottom: 1px solid var(--rule-card-strong);
-}
-
-.panel__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 0.55em;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  line-height: 1.3;
-  font-variant-numeric: tabular-nums;
-  color: var(--ink-3);
-}
-
-/* Only the number is in vermilion, and it rolls like a counter when the page turns. */
-.panel__num {
-  display: inline-grid;
-  overflow: hidden;
-  color: var(--spot-ink);
-  vertical-align: bottom;
-}
-
-.panel__num > span {
-  grid-area: 1 / 1;
-}
-
-.panel__num[data-roll] > .panel__num-from {
-  animation: folio-roll-out var(--dur-panel) var(--ease-out) var(--folio-turn-at) both;
-}
-
-.panel__num[data-roll] > .panel__num-to {
-  animation: folio-roll-in var(--dur-panel) var(--ease-out) var(--folio-turn-at) both;
-}
-
-@keyframes folio-roll-out {
-  to {
-    opacity: 0;
-    transform: translateY(calc(var(--dir, 1) * -100%));
-  }
-}
-
-@keyframes folio-roll-in {
-  from {
-    opacity: 0;
-    transform: translateY(calc(var(--dir, 1) * 100%));
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .panel__num[data-roll] > .panel__num-from {
-    display: none;
-  }
-
-  .panel__num[data-roll] > .panel__num-to {
-    animation: none;
-  }
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--space-md);
+  margin-bottom: var(--space-lg);
 }
 
 .panel__title {
-  margin-top: var(--rhythm-inline);
   font-family: var(--font-display);
-  font-weight: 500;
-  font-size: var(--text-2xl);
-  line-height: 0.98;
-  letter-spacing: -0.015em;
+  font-weight: 400;
+  font-size: var(--text-title);
+  line-height: 1.04;
+  letter-spacing: var(--track-title);
   color: var(--ink);
   text-wrap: balance;
   outline: none;
@@ -553,11 +510,11 @@ html:has(.panel[open]) {
     height: calc(100dvh - 3.5rem - var(--sheet-gap));
   }
 
-  /* No spine on a sheet that rises from below: plain card, shadow cast upward. */
+  /* A sheet that rises from below: the same smoke, its rim lit along the top, shadow cast upward. */
   .panel__sheet {
     transform: translateY(105%);
-    background: var(--fibre), var(--card);
     box-shadow:
+      inset 0 1px 0.5px oklch(1 0 0 / 0.16),
       0 -1px 2px oklch(0.06 0.01 45 / 0.24),
       0 -16px 40px -18px oklch(0.06 0.01 45 / 0.5);
   }
@@ -568,6 +525,11 @@ html:has(.panel[open]) {
 
   .panel__nav {
     mask-image: linear-gradient(90deg, #000 80%, transparent);
+  }
+
+  /* When the row stops mid-word (only possible at its very end), its start fades too. */
+  .panel__nav[data-scrolled] {
+    mask-image: linear-gradient(90deg, transparent, transparent 0.5rem, #000 2.25rem, #000 80%, transparent);
   }
 
   .panel__tabs ul {
@@ -606,8 +568,7 @@ html:has(.panel[open]) {
   }
 
   .panel__header {
-    margin-bottom: var(--space-lg);
-    padding-bottom: var(--space-md);
+    margin-bottom: var(--space-md);
   }
 
   .panel__title {

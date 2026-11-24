@@ -34,8 +34,9 @@ function Vertical({ text, display, x, cy, fs, fill, max, opacity = 1 }: Vertical
   )
 }
 
-/** Rough width of a letter in the display face, as a share of the font size. */
-const GLYPH = 0.5
+/** Rough width of a letter in the spine lettering (Geist 600), as a share of the font size.
+    It only picks the starting size and when to split a title; FitText makes the final fit. */
+const GLYPH = 0.54
 
 /** Splits a title into two lines of about the same length, at a word break. */
 function halves(text: string): [string, string] | null {

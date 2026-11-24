@@ -64,8 +64,8 @@ export const OVERLAYS: readonly Overlay[] = (overlays as RawOverlay[]).map((raw)
   return {
     id: raw.id as OverlayId,
     src: raw.src,
-    halo: 'glow' in raw ? `/media/scene/glow/${raw.id}-halo.png` : null,
-    sheen: raw.id === 'laptop' || raw.id === 'vinyl' ? `/media/scene/glow/${raw.id}-sheen.png` : null,
+    halo: 'glow' in raw ? `/media/scene/glow/${raw.id}-halo.webp` : null,
+    sheen: raw.id === 'laptop' || raw.id === 'vinyl' ? `/media/scene/glow/${raw.id}-sheen.webp` : null,
     glow: 'glow' in raw ? (raw as { glow: Glow }).glow : null,
     shadow: 'shadow' in raw ? (raw as { shadow: Overlay['shadow'] }).shadow : null,
     hitFrom: raw.hitFromY ? (raw.hitFromY * raw.width) / iw : 0,

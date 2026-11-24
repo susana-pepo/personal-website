@@ -4,10 +4,10 @@ Usage: python3 scripts/build-glows.py      (or: npm run scene:glows)
 Requires Pillow and numpy. Reads src/scene/scene-layout.json and the overlay
 PNGs (only read, never changed). Writes public/media/scene/glow/:
 
-  <id>-halo.png   warm amber light that follows the object's silhouette, drawn
+  <id>-halo.webp  warm amber light that follows the object's silhouette, drawn
                   just behind the object (so it only shows around its edges)
-  laptop-sheen.png  the screen wallpaper only, for a gentle brighten on hover
-  vinyl-sheen.png   the record's rim and the metal details, for a faint amber lift
+  laptop-sheen.webp the screen wallpaper only, for a gentle brighten on hover
+  vinyl-sheen.webp  the record's rim and the metal details, for a faint amber lift
   lamp-glow.png     the pale inside of the lamp's shade and its bulb, tinted when its light changes colour
   lamp-reach.png    where the lamp's light may fall (not the window glass, not the laptop screen)
 
@@ -26,6 +26,8 @@ out_dir = root / 'public/media/scene/glow'
 out_dir.mkdir(parents=True, exist_ok=True)
 
 RES = 2            # pixels per canvas pixel (sharp enough for 2x screens; the halo is soft anyway)
+# Halos and sheens are soft light: WebP at quality 90 can't be told from the PNG at 2x, at a fifth of the size.
+WEBP = dict(quality=90, alpha_quality=100, method=6, exact=True)
 MARGIN = 36        # canvas px of halo room around each object (also used by the site, see layout.ts)
 AMBER = (0xEB, 0xC1, 0x8A)
 GOLD = (0xF6, 0xD4, 0xA2)
@@ -60,7 +62,7 @@ def halo(item):
     t = np.clip(np.asarray(near, np.float32) / 255.0, 0, 1)[..., None]
     rgb = np.array(AMBER, np.float32) * (1 - t) + np.array(HIGHLIGHT, np.float32) * t
     img = np.concatenate([rgb, a[..., None]], axis=2).clip(0, 255).astype(np.uint8)
-    Image.fromarray(img).save(out_dir / f"{item['id']}-halo.png", optimize=True)
+    Image.fromarray(img).save(out_dir / f"{item['id']}-halo.webp", **WEBP)
 
 
 def hsv_arrays(art):
@@ -104,7 +106,7 @@ def laptop_sheen(item):
     mask = Image.fromarray((screen * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(1))
     a = np.asarray(mask, np.float32) / 255.0 * alpha
     img = np.concatenate([rgb * 255, a[..., None] * 255], axis=2).clip(0, 255).astype(np.uint8)
-    Image.fromarray(img).save(out_dir / 'laptop-sheen.png', optimize=True)
+    Image.fromarray(img).save(out_dir / 'laptop-sheen.webp', **WEBP)
 
 
 def vinyl_sheen(item):
@@ -129,7 +131,7 @@ def vinyl_sheen(item):
     a = np.maximum(metal_a * 0.9, rim * 0.8) * (alpha > 0.5)
     colour = np.where(metal[..., None], rgb * 255 * 0.5 + np.array(GOLD, np.float32) * 0.5, np.array(AMBER, np.float32))
     img = np.concatenate([colour, a[..., None] * 255], axis=2).clip(0, 255).astype(np.uint8)
-    Image.fromarray(img).save(out_dir / 'vinyl-sheen.png', optimize=True)
+    Image.fromarray(img).save(out_dir / 'vinyl-sheen.webp', **WEBP)
 
 
 def lamp_glow(item):
@@ -168,7 +170,7 @@ def lamp_reach(items):
     reach *= 1 - glass * (1 - front_a)
     laptop = items.get('laptop')
     if laptop:
-        sheen = Image.open(out_dir / 'laptop-sheen.png').getchannel('A')
+        sheen = Image.open(out_dir / 'laptop-sheen.webp').getchannel('A')
         w = round(laptop['width'] * S)
         h = round(laptop['width'] * sheen.height / sheen.width * S)
         screen = Image.new('L', (W, H), 0)

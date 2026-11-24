@@ -31,10 +31,25 @@
   /* Lamp light, used only for the hover wash inside the illustration */
   --lamp-wash: oklch(0.88 0.08 75);
 
-  /* Type: Newsreader for the name, headings and reading text; DM Sans for navigation and controls. */
-  --font-display: 'Newsreader Variable', Georgia, serif;
-  --font-serif: 'Newsreader Variable', Georgia, serif; /* reading text */
-  --font-sans: 'DM Sans Variable', 'Helvetica Neue', Arial, sans-serif;
+  /* Moonlight: the glimmers' own colour (the cat's and the lamp's hints, src/scene/glimmers.ts),
+     used nowhere else, so it alone says "something here answers". Its bloom is an edge on the
+     hint's own small marks, never a halo on the object. */
+  --moon: oklch(0.9 0.05 235);
+  --moon-core: oklch(0.97 0.025 235);
+  --moon-bloom: oklch(0.78 0.1 240 / 0.55);
+
+  /* Type (fonts.css): Geist Serif for titles and the wordmark, at its one weight (400);
+     Geist for everything else, reading text included. --font-serif is the reading voice,
+     kept as its own token so a page's lead can be moved without touching the rest. */
+  --font-display: 'Geist Serif', Georgia, serif;
+  --font-serif: 'Geist', 'Helvetica Neue', Arial, sans-serif; /* reading text */
+  --font-sans: 'Geist', 'Helvetica Neue', Arial, sans-serif;
+
+  /* Titles: a page's title, and the headings of its parts. A clear step from the 19px body. */
+  --text-title: clamp(2.5rem, 1.75rem + 2.4vw, 3.75rem);
+  --text-section: clamp(1.4375rem, 1.25rem + 0.6vw, 1.75rem); /* 23–28px: above item titles (20–22px), well below the page title */
+  /* Large serif type sits a little tighter; the one weight never needs to be bolder. */
+  --track-title: -0.025em;
 
   /* Type scale (ratio ≈ 1.333, fluid for display sizes) */
   --text-xs: 0.75rem;

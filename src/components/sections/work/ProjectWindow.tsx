@@ -29,7 +29,7 @@ interface ProjectWindowProps {
 }
 
 /**
- * An open project: a cream paper window on the laptop screen, poured out of its
+ * An open project: a raised dark window on the tablet's screen, poured out of its
  * file in a short, transform-only genie and put back the same way. Focus moves
  * into it on open; the desktop returns focus to the file on close.
  */
@@ -118,7 +118,6 @@ export function ProjectWindow({ project, id, from, closing, reducedMotion, onPut
           <h4 id={titleId} className="wwin__title">
             {project.title}
           </h4>
-          <p className="wwin__line">{project.line}</p>
           <p className="wwin__summary">{project.summary}</p>
           {project.topics && <Topics label={`Topics in ${project.title}`} items={project.topics} />}
           {project.href && (
