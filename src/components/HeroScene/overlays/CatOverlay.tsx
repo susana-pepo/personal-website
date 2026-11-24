@@ -14,7 +14,7 @@ import {
   type PetStyle,
 } from '../../../scene/catReaction'
 import { CAT_MEDIA, overlay } from '../../../scene/layout'
-import { arrivedClipFile, fetchClipFile, fetchLater } from '../../../scene/clipFiles'
+import { afterPainted, arrivedClipFile, fetchClipFile, fetchLater, prepareClip, type PreparedClip } from '../../../scene/clipFiles'
 import { whenSettled } from '../../../scene/entrance'
 import { SceneObject } from './SceneObject'
 
@@ -30,6 +30,8 @@ interface CatOverlayProps {
   discoveryIndex: number
   /** `reaction` names what it did: 'asleep' (a purr and z's), or a reaction clip's name. */
   onReaction?: (phase: CatPhase, style: PetStyle | null, reaction: string | null) => void
+  /** Bumped by the room to ask for its tell (a dream), so a visitor finds it: src/scene/glimmers.ts. */
+  tell?: number
 }
 
 const CAT = overlay('cat')
@@ -102,9 +104,10 @@ function makeDream(): Puff[] {
  *
  * Left alone, it now and then lets out a couple of z's on its own (a dream),
  * so it feels alive between visits to it: only while the room moves, the page
- * is in view and nobody is petting it; silent for screen readers.
+ * is in view and nobody is petting it; silent for screen readers. A dream is also
+ * its tell: until a visitor has found it, the room asks for one now and then (`tell`).
  */
-export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, onReaction }: CatOverlayProps) {
+export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, onReaction, tell = 0 }: CatOverlayProps) {
   const reducedMotion = usePrefersReducedMotion()
   const moving = motionAllowed && !reducedMotion
   const [phase, setPhase] = useState<CatPhase>('idle')
@@ -151,53 +154,37 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       return
     }
     let stopped = false
-    let current: { img: HTMLImageElement; url: string } | null = null
+    let current: PreparedClip | null = null
     let lastReaction: string | null = null
     let hiddenDuringReaction = false
     let backTimer: number | undefined
-    const fetchClip = (clip: CatClip) => fetchClipFile(clip.src)
     // Bumped when a reaction starts: a sleeping turn still decoding then gives way to it.
     let generation = 0
     const mount = async (clip: CatClip, entrance: 'cut' | 'dissolve' | 'fade', gen = generation) => {
-      const blob = arrivedClipFile(clip.src) ?? (await fetchClip(clip))
-      if (!blob || stopped) return false
-      const url = URL.createObjectURL(blob)
-      const img = new Image()
-      img.alt = ''
-      img.draggable = false
-      // decoded before it's drawn: an animated picture this large would otherwise be drawn blank
-      // (the whole figure blinking out) while the browser catches up with its first frames
-      img.decoding = 'sync'
-      img.dataset.clip = clip.name
-      img.src = url
-      try {
-        await img.decode()
-      } catch {
-        URL.revokeObjectURL(url)
-        return false
-      }
+      const next = await prepareClip(clip.src, clip.name)
+      if (!next) return false
       if (stopped || gen !== generation) {
-        URL.revokeObjectURL(url)
+        next.release()
         return false
       }
       const previous = current
-      current = { img, url }
-      host.appendChild(img)
-      // the still (or the last clip, in the same pose) stays underneath a moment, until this one
-      // has surely been drawn: never a blank frame while the browser gets the clip ready
-      window.setTimeout(() => !stopped && setPlaying(true), 300)
-      const letGo = () => {
-        if (!previous) return
-        previous.img.remove()
-        URL.revokeObjectURL(previous.url)
+      current = next
+      host.appendChild(next.el)
+      const fadeMs = entrance === 'dissolve' ? DISSOLVE_MS : entrance === 'fade' ? RECOVER_FADE_MS : 0
+      if (fadeMs) next.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: fadeMs, easing: EASE })
+      try {
+        await next.start() // resolves once its first frame is on screen
+      } catch {
+        next.release()
+        current = previous
+        return false
       }
-      if (entrance === 'cut') {
-        window.setTimeout(letGo, 300) // same pose underneath, kept until the new clip is surely drawn
-      } else {
-        const ms = entrance === 'dissolve' ? DISSOLVE_MS : RECOVER_FADE_MS
-        img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: ms, easing: EASE })
-        window.setTimeout(letGo, ms + 40) // then the last clip goes, so it can't show round the new outline
-      }
+      // The still (or the last clip, in the same pose) stays underneath until this one has surely
+      // been drawn: a video says when its frame is up; a picture can't, so it waits a while longer.
+      // After a dissolve or fade, the last clip goes once it's done, so it can't show round the new outline.
+      const settle = next.el instanceof HTMLVideoElement ? 0 : 300
+      void afterPainted(settle).then(() => !stopped && setPlaying(true))
+      void afterPainted(fadeMs ? fadeMs + 40 : settle).then(() => previous?.release())
       return true
     }
 
@@ -224,10 +211,18 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
     void whenSettled().then(() => {
       if (!stopped) void sleepOn('cut')
     })
-    // The variation and the reactions load later, one after another (sleep comes first);
-    // a hover before they've arrived simply finds it staying asleep, with its purr.
+    // The reactions load right after the sleeping clip, one after another, so a hover finds one
+    // ready (until then it stays asleep, with its purr); the tail's sweep comes later with the rest.
+    const saveData = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true
+    if (!saveData) void whenSettled().then(async () => {
+      await fetchClipFile(CAT_MEDIA.sleep.src)
+      for (const clip of CAT_MEDIA.reactions) {
+        if (stopped) return
+        await fetchClipFile(clip.src)
+      }
+    })
     const moreTimer = fetchLater(
-      [...CAT_MEDIA.variations, ...CAT_MEDIA.reactions].map((c) => c.src), // the tail first: it's needed soonest
+      CAT_MEDIA.variations.map((c) => c.src),
       () => stopped,
     )
 
@@ -274,8 +269,8 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       window.clearTimeout(backTimer)
       window.clearTimeout(idleTimer)
       document.removeEventListener('visibilitychange', onVisibility)
-      for (const img of [...host.querySelectorAll('img')]) img.remove()
-      if (current) URL.revokeObjectURL(current.url)
+      current?.release()
+      for (const el of [...host.children]) el.remove()
       setPlaying(false)
     }
   }, [moving])
@@ -285,6 +280,8 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
 
   // Dreams: a z or two now and then, while the room is moving.
   const [dream, setDream] = useState<{ id: number; puffs: Puff[] } | null>(null)
+  // Set while the room moves: lets out a dream now and starts the wait for the next one afresh.
+  const dreamNow = useRef<(() => void) | null>(null)
   useEffect(() => {
     if (!moving) {
       setDream(null)
@@ -293,23 +290,37 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
     let first = true
     let next: number | undefined
     let fade: number | undefined
+    const dreamOnce = () => {
+      if (document.hidden || phaseRef.current !== 'idle') return
+      setDream((d) => ({ id: (d?.id ?? 0) + 1, puffs: makeDream() }))
+      window.clearTimeout(fade)
+      fade = window.setTimeout(() => setDream(null), DREAM_MS)
+    }
     const schedule = () => {
       next = window.setTimeout(() => {
-        if (!document.hidden && phaseRef.current === 'idle') {
-          setDream((d) => ({ id: (d?.id ?? 0) + 1, puffs: makeDream() }))
-          window.clearTimeout(fade)
-          fade = window.setTimeout(() => setDream(null), DREAM_MS)
-        }
+        dreamOnce()
         schedule()
       }, nextDreamDelay(first, Math.random()))
       first = false
     }
+    dreamNow.current = () => {
+      window.clearTimeout(next)
+      first = false
+      dreamOnce()
+      schedule()
+    }
     schedule()
     return () => {
+      dreamNow.current = null
       window.clearTimeout(next)
       window.clearTimeout(fade)
     }
   }, [moving])
+
+  // The room asks for its tell: a dream now (and the wait for its own next one starts afresh).
+  useEffect(() => {
+    if (tell > 0) dreamNow.current?.()
+  }, [tell])
 
   return (
     <SceneObject

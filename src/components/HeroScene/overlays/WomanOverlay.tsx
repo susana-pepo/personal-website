@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
 import { WOMAN_MEDIA, overlay } from '../../../scene/layout'
 import { HOME_CLIP, WOMAN_BREATH, WOMAN_CLIPS, nextClip, restAfter, stillRest, type WomanClip } from '../../../scene/womanClips'
-import { arrivedClipFile, fetchClipFile, fetchLater } from '../../../scene/clipFiles'
+import { afterPainted, arrivedClipFile, fetchClipFile, fetchLater, prepareClip, type PreparedClip } from '../../../scene/clipFiles'
 import { whenSettled } from '../../../scene/entrance'
 import { SceneObject } from './SceneObject'
 
@@ -38,8 +38,10 @@ interface WomanOverlayProps {
  *  - each clip plays once from a fresh copy of its file (so it always starts at its
  *    first frame) and stops on the shared pose; if the next one is a moment late, she
  *    just rests a moment longer;
- *  - the next clip is decoded before it's put on screen, on top of the last one, which
- *    is removed a frame later: never a blank frame;
+ *  - each clip plays as transparent video where the browser can show it (src/scene/clipFiles.ts),
+ *    else as an animated picture: a large animated picture can blink out for a frame, a video holds;
+ *  - the next clip is ready at its first frame before it's put on screen, on top of the last one,
+ *    which is removed only once the new one has been drawn: never a blank frame;
  *  - the still holds her place until the first clip has arrived (it's that clip's first
  *    frame with the chair on top).
  */
@@ -58,53 +60,37 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
     }
     let stopped = false
     let timer: number | undefined
-    let current: { img: HTMLImageElement; url: string } | null = null
+    let current: PreparedClip | null = null
     let hiddenDuringClip = false
     let waitingForVisible = false
     const recent: string[] = []
-    const fetchClip = (clip: WomanClip) => fetchClipFile(clip.src)
 
     /** Puts a fresh copy of a clip on screen, over the last one (same pose); false if it couldn't. */
     const mount = async (clip: WomanClip, fade: boolean) => {
-      const blob = await fetchClip(clip)
-      if (stopped || !blob) return false
-      const url = URL.createObjectURL(blob)
-      const img = new Image()
-      img.alt = ''
-      img.draggable = false
-      // decoded before it's drawn: an animated picture this large would otherwise be drawn blank
-      // (the whole figure blinking out) while the browser catches up with its first frames
-      img.decoding = 'sync'
-      img.dataset.clip = clip.name
-      img.src = url
-      try {
-        await img.decode()
-      } catch {
-        URL.revokeObjectURL(url)
-        return false
-      }
+      const next = await prepareClip(clip.src, clip.name)
+      if (!next) return false
       if (stopped) {
-        URL.revokeObjectURL(url)
+        next.release()
         return false
       }
       const previous = current
-      current = { img, url }
+      current = next
       hiddenDuringClip = document.hidden
-      host.appendChild(img) // on top of the last clip, which shows the same pose
-      // the still (or the last clip, in the same pose) stays underneath a moment, until this one
-      // has surely been drawn: never a blank frame while the browser gets a large clip ready
-      window.setTimeout(() => !stopped && setPlaying(true), SETTLE_MS)
-      const letGo = () => {
-        if (!previous) return
-        previous.img.remove()
-        URL.revokeObjectURL(previous.url)
+      host.appendChild(next.el) // on top of the last clip, which shows the same pose
+      if (fade) next.el.animate([{ opacity: 0 }, { opacity: 1 }], { duration: RECOVER_FADE_MS, easing: 'cubic-bezier(0.45, 0, 0.55, 1)' })
+      try {
+        await next.start() // resolves once its first frame is on screen
+      } catch {
+        next.release()
+        current = previous
+        return false
       }
-      if (fade) {
-        img.animate([{ opacity: 0 }, { opacity: 1 }], { duration: RECOVER_FADE_MS, easing: 'cubic-bezier(0.45, 0, 0.55, 1)' })
-        window.setTimeout(letGo, RECOVER_FADE_MS + 50)
-      } else {
-        window.setTimeout(letGo, SETTLE_MS)
-      }
+      // The still (or the last clip, in the same pose) stays underneath until this one has surely
+      // been drawn: never a blank frame. A video says when its frame is up, so it goes a frame
+      // later; a picture can't, so it waits a while longer.
+      const settle = next.el instanceof HTMLVideoElement ? 0 : SETTLE_MS
+      void afterPainted(settle).then(() => !stopped && setPlaying(true))
+      void afterPainted(fade ? RECOVER_FADE_MS + 50 : settle).then(() => previous?.release())
       return true
     }
 
@@ -189,8 +175,8 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
       window.clearTimeout(moreTimer)
       window.clearTimeout(breathTimer)
       document.removeEventListener('visibilitychange', onVisibility)
-      for (const img of [...host.querySelectorAll('img')]) img.remove()
-      if (current) URL.revokeObjectURL(current.url)
+      current?.release()
+      for (const el of [...host.children]) el.remove()
       setPlaying(false)
     }
   }, [moving])

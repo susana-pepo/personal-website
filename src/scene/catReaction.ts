@@ -43,6 +43,8 @@ export const VIDEO_GRACE_MS = 1500
  * Now and then, with nobody touching it, the sleeping cat lets out a couple of
  * z's on its own. The first comes a little while after the room opens, then
  * one every 30-60 s, never on a fixed beat. `random` is 0-1 (Math.random()).
+ * (Until a visitor has found the cat, the room also asks it for a dream now
+ * and then, as its tell: src/scene/glimmers.ts.)
  */
 export const FIRST_DREAM_MS: readonly [number, number] = [14_000, 24_000]
 export const DREAM_EVERY_MS: readonly [number, number] = [30_000, 60_000]
@@ -62,13 +64,13 @@ export interface CatClip {
 }
 
 /**
- * What a hover brings: the cat either stays asleep (just its purr and z's: null) or plays
- * one of its reaction clips that has arrived. Never the same answer twice running.
- * `last` is the previous answer's name ('asleep' for staying asleep); `random` is 0-1.
+ * What a hover brings: one of its reaction clips that has arrived, never the same one twice
+ * running when there's a choice. Only while none has arrived does it stay asleep (just its
+ * purr and z's: null). `last` is the previous answer's name; `random` is 0-1.
  */
 export function nextReaction(ready: readonly CatClip[], last: string | null, random: number): CatClip | null {
-  const options: (CatClip | null)[] = [null, ...ready]
-  const pool = options.length > 1 ? options.filter((c) => (c?.name ?? 'asleep') !== last) : options
+  if (ready.length === 0) return null
+  const pool = ready.length > 1 ? ready.filter((c) => c.name !== last) : ready
   return pool[Math.min(pool.length - 1, Math.floor(Math.max(0, random) * pool.length))] ?? null
 }
 

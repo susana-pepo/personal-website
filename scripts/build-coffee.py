@@ -22,7 +22,11 @@ import os
 from pathlib import Path
 
 import numpy as np
+from fractions import Fraction
+
 from PIL import Image, ImageSequence
+
+from clip_video import write_videos
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / 'portfolio-website-assets/public/media/coffee-transparent.webp'
@@ -115,8 +119,12 @@ def build(width, quality, out_dir=OUT, prefix='coffee', split=None, light=False)
               f'{os.path.getsize(anim) / 1e6:.2f} MB, crop {crop}')
         return
     anim = out_dir / f'{prefix}-steam.webp'
-    out[0].save(anim, save_all=True, append_images=out[1:], duration=frame_ms, loop=0, lossless=False,
+    tmp = out_dir / f'.{prefix}-steam.tmp.webp'  # written aside, then swapped in: the live file is never half-written
+    out[0].save(tmp, save_all=True, append_images=out[1:], duration=frame_ms, loop=0, lossless=False,
                 quality=quality, alpha_quality=100, method=6, exact=True)
+    os.replace(tmp, anim)
+    # what the page plays (the WebP is the fallback): transparent video, every frame at the loop's pace
+    write_videos(out, [1] * len(out), out_dir / f'{prefix}-steam', fps=Fraction(1000, frame_ms))
     out[0].save(out_dir / f'{prefix}-still.webp', quality=92, alpha_quality=100, method=6, exact=True)
     print(f'{anim}: {len(out)} frames, {len(out) * frame_ms / 1000:.1f} s, {os.path.getsize(anim) / 1e6:.2f} MB, '
           f'{out[0].width}x{out[0].height}, crop {crop}')

@@ -57,6 +57,8 @@ export interface WindowViewMedia {
   animated: string
   /** Its first frame: shown at once, and on its own with reduced motion or a paused room. */
   still: string
+  /** The loop's frame size in pixels (it plays as an H.264 video beside the WebP: LoopClip). */
+  size: readonly [number, number]
   towerLights: TowerLightSpot[]
   cityWindows: CityWindow[]
 }
@@ -79,9 +81,10 @@ export const WINDOW_VIEWS: Record<TimeOfDay, WindowViewMedia> = {
   night: pick(views.night),
 }
 
-function pick(entry: { animated: string; still: string; towerLights?: TowerLightSpot[]; cityWindows?: CityWindow[] }): WindowViewMedia {
+function pick(entry: { animated: string; still: string; size?: number[]; towerLights?: TowerLightSpot[]; cityWindows?: CityWindow[] }): WindowViewMedia {
   return {
     animated: entry.animated,
+    size: [entry.size?.[0] ?? 957, entry.size?.[1] ?? 695],
     still: entry.still,
     towerLights: entry.towerLights ?? [],
     cityWindows: entry.cityWindows ?? [],

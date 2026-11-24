@@ -4,7 +4,8 @@ Usage: python3 scripts/build-window-views.py [dawn midday night] [--detect-only]
 Requires Pillow and numpy. Reads the animated sources in
 portfolio-website-assets/public/media/window-views/<time>-source.webp and writes:
 
-  public/media/scene/window-views/<time>-loop.webp    seamless animated loop
+  public/media/scene/window-views/<time>-loop.mp4     seamless loop as video (what the page plays)
+  public/media/scene/window-views/<time>-loop.webp    the same loop as an animated picture (the fallback)
   public/media/scene/window-views/<time>-still.webp   its first frame (poster)
   src/scene/window-views.json                         where to draw them, plus the
                                                       tower lights, lit city windows and
@@ -36,11 +37,14 @@ bars. For each time:
 """
 import json
 import math
+from fractions import Fraction
 import sys
 from pathlib import Path
 
 import numpy as np
 from PIL import Image
+
+from clip_video import write_opaque_video
 
 ROOT = Path(__file__).resolve().parent.parent
 SRC_DIR = ROOT / 'portfolio-website-assets/public/media/window-views'
@@ -812,6 +816,8 @@ def build(time, painted, glass, box, out_size):
         if size <= MAX_BYTES:
             break
     tmp.replace(anim)
+    # what the page plays (the WebP is the fallback): every frame at the loop's own pace
+    write_opaque_video(loop, [1] * len(loop), OUT_DIR / f'{time}-loop', fps=Fraction(1000, OUT_FRAME_MS))
     kept = loop
     duration = OUT_FRAME_MS
     Image.fromarray(kept[0]).save(still, quality=82, method=6, exact=True)
@@ -819,6 +825,8 @@ def build(time, painted, glass, box, out_size):
     return {
         'animated': f'{PUBLIC_PREFIX}/{anim.name}',
         'still': f'{PUBLIC_PREFIX}/{still.name}',
+        'video': f'{PUBLIC_PREFIX}/{time}-loop.mp4',
+        'size': [int(loop.shape[2]), int(loop.shape[1])],
         'frameMs': duration,
         'frames': len(kept),
         'fit': {'scaleX': round(sx, 5), 'offsetX': round(tx, 2), 'scaleY': round(sy, 5), 'offsetY': round(ty, 2),
@@ -848,7 +856,9 @@ def main(times, detect_only=False):
                     'glass-mask.png is inset and its sill level, so it would leave painted sky beside the bars and under the new view). Per time: towerLights = the TV tower\'s aviation lights '
                     '(x, y, size in canvas px; strength 0-1), cityWindows = lit windows suited to brief lights-off '
                     'covers (canvas px; facade = the wall colour around each), facade = their typical wall colour. '
-                    'fit = how the source was scaled onto the canvas and how far its bars landed from the painted ones.',
+                    'fit = how the source was scaled onto the canvas and how far its bars landed from the painted ones. '
+                    'video = the loop as H.264 video, what the page plays (animated = the same loop as an animated '
+                    'picture, the fallback); size = the loop\'s frame size in pixels (the video is padded to an even size).',
         'default': DEFAULT_TIME,
         'canvasBox': box,
         'mask': f'{PUBLIC_PREFIX}/view-mask.png',

@@ -186,12 +186,19 @@ describe('the cat reacting', () => {
   const name = (c: CatClip | null) => c?.name ?? 'asleep'
   const randoms = Array.from({ length: 60 }, (_, i) => (i + 0.5) / 60)
 
-  it('stays asleep, turns its head or stretches, never the same twice running', () => {
-    for (const last of ['asleep', 'head-turn', 'stretch']) {
-      const seen = new Set(randoms.map((r) => name(nextReaction(both, last, r))))
-      expect(seen.has(last)).toBe(false)
-      expect(seen.size).toBe(2)
+  it('reacts to every hover once a clip has arrived: head-turn and stretch take turns', () => {
+    for (const r of randoms) {
+      expect(name(nextReaction(both, 'head-turn', r))).toBe('stretch')
+      expect(name(nextReaction(both, 'stretch', r))).toBe('head-turn')
+      expect(nextReaction(both, 'asleep', r)).not.toBeNull()
+      expect(nextReaction(both, null, r)).not.toBeNull()
     }
+    expect(new Set(randoms.map((r) => name(nextReaction(both, null, r)))).size).toBe(2)
+  })
+
+  it('plays the one clip that has arrived, even twice running', () => {
+    const one = [clip('stretch')]
+    for (const r of randoms) expect(name(nextReaction(one, 'stretch', r))).toBe('stretch')
   })
 
   it('stays asleep when no reaction clip has arrived', () => {

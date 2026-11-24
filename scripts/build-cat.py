@@ -7,7 +7,8 @@ transparent WebP frames, in portfolio-website-assets/public/media/:
   cat-tail.json      sleeping, with a slow sweep of the tail: now and then, in place of the base
   cat-hover-1.json   a reaction to a hover (tap, keyboard focus): it turns its head a little
   cat-hover-2.json   another reaction: it wakes, stretches its front paws and settles again
-Writes public/media/scene/cat/: cat-<clip>.webp for each, and cat-still.webp (the sleeping
+Writes public/media/scene/cat/: cat-<clip>.webm and .mov for each (transparent video, what the
+page plays: scripts/clip_video.py), cat-<clip>.webp (the fallback), and cat-still.webp (the sleeping
 clip's first frame: shown with reduced motion or a paused room, and the source of its
 outline); updates the cat's box and clip list in src/scene/scene-layout.json.
 
@@ -31,6 +32,8 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageFilter
+
+from clip_video import write_videos
 
 ROOT = Path(__file__).resolve().parent.parent
 MEDIA = ROOT / 'portfolio-website-assets/public/media'
@@ -189,6 +192,7 @@ def build_clip(name, width, quality):
     frames[0].save(tmp, save_all=True, append_images=frames[1:], duration=ms, loop=1,
                    lossless=False, quality=quality, alpha_quality=100, method=6, exact=True)
     os.replace(tmp, anim)
+    write_videos(frames, holds, OUT / f'cat-{name}')  # what the page plays (the WebP is the fallback)
     print(f'{anim}: {len(frames)} frames ({len(layers)} exported + {BRIDGE} bridge), {sum(ms) / 1000:.2f} s, '
           f'{os.path.getsize(anim) / 1e6:.2f} MB, {frames[0].width}x{frames[0].height}')
     if name == HOME:

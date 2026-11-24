@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { useEntered } from '../../../hooks/useEntered'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { LoopClip } from '../overlays/LoopClip'
 import { TIMES, WINDOW_GLASS_STYLE, WINDOW_VIEWS, WINDOW_VIEW_MASK, type TimeOfDay } from '../../../scene/windowViews'
 
 /** A full fade from one view to another, in ms. */
@@ -181,17 +182,12 @@ export function WindowView({ time, motionAllowed, onReady }: WindowViewProps) {
           >
             <img src={media.still} alt="" decoding="async" draggable={false} />
             {loop && (
-              <img
+              <LoopClip
                 src={media.animated}
-                alt=""
-                decoding="async"
-                draggable={false}
+                alpha={false}
+                size={media.size}
                 style={arrived[t] ? undefined : { opacity: 0 }}
-                ref={(img) => {
-                  // Cached images can finish before React attaches onLoad.
-                  if (img?.complete && img.naturalWidth > 0 && !arrived[t]) setArrived((a) => ({ ...a, [t]: true }))
-                }}
-                onLoad={() => setArrived((a) => ({ ...a, [t]: true }))}
+                onArrived={() => setArrived((a) => (a[t] ? a : { ...a, [t]: true }))}
               />
             )}
           </span>

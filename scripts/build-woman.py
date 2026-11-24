@@ -7,7 +7,9 @@ Requires Pillow and numpy. Reads (never changes):
   portfolio-website-assets/public/media/woman-*.json         her clips (Lottie exports of transparent frames)
   portfolio-website-assets/public/media/originals/chair.png  the armchair with its throw
 Writes public/media/scene/woman/:
-  woman-<clip>.webp   each clip, without the chair (the chair is drawn over it)
+  woman-<clip>.webm   each clip, without the chair (the chair is drawn over it), as transparent
+  woman-<clip>.mov    video (what the page plays; scripts/clip_video.py), and as animated WebP
+  woman-<clip>.webp   (the fallback)
   chair.webp          the chair, drawn over her
   woman-still.webp    the shared first frame with the chair on top: shown with reduced motion or a
                       paused room, and the source of her hover outline
@@ -41,6 +43,8 @@ from pathlib import Path
 
 import numpy as np
 from PIL import Image, ImageFilter, ImageSequence
+
+from clip_video import write_videos
 
 ROOT = Path(__file__).resolve().parent.parent
 # Her clips, in the order the page lists them. The first is the home clip: its first frame is the
@@ -695,6 +699,7 @@ def build_clip(name, width, quality):
     frames[0].save(tmp, save_all=True, append_images=frames[1:], duration=ms, loop=1, lossless=False,
                    quality=quality, alpha_quality=100, method=6, exact=True, minimize_size=True)
     os.replace(tmp, anim)
+    write_videos(frames, holds, OUT / f'woman-{name}')  # what the page plays (the WebP is the fallback)
     total = sum(ms)
     print(f'{anim}: {len(frames)} frames ({len(layers)} exported + {BRIDGE} bridge), {total / 1000:.2f} s, '
           f'{os.path.getsize(anim) / 1e6:.2f} MB, {W}x{H}')
@@ -762,6 +767,7 @@ def build_breath(quality):
     frames[0].save(tmp, save_all=True, append_images=frames[1:], duration=ms, loop=1, lossless=False,
                    quality=quality, alpha_quality=100, method=6, exact=True, minimize_size=True)
     os.replace(tmp, anim)
+    write_videos(frames, [1] * len(frames), OUT / 'woman-breath', fps=BREATH_FPS)
     layout = json.loads(LAYOUT.read_text())
     layout['woman']['breath'] = {'name': 'breath', 'src': '/media/scene/woman/woman-breath.webp', 'ms': sum(ms)}
     LAYOUT.write_text(json.dumps(layout, indent=2, ensure_ascii=False) + '\n')

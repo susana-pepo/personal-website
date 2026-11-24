@@ -83,6 +83,17 @@ surfaces or text. No purple, blue or neon. No glows.
   italic on Vinyl Night at 92% opacity. Keyboard focus also traces the object's outline in
   vermilion. On touch screens each object shows a steady 9px vermilion dot ringed in light, and
   the tap area is widened invisibly. The cat is an easter egg ("Shh… sleeping."), not a link.
+- **Glimmers (the room's small surprises):** objects that answer in place instead of opening a
+  section: today the cat (pet it) and the lamp (click it). They have no halo and no label, so each
+  has a *tell*: a small sign of life it gives on its own, in its own voice and drawn in the
+  painting's style (the cat dreams two z's; the lamp wiggles by its shade and its bulb warms).
+  One rule for all of them (`src/scene/glimmers.ts`): right after the room's first look, each
+  unfound glimmer gives its tell once, in turn; then one tell at a time every 12–20 s, taking
+  turns; never while a page is open, the room is paused, the tab is hidden or something is pointed
+  at, and never with reduced motion. Hovering, focusing or tapping one finds it, remembered in the
+  browser; found glimmers stop telling, and once all are found the room is quiet. A new glimmer
+  needs only an entry in `GLIMMERS` and a tell: opacity or a few pixels of movement on its own
+  small marks, never a glow, a label or a layer on the room or on a clip.
 - **Player (centred under the room):** a 44px round button, faintly filled (light at 6%; 12% on
   hover). A 1.25px ring around it traces the loop. Play and pause icons
   cross-fade with a 0.7 scale and 2px blur. Pressing scales it to 0.94. Beside it: the title in

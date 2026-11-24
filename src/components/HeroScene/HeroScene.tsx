@@ -22,6 +22,8 @@ import { LampLiquid } from './lamp/LampLiquid'
 import { LampColour } from './lamp/LampColour'
 import { nextTone, splashColour, toneAt } from '../../scene/lampTones'
 import { LampSplash, type LampSplashHandle } from './lamp/LampSplash'
+import { findGlimmer, isGlimmer } from '../../scene/glimmers'
+import { useGlimmerTells } from './useGlimmerTells'
 import { TowerLight } from './window/TowerLight'
 import { LaptopTerminal } from './overlays/LaptopTerminal'
 import { useSection } from '../../hooks/useSection'
@@ -79,6 +81,9 @@ const discoveryIndex = (id: string) => DISCOVERY_ORDER.indexOf(id)
 const DISCOVERY_DELAY_MS = 2100
 const DISCOVERY_STEP_MS = 180
 const DISCOVERY_TOTAL_MS = DISCOVERY_DELAY_MS + (DISCOVERY_ORDER.length - 1) * DISCOVERY_STEP_MS + 820 + 100
+/** How long the lamp's bulb stays warm when it gives its tell. */
+const LAMP_TELL_MS = 900
+
 /** The lamp's current light, as announced (or that it's off). */
 const lampName = (step: number) => {
   const tone = toneAt(step)
@@ -264,9 +269,34 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   useEffect(() => {
     if (lampLit) lampSplash.current?.tease()
   }, [lampLit])
+
+  // The room's small surprises (the cat, the lamp) have no glow or label: until a visitor has
+  // found them, each gives its tell now and then (src/scene/glimmers.ts). Pointing at one,
+  // focusing it or tapping it finds it.
+  const tells = useGlimmerTells({
+    moving: playback.motionAllowed && !reducedMotion,
+    firstLookDone: discovery === 'done',
+    busy: active !== null,
+  })
+  useEffect(() => {
+    if (isGlimmer(active)) findGlimmer(active)
+  }, [active])
+  // The lamp's tell: its tease (the wiggle by the shade) and its bulb warming, for a moment.
+  const [lampTelling, setLampTelling] = useState(false)
+  useEffect(() => {
+    if (tells.lamp === 0) return
+    lampSplash.current?.tease()
+    setLampTelling(true)
+    const done = window.setTimeout(() => setLampTelling(false), LAMP_TELL_MS)
+    return () => window.clearTimeout(done)
+  }, [tells.lamp])
   const onAction = useCallback((action: HotspotAction) => {
     setExplored(true)
-    if (action === 'pet') catRef.current?.pet()
+    if (action === 'pet') {
+      findGlimmer('cat')
+      catRef.current?.pet()
+    }
+    if (action === 'light') findGlimmer('lamp')
     if (action === 'light') {
       const next = nextTone(lampToneRef.current)
       lampToneRef.current = next
@@ -411,6 +441,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
               highlighted={litOverlay === 'cat'}
               discoveryIndex={-1}
               onReaction={onCatReaction}
+              tell={tells.cat}
             />
           </PressedObject>
           {/* Evening mood over the room and every object; the lamp's light sits above it. */}
@@ -420,7 +451,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
           <span className="time-light time-light--night" aria-hidden="true" />
           <PowerLight highlighted={litOverlay === 'vinyl'} motionAllowed={playback.motionAllowed} />
 
-          <LampLiquid motionAllowed={playback.motionAllowed} tone={lampTone} hovered={lampLit} />
+          <LampLiquid motionAllowed={playback.motionAllowed} tone={lampTone} hovered={lampLit || lampTelling} />
           <LampColour tone={lampTone} />
           <LampSplash ref={lampSplash} />
 

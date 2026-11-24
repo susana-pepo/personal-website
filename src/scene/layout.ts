@@ -105,6 +105,8 @@ export const WOMAN_MEDIA = {
 export const COFFEE_MEDIA = {
   animated: coffee.animated,
   still: coffee.still,
+  /** The steam loop's frame size in pixels (its videos are padded to an even size: LoopClip). */
+  size: (overlays.find((o) => o.id === 'coffee')!.intrinsic as [number, number]) as readonly [number, number],
 } as const
 
 /** The record player's moving parts (positions in the body image's own pixels). */

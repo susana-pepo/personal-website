@@ -148,7 +148,8 @@
 
 /* Her clips play stacked in one box under the chair (see WomanOverlay). */
 .woman__clips,
-.woman__clips > img {
+.woman__clips > img,
+.woman__clips > video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -164,9 +165,33 @@
   object-fit: contain;
 }
 
-/* The woman is the largest figure in the room: she only leans in slightly. */
-.scene-object--woman {
-  --hover-scale: 1.015;
+/* A clip's video can be a pixel taller or wider than its picture (video sizes are even, padded
+   with transparent pixels on the right and at the bottom), so it's laid from the top left at the
+   picture's own scale, the padding falling just outside the box. */
+.woman__clips > video,
+.cat__clips > video {
+  display: block;
+  object-fit: cover;
+  object-position: 0 0;
+  pointer-events: none;
+}
+
+/* The woman and the cat never grow, sink or get a layer of their own: their clips are large
+   animated pictures, and on a layer of their own (which any transform, or will-change, gives
+   them) Chrome drops them for single frames on Retina screens, so they blink out. Their hover
+   answer is light (her halo) and movement (the cat's reaction) instead. */
+.scene .scene-object--woman,
+.scene .scene-object.cat {
+  --hover-scale: 1;
+  --press-depth: 0;
+}
+
+.scene .scene-object--woman[data-highlighted],
+.scene .scene-object.cat[data-highlighted],
+.scene .scene-object--woman[data-pressed],
+.scene .scene-object.cat[data-pressed] {
+  transform: none;
+  will-change: auto;
 }
 
 /* Contact shadow: grounds an object on its surface (the record player on the cabinet). */
@@ -285,7 +310,8 @@
 }
 
 .cat__clips,
-.cat__clips > img {
+.cat__clips > img,
+.cat__clips > video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -802,7 +828,10 @@
   }
 }
 
-/* ── Touch markers: a small, steady dot on each object (tablets) ── */
+/* ── Touch markers: a small glint of lamplight on each object (phones and tablets) ──
+   Where a pointer can hover, the objects answer by themselves; a finger needs to be shown
+   where to tap. A warm bead of light rather than a coloured pin: it belongs to the painting's
+   lamplight, with a faint dark edge so it still reads on the pale wall and the window. */
 .hotspot-marker {
   display: none;
 }
@@ -811,15 +840,18 @@
   .hotspot-marker {
     display: block;
     position: absolute;
-    width: 9px;
-    height: 9px;
+    width: 7px;
+    height: 7px;
     border-radius: 50%;
-    background: var(--spot);
+    background: radial-gradient(circle at 40% 35%, oklch(0.995 0.01 90), oklch(0.93 0.06 82));
     box-shadow:
-      0 0 0 3px oklch(0.935 0.008 80 / 0.7),
-      0 1px 4px oklch(0.12 0.008 45 / 0.5);
+      0 0 0 0.5px oklch(0.25 0.03 45 / 0.35),
+      0 0 0 4px oklch(0.97 0.03 85 / 0.18),
+      0 0 10px 3px oklch(0.88 0.11 75 / 0.55),
+      0 1px 3px oklch(0.12 0.008 45 / 0.45);
     transform: translate(-50%, -50%);
     transition: opacity var(--dur-soft) var(--ease-out);
+    pointer-events: none;
   }
 
   .hotspot-marker[data-hidden] {
@@ -1100,7 +1132,8 @@
 }
 
 .window-view__layer,
-.window-view__layer > img {
+.window-view__layer > img,
+.window-view__layer > video {
   position: absolute;
   inset: 0;
   width: 100%;
@@ -1356,7 +1389,8 @@
 
 /* ── The coffee's steam thins out as it rises: untouched at the mug (its rim is
    52% down the artwork), easing to nothing at the top, so it stays a quiet wisp. ── */
-.coffee .scene-object__art img {
+.coffee .scene-object__art img,
+.coffee .scene-object__art video {
   -webkit-mask-image: linear-gradient(
     to bottom,
     transparent 2%,
@@ -1528,24 +1562,10 @@
   }
 }
 
-/* ── The cat: no glow, just a quiet, slow lean towards you on hover, and a quick settle back
-   when you leave (this rule's 260ms; the lean in is the 520ms below). ── */
+/* ── The cat: no glow and no lean (see .scene-object--woman, near the top): its hover answer is
+   one of its reaction clips. ── */
 .scene-object.cat {
-  --hover-scale: 1.025;
-  --hover-in: 520ms;
-  transition:
-    opacity 500ms var(--ease-out),
-    transform 260ms cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-/* Only where things may move: the reduced-motion rule that stills the cat weighs the same and
-   comes earlier, so this must not apply there. */
-@media (prefers-reduced-motion: no-preference) {
-  .scene-object.cat[data-highlighted] {
-    transition:
-      opacity 500ms var(--ease-out),
-      transform var(--hover-in) cubic-bezier(0.4, 0, 0.2, 1);
-  }
+  transition: opacity 500ms var(--ease-out);
 }
 
 /* ── The record player's power light: the left front button glows red from
