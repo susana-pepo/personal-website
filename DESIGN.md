@@ -152,6 +152,11 @@ bold or an italic.
     with reduced motion; never on touch or for the keyboard.
   - **Always an answer.** A pet while the cat is still answering the last one doesn't start
     over, but it never goes unanswered: a purr floats up from its head every time.
+  - **A purr that follows the hand.** A real cat's purr (a CC0 recording, `src/audio/purr.ts`)
+    starts softly as a pet begins, grows fuller the more the hand strokes, settles to a quiet
+    resting purr when the hand stays still and fades as it leaves; a click swells it a little.
+    Browsers allow sound only after a click, so it is first heard on a click on the cat; after
+    that, stroking alone purrs. It is as loud as the music is set (30% by default).
   - **Found is for good.** Hovering, focusing or tapping one finds it, remembered in the browser;
     its hint stops (the cat keeps its occasional cream dreams). When all are found the room is
     quiet. A new glimmer needs an entry in `GLIMMERS` and one moonlight hint in its own nature.

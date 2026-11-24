@@ -61,7 +61,7 @@ export interface RadioPrefs {
   rainLevel: number | null
 }
 
-export const DEFAULT_PREFS: RadioPrefs = { station: 'lofi', index: 0, musicLevel: 0.85, rainLevel: null }
+export const DEFAULT_PREFS: RadioPrefs = { station: 'lofi', index: 0, musicLevel: 0.3, rainLevel: null }
 
 const level = (value: unknown): number | undefined =>
   typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1 ? value : undefined

@@ -4,6 +4,7 @@ import { usePrefersReducedMotion } from '../../hooks/useMediaQuery'
 import { dismissDiscoveryHint } from '../../lib/discovery'
 import { hrefFor } from '../../lib/router'
 import { HOTSPOTS, SCENE_HEIGHT, SCENE_WIDTH, pctX, pctY, toPathData, type Hotspot, type HotspotAction } from '../../scene/hotspots'
+import { purrHover, purrPat, purrStroke } from '../../audio/purr'
 import { GlimmerCursor } from './GlimmerCursor'
 import './HotspotSpeech.css'
 
@@ -284,7 +285,10 @@ function ReachArea({
     <path
       className="hotspot__reach"
       d={d}
-      onClick={() => onAction(hotspot.action!)}
+      onClick={() => {
+        if (hotspot.action === 'pet') purrPat()
+        onAction(hotspot.action!)
+      }}
       {...handlers}
     />
   )
@@ -343,6 +347,7 @@ export function InteractiveHotspot({
 }: InteractiveHotspotProps) {
   const d = PATHS.get(hotspot.id)
   const spaceDown = useRef(false)
+  const stroke = useRef<{ x: number; y: number; t: number } | null>(null)
   const shared = {
     className: `hotspot${hotspot.overlay ? ' hotspot--overlay' : ''}`,
     'data-object': hotspot.id,
@@ -351,6 +356,10 @@ export function InteractiveHotspot({
     onPointerEnter: (event: PointerEvent<Element>) => {
       onEnter(hotspot.id)
       if (hotspot.action && event.pointerType === 'mouse') onHand(hotspot.action)
+      if (hotspot.action === 'pet' && event.pointerType === 'mouse') {
+        stroke.current = { x: event.clientX, y: event.clientY, t: event.timeStamp }
+        purrHover(true)
+      }
       // The cat purrs as soon as a mouse comes near (touch has no hover: a tap does it).
       // The lamp waits for a click.
       if (hotspot.action === 'pet' && event.pointerType === 'mouse') onAction(hotspot.action)
@@ -359,7 +368,19 @@ export function InteractiveHotspot({
       onRelease(hotspot.id)
       onLeave(hotspot.id)
       if (hotspot.action) onHand(null)
+      if (hotspot.action === 'pet') purrHover(false)
     },
+    // stroking the cat: how fast the hand moves sets how full its purr is
+    onPointerMove:
+      hotspot.action === 'pet'
+        ? (event: PointerEvent<Element>) => {
+            if (event.pointerType !== 'mouse') return
+            const last = stroke.current
+            stroke.current = { x: event.clientX, y: event.clientY, t: event.timeStamp }
+            const dt = last ? (event.timeStamp - last.t) / 1000 : 0
+            if (last && dt > 0) purrStroke(Math.hypot(event.clientX - last.x, event.clientY - last.y) / dt)
+          }
+        : undefined,
     ...pressHandlers(hotspot.id, onPress, onRelease),
     onFocus: (event: FocusEvent<Element>) => {
       // Only light up for keyboard focus, not after a mouse click.
@@ -395,7 +416,11 @@ export function InteractiveHotspot({
     )
   }
 
-  const activate = () => onAction(hotspot.action!)
+  // a click, tap or key: on the cat, a pat (which is also what first lets its purr be heard)
+  const activate = () => {
+    if (hotspot.action === 'pet') purrPat()
+    onAction(hotspot.action!)
+  }
   return (
     <g
       {...shared}
