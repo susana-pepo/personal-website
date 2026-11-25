@@ -684,6 +684,14 @@
   color: oklch(0.94 0.012 80 / 0.86);
 }
 
+/* (on a phone it's left out: there's no keyboard there, and the piano says it all; a screen reader
+   still hears it, as the keys' description) */
+@media (max-width: 639px) {
+  .piano-close__how {
+    display: none;
+  }
+}
+
 /* Close, in the room's quiet style (as on a page). */
 .piano-close__close {
   justify-self: end;
