@@ -820,6 +820,12 @@
     .cv-desk .cv-pile--beside > .cv-page {
       grid-column: 1 / -1;
     }
+
+    /* Stacked, the rows still alternate: every other company and its books keep right. */
+    .cv-desk > .cv-pile--beside:nth-child(even) > :is(.cv-company, .xp-desk) {
+      justify-self: end;
+      text-align: end;
+    }
   }
 }
 

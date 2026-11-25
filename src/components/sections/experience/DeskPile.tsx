@@ -115,6 +115,8 @@ export function DeskPile<T extends DeskItem>({
         const book: Book = {
           title: entry.title,
           author: entry.byline ?? "",
+          // Printed as given ("MA · BA"), not cut to its last word as an author's surname is.
+          spineAuthor: entry.byline ?? "",
           shelf: "loved",
           ...binding,
         };
