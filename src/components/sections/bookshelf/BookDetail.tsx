@@ -51,20 +51,26 @@ export function BookDetail({ placed, onPutBack }: BookDetailProps) {
 
       <div className="bs-detail__text">
         <div className="bs-detail__head">
-          <h4 className="bs-detail__title">{book.title}</h4>
-          <p className="bs-detail__author">{book.author}</p>
+          <div>
+            <h4 className="bs-detail__title">{book.title}</h4>
+            <p className="bs-detail__author">{book.author}</p>
+          </div>
+          {/* Collapses the drawer: the book goes back on the shelf. The same chevron in a ring as
+              Experience's pages and Music's desk. */}
+          <button type="button" className="bs-put-back" aria-label="Put it back" onClick={onPutBack}>
+            <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
+              <path d="M2.5 7.75 6 4.25l3.5 3.5" />
+            </svg>
+          </button>
         </div>
         {book.note && <p className="bs-detail__note">{book.note}</p>}
-        <p className="bs-detail__actions">
-          {book.href && (
+        {book.href && (
+          <p className="bs-detail__actions">
             <a className="text-link" href={book.href} target="_blank" rel="noreferrer">
               More about this book<span className="visually-hidden"> (opens in a new tab)</span>
             </a>
-          )}
-          <button type="button" className="text-link text-button bs-put-back" onClick={onPutBack}>
-            Put it back
-          </button>
-        </p>
+          </p>
+        )}
       </div>
     </div>
   )

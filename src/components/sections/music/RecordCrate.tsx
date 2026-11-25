@@ -259,7 +259,7 @@ export function RecordCrate({ records, heading, description, variant = 'records'
         {description && <p className="music-head__description">{description}</p>}
       </div>
 
-      <div>
+      <div className="crate-wrap">
         <p className="visually-hidden" id={`${baseId}-hint`}>
           Use the arrow keys to flip through, Enter to take {disc ? 'a record' : 'one'} out.
         </p>

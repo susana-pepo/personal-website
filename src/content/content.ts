@@ -381,10 +381,6 @@ export const content: SiteContent = {
       // e.g. { url: 'https://open.spotify.com/album/…', subtitle: 'Artist name', note: 'Why I love it.' }
       items: [
         { url: 'https://open.spotify.com/artist/1hcdI2N1023RvSwLzTtdsp' },
-        {
-          url: 'https://open.spotify.com/album/4SWs218VfFoKTFwbJOHdYK',
-          subtitle: 'Michal Mašek, Czech Chamber Philharmonic Orchestra Pardubice',
-        },
         { url: 'https://open.spotify.com/playlist/3Vah9wEV94Rq8NB3zp5lGd', subtitle: 'MAREANA' },
         {
           // Spotify lists this Brendel release under its Japanese title.
@@ -402,8 +398,6 @@ export const content: SiteContent = {
           subtitle: 'Natalia Lafourcade, Los Macorinos',
         },
         { url: 'https://open.spotify.com/album/02m1qgJzjEADPa353lcevb', subtitle: 'Crudo Means Raw' },
-        { url: 'https://open.spotify.com/album/2XV09AHUpmULZitCs1lgxr', subtitle: 'Mercedes Sosa' },
-        { url: 'https://open.spotify.com/album/45mjE1xZTbnfO9xe3q72bP', subtitle: 'Carlos Gardel' },
         { url: 'https://open.spotify.com/album/7sK3EbpjZwqnqwMPMwkJIT', subtitle: 'András Schiff' },
         { url: 'https://open.spotify.com/playlist/6nQQkRhfBJ0ulQ2xh4fQWt', subtitle: 'Santiago Moncada' },
         { url: 'https://open.spotify.com/playlist/5ogFDPsZtO0QRwQQEgPA0r', subtitle: 'Santiago Moncada' },

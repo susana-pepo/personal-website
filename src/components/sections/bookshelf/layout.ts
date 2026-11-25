@@ -37,4 +37,19 @@ export function shelfLayout(width: number, rem: number, desktop: boolean): Shelf
   }
 }
 
+/** The smallest the books may get to fit a short desktop panel: below this the spines' lettering stops reading. */
+export const FIT_MIN = 0.72
+
+/**
+ * How much to scale every book (bookshelf.css's --fit, a factor on the book unit) so the page fits
+ * the desktop panel without scrolling. `available` is the panel body's height, `fixed` everything on
+ * the page but the bays (the boards and the books on them), `bays` their height at full size. Never
+ * larger than full size, never under FIT_MIN; rounded down so the page never overflows by a pixel.
+ */
+export function fitScale(available: number, fixed: number, bays: number, min = FIT_MIN): number {
+  if (available <= 0 || bays <= 0) return 1
+  const k = (available - fixed) / bays
+  return Math.min(1, Math.max(min, Math.floor(k * 1000) / 1000))
+}
+
 export const remPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16

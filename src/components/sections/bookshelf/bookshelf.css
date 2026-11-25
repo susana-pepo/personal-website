@@ -91,7 +91,7 @@
 
 .bs-shelves[data-paired] > [data-shelf='reading'] > .bs-shelf__title,
 .bs-shelves[data-paired] > [data-shelf='reading'] .bs-bay,
-.bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name {
+.bs-shelves[data-paired] > [data-shelf='reading'] .bs-caption {
   grid-column: 1;
 }
 
@@ -101,30 +101,15 @@
   grid-column: 2;
 }
 
-/* The current read's title and author sit under its board, level with the caption under the other. */
-.bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name,
-.bs-shelves[data-paired] > [data-shelf='work'] .bs-caption {
+/* Each names the book pointed at under its own part of the board, on one line. */
+.bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) .bs-caption {
   grid-row: 3;
   align-self: start;
 }
 
-.bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name {
-  margin-top: var(--space-2xs);
-}
-
-.bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__note,
 .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) > .bs-drawer {
   grid-column: 1 / -1;
   grid-row: 4;
-}
-
-/* A book from either upper shelf opens where the note was; the note steps back meanwhile. */
-.bs-shelves[data-paired]:has(> [data-shelf='work'] > .bs-drawer[data-open]) .bs-feature__note {
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity var(--dur-quick) ease,
-    visibility 0s linear var(--dur-quick);
 }
 
 /* Two drawers share that cell. Going straight from a book on one shelf to a book on the
@@ -145,7 +130,6 @@
   margin-top: var(--space-lg);
 }
 
-
 .bs-shelf__title {
   margin-bottom: var(--space-2xs);
   font-family: var(--font-display);
@@ -156,12 +140,11 @@
   text-wrap: balance;
 }
 
-/* Reading now: the cover, larger, on a short board, its title and author beside it and her
-   note beneath both, the full width of the column. Opened, the book's drawer takes the note's
-   cell (row 3 here, row 4 beside Books for work) and the note steps back, so it never shows twice. */
+/* Reading now: the cover, larger, on a short board, behaving as every other shelf does: it is
+   named beneath when pointed at, and her note opens in the drawer when the book is chosen. */
 .bs-shelf[data-shelf='reading'] {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   column-gap: var(--space-md);
 }
 
@@ -169,8 +152,7 @@
   grid-column: 1 / -1;
 }
 
-.bs-feature,
-.bs-feature__text {
+.bs-feature {
   display: contents;
 }
 
@@ -178,51 +160,21 @@
   --u: 1.25px;
   grid-column: 1;
   grid-row: 2;
+  margin-inline: auto;
+}
+
+.bs-feature .bs-caption {
+  grid-column: 1 / -1;
+  grid-row: 3;
 }
 
 .bs-feature .bs-row {
   padding-right: calc(18 * var(--u));
 }
 
-.bs-feature__name {
-  grid-column: 2;
-  grid-row: 2;
-  align-self: center;
-}
-
-.bs-feature__note,
 .bs-shelf[data-shelf='reading'] > .bs-drawer {
   grid-column: 1 / -1;
-  grid-row: 3;
-}
-
-.bs-feature__title {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--text-item);
-  line-height: 1.3;
-  letter-spacing: -0.005em;
-  text-wrap: balance;
-}
-
-.bs-feature__author {
-  margin-top: 0.3rem;
-  font-family: var(--font-sans);
-  font-size: 0.9375rem;
-  color: var(--ink-3);
-}
-
-.bs-feature__note {
-  /* Her own words: in Geist's true italic (fonts.css), never a slanted copy of the upright face. */
-  font-style: italic;
-  /* about 60 to 65 characters a line at its widest (DM Sans runs wide, so not in ch) */
-  max-width: 30rem;
-  margin-top: var(--space-sm);
-  font-family: var(--font-sans);
-  /* the size of the panel's section tabs (.panel__tabs a), a step under the reading text */
-  font-size: 0.9375rem;
-  line-height: 1.6;
-  color: var(--ink-2);
+  grid-row: 4;
 }
 
 /* The book under the pointer or focus, named in full beneath the board. */
@@ -292,15 +244,11 @@
   scrollbar-color: var(--rule-card-strong) transparent;
 }
 
+/* The shelves sit on the same glass as every other page: no warm pool of their own behind
+   them (it made the panel read lighter and patchier here than elsewhere). The lamp that
+   lights the glass is the room's. */
 .bs-lamp {
-  position: absolute;
-  z-index: 0;
-  top: -18%;
-  right: -12%;
-  width: 78%;
-  height: 120%;
-  pointer-events: none;
-  background: radial-gradient(closest-side, oklch(0.9 0.075 78 / 0.22), oklch(0.9 0.075 78 / 0.08) 55%, transparent);
+  display: none;
 }
 
 .bs-board {
@@ -848,9 +796,80 @@
   transition: color var(--dur-quick) ease;
 }
 
+/* The opened book's title and author, with the chevron that puts it back level with the title. */
+.bs-detail__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-sm);
+}
+
+/*
+ * Putting the book back: a small chevron in a thin ring at the top right, level with the title,
+ * pointing up to the shelf. As Experience's pages close (panel-sections.css, .cv-page__close):
+ * quiet until hovered or focused, a 44px target with the ring drawn inside it.
+ */
 .bs-put-back {
+  position: relative;
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  margin: -0.6rem -0.375rem 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--ink-3);
-  text-decoration-color: var(--rule-card-strong);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.bs-put-back::before {
+  content: '';
+  position: absolute;
+  inset: 7px;
+  border-radius: 50%;
+  border: 1px solid oklch(0.93 0.012 80 / 0.16);
+  background: oklch(0.93 0.012 80 / 0.03);
+  transition:
+    border-color var(--dur-quick) ease,
+    background-color var(--dur-quick) ease;
+}
+
+.bs-put-back svg {
+  position: relative;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: transform var(--dur-quick) var(--ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .bs-put-back:hover {
+    color: var(--ink);
+  }
+
+  .bs-put-back:hover::before {
+    border-color: oklch(0.93 0.012 80 / 0.3);
+    background: oklch(0.93 0.012 80 / 0.07);
+  }
+
+  .bs-put-back:hover svg {
+    transform: translateY(-1px);
+  }
+}
+
+.bs-put-back:focus-visible {
+  outline: none;
+  color: var(--ink);
+}
+
+.bs-put-back:focus-visible::before {
+  outline: 2px solid var(--spot-ink);
+  outline-offset: 2px;
 }
 
 /* ── Sizes: the book unit follows the width of the panel ── */
@@ -866,15 +885,6 @@
 
   .bs-feature .bs-bay {
     --u: 1.45px;
-  }
-
-  .bs-feature__title {
-    font-size: var(--text-md);
-  }
-
-  .bs-feature__author {
-    margin-top: 0.15rem;
-    font-size: var(--text-sm);
   }
 }
 
@@ -892,27 +902,106 @@
     column-gap: var(--pair-gap);
   }
 
-  /* Books I love is about 480 units long. */
+  /* Books I love is about 480 units long. Every unit is scaled by --fit, so the page fits the
+     panel's height without scrolling (BookshelfSection.tsx; 1 when there is room). */
   .bs-bay {
-    --u: min(1.3px, calc(100cqi / 480));
+    --u: calc(min(1.3px, calc(100cqi / 480)) * var(--fit, 1));
   }
 
   /* The current read's bay is about 124 units wide, in the 2fr column; Books for work's about 197, in the 3fr. */
   .bs-shelves[data-paired] .bs-feature .bs-bay {
-    --u: min(1.45px, calc((100cqi - var(--pair-gap)) * 0.4 / 126));
+    --u: calc(min(1.45px, calc((100cqi - var(--pair-gap)) * 0.4 / 126)) * var(--fit, 1));
   }
 
   .bs-shelves[data-paired] [data-shelf='work'] .bs-bay {
-    --u: min(1.4px, calc((100cqi - var(--pair-gap)) * 0.6 / 200));
+    --u: calc(min(1.4px, calc((100cqi - var(--pair-gap)) * 0.6 / 200)) * var(--fit, 1));
   }
 
-  .bs-feature__title {
-    font-size: var(--text-md);
+  /* One board under both upper shelves, the full width of the column, as long as Books I love's:
+     it lies in their shared row of bays, at its foot, painted before (under) the books, and as
+     thick as Books for work's own. They draw no boards of their own (ShelfRow's sharedBoard). */
+  .bs-board--shared {
+    --u: calc(min(1.4px, calc((100cqi - var(--pair-gap)) * 0.6 / 200)) * var(--fit, 1));
+    grid-column: 1 / -1;
+    grid-row: 2;
+    align-self: end;
+    margin-top: 0;
+    pointer-events: none;
   }
 
-  .bs-feature__author {
-    margin-top: 0.15rem;
-    font-size: var(--text-sm);
+  /* In place of their own boards, the room one would take, so the books stand where they did. */
+  .bs-board-space {
+    display: block;
+    height: calc(14 * var(--u));
+  }
+
+  /* Under the two upper shelves the book pointed at is named on one line, title and author,
+     never broken: it may run past its half of the row (only one is named at a time). Reading
+     now's cover and its name start at the column's edge, so the name runs on to the right. */
+  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) .bs-caption {
+    width: max-content;
+    white-space: nowrap;
+    justify-self: center;
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-caption {
+    justify-self: start;
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-bay {
+    margin-inline: 0;
+  }
+
+  /* Their lamplight stays on the books: on the shared board it would light two patches of it. */
+  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) .bs-lamp {
+    height: auto;
+    bottom: calc(18 * var(--u));
+  }
+
+  /* A little tighter than the other pages, so it fits: 1.5rem above Books I love and at the foot. */
+  .panel__page:has(> .section.bookshelf) {
+    padding-bottom: 1.5rem;
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='loved'] {
+    margin-top: 1.5rem;
+  }
+
+  /* Books I love names the book pointed at on its heading row, not on a line of its own beneath. */
+  .bs-shelves[data-paired] > [data-shelf='loved'] {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--space-md);
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='loved'] .bs-plain {
+    display: contents;
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='loved'] > .bs-shelf__title {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  /* A fixed height at the foot of the heading row, so a name appearing never changes the row's
+     height (which would make the books refit by a hair); level with the heading's baseline. */
+  .bs-shelves[data-paired] > [data-shelf='loved'] .bs-caption {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: end;
+    height: 1.5em;
+    min-height: 0;
+    margin-bottom: var(--bs-caption-drop, 0.55em);
+    margin-top: 0;
+    overflow: hidden;
+    text-align: right;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .bs-shelves[data-paired] > [data-shelf='loved'] .bs-bay,
+  .bs-shelves[data-paired] > [data-shelf='loved'] > .bs-drawer {
+    grid-column: 1 / -1;
   }
 
   /* An opened book keeps its cover beside its words in a narrower desktop drawer too: the turned
@@ -987,11 +1076,6 @@
 
     .bs-feature .bs-bay {
       --u: 1.1px;
-    }
-
-    .bs-feature__title {
-      font-size: var(--text-md);
-      text-wrap: balance;
     }
 
     [data-shelf='work'] .bs-bay {
@@ -1077,31 +1161,6 @@
   }
 }
 
-/* Reading now: while its book is out the drawer names it and holds the note, so the words by
-   the cover step back and the note gives the drawer its cell. The note returns a beat after the
-   drawer's words have gone. */
-.bs-feature__name {
-  transition: opacity var(--dur-soft) ease;
-}
-
-.bs-feature__note {
-  transition:
-    opacity var(--dur-soft) ease 120ms,
-    visibility 0s linear 0s;
-}
-
-[data-shelf='reading']:has(> .bs-drawer[data-open]) .bs-feature__name {
-  opacity: 0;
-}
-
-[data-shelf='reading']:has(> .bs-drawer[data-open]) .bs-feature__note {
-  opacity: 0;
-  visibility: hidden;
-  transition:
-    opacity var(--dur-quick) ease,
-    visibility 0s linear var(--dur-quick);
-}
-
 /* ── Reduced motion: no lift, tilt or turn; every change is a short fade ── */
 @media (prefers-reduced-motion: reduce) {
   .bs-book,
@@ -1145,6 +1204,12 @@
     transform: none !important;
   }
 
+  .bs-put-back svg,
+  .bs-put-back:hover svg {
+    transition: none;
+    transform: none;
+  }
+
   .bs-drawer[data-open] .bs-detail {
     animation-name: bs-fade;
   }
@@ -1159,22 +1224,4 @@
     transition: none;
   }
 
-  /* The current read's name and note: a short fade each way, the note's return without its
-     beat of delay; visibility follows the fade out, and comes back at once. */
-  .bs-feature__name {
-    transition: opacity 140ms ease;
-  }
-
-  .bs-feature__note {
-    transition:
-      opacity 140ms ease,
-      visibility 0s linear 0s;
-  }
-
-  [data-shelf='reading']:has(> .bs-drawer[data-open]) .bs-feature__note,
-  .bs-shelves[data-paired]:has(> [data-shelf='work'] > .bs-drawer[data-open]) .bs-feature__note {
-    transition:
-      opacity 140ms ease,
-      visibility 0s linear 140ms;
-  }
 }

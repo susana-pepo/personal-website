@@ -83,6 +83,13 @@ export function Desk({ record, out, sleeveShown, sleeveRef, disc = true, onPutBa
       </div>
 
       <div className="desk__notes">
+        {/* Collapses the desk: the record goes back in the crate. The same chevron in a ring as
+            Experience's pages and the Bookshelf's books. */}
+        <button type="button" className="desk__close" aria-label="Put it back" onClick={onPutBack}>
+          <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true" focusable="false">
+            <path d="M2.5 7.75 6 4.25l3.5 3.5" />
+          </svg>
+        </button>
         {kindLine && <p className="desk__kind">{kindLine}</p>}
         <h4 className="desk__title">{record.title || 'Loading…'}</h4>
         {record.artist && <p className="desk__artist">{record.artist}</p>}
@@ -129,9 +136,6 @@ export function Desk({ record, out, sleeveShown, sleeveRef, disc = true, onPutBa
               <span className="visually-hidden"> (opens in a new tab)</span>
             </a>
           )}
-          <button type="button" className="text-button text-link" onClick={onPutBack}>
-            Put it back
-          </button>
         </div>
       </div>
 

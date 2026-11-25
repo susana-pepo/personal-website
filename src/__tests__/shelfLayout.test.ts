@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { NARROW_REM, PAIR_REM, shelfLayout } from '../components/sections/bookshelf/layout'
+import { FIT_MIN, fitScale, NARROW_REM, PAIR_REM, shelfLayout } from '../components/sections/bookshelf/layout'
 
 const REM = 16
 
@@ -24,5 +24,27 @@ describe('shelfLayout', () => {
   it('follows the reader’s text size', () => {
     expect(shelfLayout(480, 20, false).narrow).toBe(true) // 24rem
     expect(shelfLayout(600, 20, false).paired).toBe(false) // 30rem
+  })
+})
+
+describe('fitScale', () => {
+  it('scales the books down just enough for the page to fit the panel', () => {
+    // 675px of panel, 330px of everything else, 440px of shelves at full size
+    const k = fitScale(675, 330, 440)
+    expect(k).toBeCloseTo(345 / 440, 3)
+    expect(330 + 440 * k).toBeLessThanOrEqual(675)
+  })
+
+  it('never makes the books larger than their full size', () => {
+    expect(fitScale(1000, 300, 400)).toBe(1)
+  })
+
+  it('stops at the smallest size the spines still read at', () => {
+    expect(fitScale(500, 400, 500)).toBe(FIT_MIN)
+  })
+
+  it('leaves the books alone before anything is measured', () => {
+    expect(fitScale(0, 300, 400)).toBe(1)
+    expect(fitScale(675, 300, 0)).toBe(1)
   })
 })

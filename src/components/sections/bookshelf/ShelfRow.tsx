@@ -32,9 +32,11 @@ interface ShelfRowProps {
   onPutBack: () => void
   idBase: string
   reducedMotion: boolean
+  /** The shelf stands on a board it shares with its neighbour (BookshelfSection): it draws none of its own. */
+  sharedBoard?: boolean
 }
 
-export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, reducedMotion }: ShelfRowProps) {
+export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, reducedMotion, sharedBoard = false }: ShelfRowProps) {
   const slots = useMemo(() => layoutShelf(books, shelf), [books, shelf])
   const placed = useMemo(
     () => slots.flatMap((s): PlacedBook[] => (s.type === 'stack' ? s.books : s.type === 'object' ? [] : [s])),
@@ -48,7 +50,8 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
   // The book under the pointer or keyboard focus, named beneath the shelf.
   const [peekKey, setPeekKey] = useState<string | null>(null)
   const peek = placed.find((p) => bookKey(p.book) === peekKey) ?? null
-  const featured = shelf.id === 'reading' ? (placed[0] ?? null) : null
+  // Reading now's cover stands larger (bookshelf.css's .bs-feature); otherwise it behaves as every shelf.
+  const featured = shelf.id === 'reading'
 
   const drawerRef = useRef<HTMLDivElement>(null)
 
@@ -227,27 +230,16 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
             <ul className="bs-row" role="list" onKeyDown={onKeyDown}>
               {row.map(renderSlot)}
             </ul>
-            <ShelfBoard />
+            {sharedBoard ? <span className="bs-board-space" aria-hidden="true" /> : <ShelfBoard />}
           </div>
         ))}
-        {!featured && (
-          <p className="bs-caption" aria-hidden="true">
-            {peek && (
-              <>
-                <span className="bs-caption__title">{peek.book.title}</span> · {peek.book.author}
-              </>
-            )}
-          </p>
-        )}
-        {featured && (
-          <div className="bs-feature__text">
-            <div className="bs-feature__name">
-              <p className="bs-feature__title">{featured.book.title}</p>
-              <p className="bs-feature__author">{featured.book.author}</p>
-            </div>
-            {featured.book.note && <p className="bs-feature__note">{featured.book.note}</p>}
-          </div>
-        )}
+        <p className="bs-caption" aria-hidden="true">
+          {peek && (
+            <>
+              <span className="bs-caption__title">{peek.book.title}</span> · {peek.book.author}
+            </>
+          )}
+        </p>
       </div>
 
       <div ref={drawerRef} id={drawerId} className="bs-drawer" data-open={isOpen ? '' : undefined} inert={!isOpen}>

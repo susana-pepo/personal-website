@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CRATE_GAP, CRATE_MIN_STRIP, crateOffsets, nextSleeve, playedAgo, sleeveAt } from '../components/sections/music/crate'
+import { CRATE_GAP, CRATE_HEIGHT_RATIO, CRATE_MIN_STRIP, crateOffsets, fitSleeve, nextSleeve, playedAgo, sleeveAt } from '../components/sections/music/crate'
 
 const S = 132 // 8.25rem
 
@@ -90,5 +90,21 @@ describe('playedAgo', () => {
     expect(playedAgo('not a date', now)).toBe('')
     expect(playedAgo('2026-11-23T13:00:00Z', now)).toBe('')
     expect(playedAgo('2025-01-01T00:00:00Z', now)).toBe('')
+  })
+})
+
+describe('fitSleeve', () => {
+  it('shares what the rest of the page leaves between the crates', () => {
+    // 675px of panel, 400px of everything else, two crates: 275 / 2.24
+    expect(fitSleeve(675, 400, 2)).toBe(Math.floor(275 / (2 * CRATE_HEIGHT_RATIO)))
+    // and the crates then fill exactly what was left (to the pixel, rounding down)
+    const s = fitSleeve(675, 400, 2)
+    expect(400 + 2 * CRATE_HEIGHT_RATIO * s).toBeLessThanOrEqual(675)
+  })
+
+  it('never goes below nothing, and needs a crate and a panel', () => {
+    expect(fitSleeve(300, 500, 2)).toBe(0)
+    expect(fitSleeve(675, 400, 0)).toBe(0)
+    expect(fitSleeve(0, 400, 2)).toBe(0)
   })
 })

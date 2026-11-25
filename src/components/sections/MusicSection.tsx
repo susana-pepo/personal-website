@@ -1,8 +1,10 @@
-import { useEffect, useId } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, type RefObject } from 'react'
 import { content } from '../../content/content'
+import { useMediaQuery } from '../../hooks/useMediaQuery'
 import { nowPlayingConfigured, useNowPlaying, type NowPlayingTrack } from '../../hooks/useNowPlaying'
+import { DESKTOP_QUERY } from './bookshelf/layout'
 import { SpotifyCollection } from './SpotifyCollection'
-import { playedAgo } from './music/crate'
+import { fitSleeve, playedAgo } from './music/crate'
 import { Turntable } from './music/Turntable'
 import './music/music.css'
 
@@ -94,10 +96,47 @@ const ON_TURNTABLE: DeckState | null = chosen
     }
   : null
 
+/**
+ * On a desktop window the panel floats beside the room, about as tall as it, and the Music page
+ * fits it without scrolling: the sleeves take the height the rest of the page leaves (fitSleeve),
+ * up to their full size (music.css). Measured again whenever the panel or the page changes size;
+ * a desk that is out is left out of the sum, so taking a record out never resizes the shelves.
+ */
+function useFitSleeves(rootRef: RefObject<HTMLDivElement | null>) {
+  const desktop = useMediaQuery(DESKTOP_QUERY)
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    const page = root?.closest<HTMLElement>('.panel__page')
+    const body = root?.closest<HTMLElement>('.panel__body')
+    if (!root) return
+    if (!desktop || !page || !body) {
+      root.style.removeProperty('--fit-s')
+      return
+    }
+    const measure = () => {
+      const height = (selector: string) =>
+        [...root.querySelectorAll<HTMLElement>(selector)].reduce((sum, el) => sum + el.getBoundingClientRect().height, 0)
+      const crates = root.querySelectorAll('.crate').length
+      if (crates === 0) return
+      const above = root.getBoundingClientRect().top - page.getBoundingClientRect().top
+      const below = parseFloat(getComputedStyle(page).paddingBottom) || 0
+      const fixed = above + root.getBoundingClientRect().height + below - height('.crate') - height('.desk-wrap')
+      root.style.setProperty('--fit-s', `${fitSleeve(body.clientHeight, fixed, crates)}px`)
+    }
+    measure()
+    const observer = new ResizeObserver(measure)
+    observer.observe(body)
+    observer.observe(root)
+    return () => observer.disconnect()
+  }, [desktop, rootRef])
+}
+
 export default function MusicSection() {
   const { music } = content
+  const rootRef = useRef<HTMLDivElement>(null)
+  useFitSleeves(rootRef)
   return (
-    <div className="section">
+    <div className="section music" ref={rootRef}>
       {music.intro && <p className="lede">{music.intro}</p>}
       <Listening />
       <SpotifyCollection />

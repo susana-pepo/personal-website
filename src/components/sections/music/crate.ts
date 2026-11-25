@@ -37,6 +37,20 @@ export function crateOffsets(count: number, sleeve: number, width: number, focus
   return xs
 }
 
+/** A crate is this many sleeves tall on a desktop window (music.css): the sleeve, and the headroom its record peeks into. */
+export const CRATE_HEIGHT_RATIO = 1.12
+
+/**
+ * The sleeve size (px) at which the Music page fits the desktop panel without scrolling:
+ * `available` is the panel body's height, `fixed` is everything on the page but the crates
+ * (and any desk that is out), `crates` how many there are. music.css caps the result at the
+ * sleeves' full size and keeps a floor, so a short window still gets legible covers.
+ */
+export function fitSleeve(available: number, fixed: number, crates: number): number {
+  if (crates <= 0 || available <= 0) return 0
+  return Math.max(0, Math.floor((available - fixed) / (crates * CRATE_HEIGHT_RATIO)))
+}
+
 /** The sleeve under a point: the front-most one whose left edge is at or before it. */
 export function sleeveAt(offsets: readonly number[], x: number): number {
   let hit = 0
