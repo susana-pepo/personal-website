@@ -5,7 +5,9 @@ Usage: python3 scripts/build-coffee.py [--width 180] [--quality 82]   (or: npm r
          (Contact's larger mug: the cup alone, sharp; the steam as its own lighter crop, see --split)
 Requires Pillow and numpy. Reads (never changes):
   portfolio-website-assets/public/media/coffee-transparent.webp
-Writes public/media/scene/coffee/coffee-steam.webp and coffee-still.webp.
+Writes public/media/scene/coffee/coffee-steam.webm and .mov (the transparent video the page plays)
+and coffee-still.webp; the animated coffee-steam.webp is kept out of the site, in
+portfolio-website-assets/built (clip_video.kept).
 
   1. Trim every frame to the mug and its steam, and scale down once
      (premultiplied, so transparent edges get no halos).
@@ -123,7 +125,7 @@ def build(width, quality, out_dir=OUT, prefix='coffee', split=None, light=False)
     out[0].save(tmp, save_all=True, append_images=out[1:], duration=frame_ms, loop=0, lossless=False,
                 quality=quality, alpha_quality=100, method=6, exact=True)
     os.replace(tmp, anim)
-    # what the page plays (the WebP is the fallback): transparent video, every frame at the loop's pace
+    # what the page plays: transparent video, every frame at the loop's pace
     write_videos(out, [1] * len(out), out_dir / f'{prefix}-steam', fps=Fraction(1000, frame_ms))
     out[0].save(out_dir / f'{prefix}-still.webp', quality=92, alpha_quality=100, method=6, exact=True)
     print(f'{anim}: {len(out)} frames, {len(out) * frame_ms / 1000:.1f} s, {os.path.getsize(anim) / 1e6:.2f} MB, '

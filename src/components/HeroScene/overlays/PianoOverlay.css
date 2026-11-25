@@ -407,11 +407,6 @@
   stroke-dasharray: 3 7;
 }
 
-.piano-close__knob[data-lit] .piano-close__knob-hit {
-  stroke: oklch(0.9 0.03 240 / 0.75);
-  stroke-width: 3;
-}
-
 /* On arrival the knobs glow twice, so they read as something to turn. */
 .piano-close__knob[data-invite] .piano-close__knob-hit {
   animation: piano-knob-invite 1.4s ease-in-out 1.2s 2;

@@ -15,7 +15,6 @@ export const P = {
   teal: 'oklch(0.36 0.045 185)',
   slate: 'oklch(0.46 0.05 262)',
   ochre: 'oklch(0.76 0.095 78)',
-  walnut: 'oklch(0.4 0.06 50)',
   rose: 'oklch(0.72 0.065 28)',
 } as const
 

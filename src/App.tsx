@@ -32,7 +32,7 @@ export function App() {
         <main id="main" className="cover" tabIndex={-1}>
           <HeroScene stageRef={stageRef} videoRef={videoRef} playback={playback} controlSlot={sceneSlot} />
         </main>
-        <SiteFooter playback={playback} videoRef={videoRef} />
+        <SiteFooter />
       </div>
       <SectionPanel section={section} />
     </>

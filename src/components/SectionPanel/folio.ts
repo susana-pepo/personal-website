@@ -1,4 +1,3 @@
-import { content } from '../../content/content'
 import { SECTION_IDS, type SectionId } from '../../content/types'
 
 /**
@@ -10,17 +9,6 @@ import { SECTION_IDS, type SectionId } from '../../content/types'
 export function turnDirection(from: SectionId | null, to: SectionId): 1 | -1 {
   if (!from) return 1
   return SECTION_IDS.indexOf(to) < SECTION_IDS.indexOf(from) ? -1 : 1
-}
-
-/** "03" */
-export function pad(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
-/** "the books on the shelf" → "The books on the shelf" */
-export function objectLabel(id: SectionId): string {
-  const name = content.sections[id].objectName.trim()
-  return name ? name.charAt(0).toUpperCase() + name.slice(1) : ''
 }
 
 /** Arrow keys move between the tabs, wrapping at the ends; Home and End jump. */
@@ -52,10 +40,6 @@ export function readingProgress(scrollTop: number, scrollHeight: number, clientH
 
 /** The ink mark is 100px wide at rest and is scaled to the tab it sits under. */
 export const INK_BASE_WIDTH = 100
-
-export function inkTransform(offsetLeft: number, offsetWidth: number): string {
-  return `translateX(${offsetLeft}px) scaleX(${offsetWidth / INK_BASE_WIDTH})`
-}
 
 /** Reads a duration custom property such as "240ms" or "0.24s" from an element. */
 export function readDuration(value: string, fallback: number): number {

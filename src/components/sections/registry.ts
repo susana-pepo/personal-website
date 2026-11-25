@@ -29,7 +29,7 @@ const loaders = Object.fromEntries(
 ) as typeof imports
 
 /** Each section's content is its own small chunk, loaded on demand. */
-export const SECTION_COMPONENTS = Object.fromEntries(
+const SECTION_COMPONENTS = Object.fromEntries(
   Object.entries(loaders).map(([id, load]) => [id, lazy(load)]),
 ) as Record<SectionId, LazyExoticComponent<ComponentType>>
 

@@ -3,7 +3,7 @@
 Animated WebP is decoded on the processor, frame by frame, and nothing keeps the last frame
 on screen if the browser falls behind: large clips then blink out for a frame. Video is
 decoded by the graphics chip and always holds its last frame, so the room plays these instead
-(the WebP stays as the fallback). Each clip is written twice:
+(where video can't play, it shows the still). Each clip is written twice:
 
   <name>.webm  VP9 with alpha, for Chrome, Edge and Firefox (ffmpeg)
   <name>.mov   HEVC with alpha, for Safari (Apple's own encoder: scripts/hevc-alpha.m, built here

@@ -13,7 +13,6 @@
   --on-sleeve-2: oklch(0.79 0.01 70);
   --on-sleeve-3: oklch(0.64 0.012 60);
   --rule-sleeve: oklch(0.935 0.008 80 / 0.14);
-  --rule-sleeve-strong: oklch(0.935 0.008 80 / 0.28);
 
   /* Insert: uncoated card stock, printed in black */
   --card: oklch(0.945 0.006 85);
@@ -68,7 +67,6 @@
   --text-md: 1.125rem;
   --text-lg: clamp(1.3rem, 1.15rem + 0.55vw, 1.55rem);
   --text-xl: clamp(1.9rem, 1.5rem + 1.6vw, 2.6rem);
-  --text-2xl: clamp(2.8rem, 2rem + 3.4vw, 4.6rem);
 
   /* Space (4pt scale, semantic names) */
   --space-3xs: 0.25rem;
@@ -79,7 +77,6 @@
   --space-lg: 2rem;
   --space-xl: 3rem;
   --space-2xl: 4rem;
-  --space-3xl: 6rem;
   --gutter: clamp(1rem, 0.4rem + 2.4vw, 2.75rem);
 
   /*
@@ -106,9 +103,6 @@
   --dur-soft: 240ms; /* hover, labels, tooltips, small exits */
   --dur-panel: 460ms; /* the sheet, drawers, the page cascade */
   --dur-panel-exit: 260ms; /* about 60% of the way in: leaving is quicker than arriving */
-
-  --header-h: 3.5rem;
-  --radius: 2px;
 }
 
 /* Reduced motion: whatever still runs is a short fade. --dur-quick all but vanishes, so it

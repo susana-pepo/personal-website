@@ -7,8 +7,7 @@
  * box-shadows only: no filters or backdrop-filter on large areas.
  */
 .pad {
-  /* Dark aluminium: on the smoked panel a light rim would glow like a selection ring,
-     and cream is kept for the selected file alone. */
+  /* Dark aluminium: on the smoked panel a light rim would glow like a selection ring. */
   --alu: oklch(0.4 0.018 55);
   --alu-light: oklch(0.52 0.02 60);
   --bezel: oklch(0.17 0.01 45);

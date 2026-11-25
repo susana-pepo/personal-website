@@ -5,8 +5,9 @@
  * pseudo-elements and its decoration spans, and drawn through an SVG foreignObject at device
  * resolution. Three pictures come out:
  *   - the slab: smoke, reflection, bevels, edge, its inner shadows; the lamp's glint left out;
- *   - the glint alone (the difference the lamp's specular, streak and hot rim make), cropped
- *     small, so the pour can light it only as the slab arrives under the bulb;
+ *   - the glint alone (the difference the lamp's specular, streak and hot rim make), painted and
+ *     compared only over a strip on the lamp edge, cropped small, so the pour can light it only
+ *     as the slab arrives under the bulb;
  *   - the shadow it casts on the room, so the contact shadow can trail the slab.
  * Whatever the glass block in SectionPanel.css paints is carried as it is: nothing here knows
  * its layers, only which custom properties are the lamp's glint (GLINT_VARS).
@@ -20,6 +21,8 @@ export const GLINT_VARS = ['--g-spec', '--g-streak', '--g-rim-hot', '--g-rim-war
 export const PAD = 64
 /** Resolution cap: device px per CSS px. */
 export const MAX_SCALE = 2
+/** The lamp's glint lives within this far of the slab's lamp edge (CSS px). */
+export const GLINT_STRIP = 48
 
 export interface Surface {
   key: string
@@ -145,18 +148,83 @@ async function inlineNode(node: Node): Promise<Node> {
   return { style, children: await Promise.all(node.children.map(inlineNode)) }
 }
 
-async function draw(markup: string, W: number, H: number, scale: number): Promise<HTMLCanvasElement> {
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}"><foreignObject x="0" y="0" width="${W}" height="${H}"><div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${W}px;height:${H}px">${markup}</div></foreignObject></svg>`
+/** Paints markup laid out in a W×H box; `crop` paints only the columns cx to cx + cw of it. */
+async function draw(markup: string, W: number, H: number, scale: number, crop?: { cx: number; cw: number }): Promise<HTMLCanvasElement> {
+  const cx = crop?.cx ?? 0
+  const cw = crop?.cw ?? W
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${cw}" height="${H}" viewBox="${cx} 0 ${cw} ${H}"><foreignObject x="0" y="0" width="${W}" height="${H}"><div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${W}px;height:${H}px">${markup}</div></foreignObject></svg>`
   const img = new Image()
   img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg)
   await img.decode()
   const c = document.createElement('canvas')
-  c.width = Math.round(W * scale)
+  c.width = Math.round(cw * scale)
   c.height = Math.round(H * scale)
   const ctx = c.getContext('2d', { willReadFrequently: true })
   if (!ctx) throw new Error('no 2d context')
   ctx.drawImage(img, 0, 0, c.width, c.height)
   return c
+}
+
+/**
+ * Whether this browser draws an image inside a foreignObject when the SVG is painted to a canvas
+ * (WebKit has been known to leave them out): a small red picture is drawn through one and read
+ * back. Asked once per page.
+ */
+let drawsImages: Promise<boolean> | null = null
+function foreignObjectDrawsImages(): Promise<boolean> {
+  drawsImages ??= (async () => {
+    try {
+      const red = document.createElement('canvas')
+      red.width = red.height = 4
+      const rc = red.getContext('2d')
+      if (!rc) return false
+      rc.fillStyle = '#f00'
+      rc.fillRect(0, 0, 4, 4)
+      const c = await draw(`<div style="width:8px;height:8px;background:url(${red.toDataURL('image/png')}) 0 0 / 8px 8px"></div>`, 8, 8, 1)
+      const [r, g, b, a] = c.getContext('2d', { willReadFrequently: true })!.getImageData(4, 4, 1, 1).data
+      return r! > 200 && g! < 60 && b! < 60 && a! > 200
+    } catch {
+      return false
+    }
+  })()
+  return drawsImages
+}
+
+/**
+ * Why a painted slab can't be trusted, or null when it looks like the glass: inside its box it
+ * must be nearly opaque, a deep smoke (not black, not pale), and its smoke and reflection must be
+ * there (a little texture, not one flat colour).
+ */
+export function checkSurface(s: Pick<Surface, 'slab' | 'shell' | 'x0' | 'y0' | 'scale'>): string | null {
+  const N = 24
+  const c = document.createElement('canvas')
+  c.width = c.height = N
+  const ctx = c.getContext('2d', { willReadFrequently: true })
+  if (!ctx) return 'no 2d context'
+  const k = s.scale
+  // the middle of the slab, clear of its bevels and lamp edge
+  const sx = (s.x0 + s.shell.w * 0.15) * k
+  const sy = (s.y0 + s.shell.h * 0.1) * k
+  ctx.drawImage(s.slab, sx, sy, s.shell.w * 0.8 * k, s.shell.h * 0.85 * k, 0, 0, N, N)
+  const d = ctx.getImageData(0, 0, N, N).data
+  let alpha = 0
+  let luma = 0
+  let luma2 = 0
+  const n = N * N
+  for (let i = 0; i < d.length; i += 4) {
+    const a = d[i + 3]! / 255
+    const y = a > 0 ? (0.2126 * d[i]! + 0.7152 * d[i + 1]! + 0.0722 * d[i + 2]!) / 255 / a : 0
+    alpha += a
+    luma += y
+    luma2 += y * y
+  }
+  alpha /= n
+  luma /= n
+  const spread = Math.sqrt(Math.max(0, luma2 / n - luma * luma))
+  if (alpha < 0.6) return `see-through (${alpha.toFixed(2)})`
+  if (luma < 0.01 || luma > 0.4) return `wrong depth (${luma.toFixed(3)})`
+  if (spread < 0.0015) return 'flat: no smoke or reflection'
+  return null
 }
 
 /** Lets the page breathe between the heavy steps, so preparing never holds a frame for long. */
@@ -167,11 +235,12 @@ const idle = () =>
  * The glint alone: where the slab with the lamp's glint is brighter than without it, cropped to
  * that patch, premultiplied, ready to be added on the GPU. Null when the glint isn't separable.
  */
-function glintOf(lit: HTMLCanvasElement, unlit: HTMLCanvasElement): Surface['glint'] {
+function glintOf(lit: HTMLCanvasElement, unlit: HTMLCanvasElement, ox: number): Surface['glint'] {
+  // `lit` is a strip of the picture, `ox` device px from its left
   const w = lit.width
   const h = lit.height
   const a = lit.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, w, h).data
-  const b = unlit.getContext('2d', { willReadFrequently: true })!.getImageData(0, 0, w, h).data
+  const b = unlit.getContext('2d', { willReadFrequently: true })!.getImageData(ox, 0, w, h).data
   let x0 = w
   let y0 = h
   let x1 = -1
@@ -207,7 +276,8 @@ function glintOf(lit: HTMLCanvasElement, unlit: HTMLCanvasElement): Surface['gli
   const ch = y1 - y0 + 1
   const pixels = new Uint8Array(cw * ch * 4)
   for (let y = 0; y < ch; y++) pixels.set(diff.subarray(((y0 + y) * w + x0) * 4, ((y0 + y) * w + x1 + 1) * 4), y * cw * 4)
-  return { pixels, width: cw, height: ch, box: [x0 / w, y0 / h, (x1 + 1) / w, (y1 + 1) / h] }
+  const W = unlit.width
+  return { pixels, width: cw, height: ch, box: [(ox + x0) / W, y0 / h, (ox + x1 + 1) / W, (y1 + 1) / h] }
 }
 
 export interface RasterInput {
@@ -220,6 +290,7 @@ export interface RasterInput {
 /** Builds, measures and paints the slab. Throws when the browser can't (an SVG it won't draw). */
 export async function rasterise({ dialog, dress }: RasterInput): Promise<Surface> {
   const t0 = performance.now()
+  if (!(await foreignObjectDrawsImages())) throw new Error('this browser paints the glass without its images')
   const realSheet = dialog.querySelector('.panel__sheet')
   if (!realSheet || !dialog.parentNode) throw new Error('no sheet')
   const probe = document.createElement('dialog')
@@ -292,9 +363,12 @@ export async function rasterise({ dialog, dress }: RasterInput): Promise<Surface
   unlit = await inlineNode(unlit)
   const slab = await draw(slabOf(unlit), W, H, scale)
   await idle()
-  const withGlint = await draw(slabOf(lit), W, H, scale)
+  // the lamp's glint sits on the slab's left (lamp) edge: only that strip is painted lit
+  const cx = Math.max(0, Math.floor((x0 - 8) * scale) / scale)
+  const cw = Math.min(W - cx, Math.ceil((GLINT_STRIP + 8) * scale) / scale)
+  const withGlint = await draw(slabOf(lit), W, H, scale, { cx, cw })
   await idle()
-  const glint = glintOf(withGlint, slab)
+  const glint = glintOf(withGlint, slab, Math.round(cx * scale))
   await idle()
   const shadow = await draw(shadowMarkup, W, H, 1)
   const key = `${dock.x.toFixed(1)},${dock.y.toFixed(1)},${dock.w.toFixed(1)}x${dock.h.toFixed(1)}@${scale}`

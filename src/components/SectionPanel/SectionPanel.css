@@ -23,8 +23,7 @@ html:has(.panel[open]) {
   /* SectionPanel.tsx reads this as the backup for removing the dialog. */
   --folio-exit: var(--dur-panel-exit);
   --folio-stagger: 45ms;
-  /* When a turned page starts to arrive: its blocks, the rolling number and the tab ink
-     all set off together, just after the old page has begun to leave. */
+  /* When a turned page's blocks start to arrive, just after the old page has begun to leave. */
   --folio-turn-at: 60ms;
   /* Gentle exit: moves from the first frame instead of hanging before it goes. */
   --folio-ease-exit: var(--ease-exit);
@@ -325,7 +324,7 @@ html:has(.panel[open]) {
   height: 40%;
   z-index: -1;
   pointer-events: none;
-  background: linear-gradient(112deg, transparent 0 56%, oklch(var(--g-cool) / var(--g-sheen)) 57%, oklch(var(--g-cool) / calc(var(--g-sheen) * 0.55)) 68%, transparent 84%);
+  background: linear-gradient(112deg, transparent 0 47%, oklch(var(--g-cool) / calc(var(--g-sheen) * 0.18)) 51%, oklch(var(--g-cool) / calc(var(--g-sheen) * 0.6)) 55.5%, oklch(var(--g-cool) / var(--g-sheen)) 60%, oklch(var(--g-cool) / calc(var(--g-sheen) * 0.55)) 69%, transparent 84%);
   -webkit-mask: linear-gradient(180deg, #000, rgb(0 0 0 / 0.75) 30%, rgb(0 0 0 / 0.35) 60%, rgb(0 0 0 / 0.1) 82%, transparent);
   mask: linear-gradient(180deg, #000, rgb(0 0 0 / 0.75) 30%, rgb(0 0 0 / 0.35) 60%, rgb(0 0 0 / 0.1) 82%, transparent);
 }
@@ -410,7 +409,7 @@ html:has(.panel[open]) {
     linear-gradient(90deg,
       oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * var(--g-arc-top))) 0%,
       oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 0.36)) 18%,
-      oklch(0.84 0.02 160 / calc(var(--g-bevel-top) * 0.3)) 38%,
+      color-mix(in oklab, oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 0.3)), oklch(var(--g-cool) / calc(var(--g-bevel-top) * 0.3))) 38%,
       oklch(var(--g-cool) / calc(var(--g-bevel-top) * 0.42)) 60%,
       oklch(var(--g-cool) / calc(var(--g-bevel-top) * 0.55)) 82%,
       oklch(var(--g-cool) / calc(var(--g-bevel-top) * 0.2)) 100%) 0 0 / 100% 7.5px no-repeat,
@@ -484,6 +483,11 @@ html:has(.panel[open]) {
   .panel__sheen {
     height: 25%;
     opacity: 0.7;
+  }
+
+  /* Daylight on a phone: the window's band stays a reflection, not a streak behind the tabs. */
+  .panel[data-light='midday'] {
+    --g-sheen: 0.045;
   }
 
   .panel__sheet::before {
@@ -654,17 +658,12 @@ html:has(.panel[open]) {
   height: 2px;
   background: var(--spot-ink);
   opacity: 0;
-  transform-origin: 0 50%;
-  /* It only ever glides on a page turn (SectionPanel.tsx places it at once otherwise),
-     so it waits for the incoming page, as the number does. */
-  transition: transform 380ms var(--ease-out) var(--folio-turn-at);
+  /* From its foot, so it only ever grows upward, inside the row (a row that scrolls sideways
+     would otherwise scroll by a pixel). */
+  transform-origin: 0 100%;
+  /* No transition: on a page turn it flows to the new tab as a Web Animation, from wherever it
+     is (liquidInk.ts, turn-fx.css); otherwise it is placed at once. */
   pointer-events: none;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .panel__ink {
-    transition: none;
-  }
 }
 
 .panel__close {

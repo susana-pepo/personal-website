@@ -83,21 +83,6 @@
   overflow: visible;
 }
 
-/* The lettering on the desk books, in the sans: a firm 600 for the title, so it reads as
-   foil stamped into the jacket rather than a hairline, and 500 for the year. Each line is
-   measured and fitted to its spine (FitText), so the face can change without recalibrating. */
-.xp-book .bs-t-d {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  letter-spacing: 0.01em;
-}
-
-.xp-book .bs-t-s {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  letter-spacing: 0.01em;
-}
-
 @media (hover: hover) and (pointer: fine) {
   .xp-book[aria-selected='false']:hover {
     transform: translateX(calc(8 * var(--u)));

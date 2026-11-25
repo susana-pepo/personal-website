@@ -15,7 +15,7 @@ export function Vinyl({ cover, art }: { cover?: string; art?: ReactNode }) {
   return (
     <>
       <span className="vinyl__face" />
-      <span className="vinyl__label" data-blank={!cover && !art ? '' : undefined}>
+      <span className="vinyl__label">
         <CoverArt cover={cover} art={art} size={120} />
       </span>
     </>

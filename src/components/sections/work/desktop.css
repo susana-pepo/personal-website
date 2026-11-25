@@ -477,21 +477,22 @@
   }
 }
 
-/* A short row (a short panel) keeps its name and a two-line description, both a little smaller. */
+/* A short row (a short panel) sets its name and description a little smaller, so both still
+   read whole beside the drawing. */
 @media (min-width: 1025px) {
-  @container wrow (max-height: 6.5rem) {
+  @container wrow (max-height: 8rem) {
     .wdesk__caption {
       gap: 0.3rem;
+      max-width: none;
     }
 
     .wdesk__name {
-      font-size: 1.125rem;
+      font-size: 1.0625rem;
     }
 
     .wdesk__line {
       font-size: 0.875rem;
       line-height: 1.45;
-      -webkit-line-clamp: 2;
     }
   }
 }

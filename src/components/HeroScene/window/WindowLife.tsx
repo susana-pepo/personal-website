@@ -30,16 +30,15 @@ function blink(el: HTMLElement) {
 interface WindowLifeProps {
   /** Whose view is in the window: its lit windows are the ones that blink (none by day). */
   time: TimeOfDay
-  /** The room is allowed to move: rain falls and lights change only then. */
+  /** The room is allowed to move: lights change only then. */
   motionAllowed: boolean
 }
 
 /**
- * Life outside the window: fine rain falling behind every pane of glass (masked
- * to the glass, so it never crosses the frame, the lamp or the flowers), and,
- * every now and then, a window across the street whose light goes out for a
- * moment and comes back on; sometimes two. Never the same window twice running.
- * Still with reduced motion or a paused room. Decorative only.
+ * Life outside the window: every now and then, a window across the street whose
+ * light goes out for a moment and comes back on; sometimes two. Never the same
+ * window twice running. Still with reduced motion or a paused room. Decorative
+ * only. (The rain is RainLayer's canvas, in WeatherLayer.)
  */
 export function WindowLife({ time, motionAllowed }: WindowLifeProps) {
   const windows = WINDOW_VIEWS[time].cityWindows
@@ -98,10 +97,6 @@ export function WindowLife({ time, motionAllowed }: WindowLifeProps) {
           style={{ left: pctX(win.x), top: pctY(win.y), width: pctX(win.w), height: pctY(win.h), ['--facade' as string]: win.facade }}
         />
       ))}
-      <span className="window-rain">
-        <span className="window-rain__fall window-rain__fall--far" />
-        <span className="window-rain__fall window-rain__fall--near" />
-      </span>
     </span>
   )
 }

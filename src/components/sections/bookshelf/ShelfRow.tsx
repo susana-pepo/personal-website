@@ -11,7 +11,7 @@ import { ShelfBoard } from '../books/ShelfBoard'
 import { DESKTOP_QUERY, remPx, shelfLayout } from './layout'
 
 /** Stable identity for a book, used for the open state and to return focus. */
-export const bookKey = (book: Book) => `${book.shelf}:${book.title}|${book.author}`
+const bookKey = (book: Book) => `${book.shelf}:${book.title}|${book.author}`
 
 /* The drawer's own timings in bookshelf.css (closing 300ms, opening --dur-panel), read from
    it as it moves; these are only for when there is no style to read. */
@@ -19,7 +19,6 @@ const CLOSE_FALLBACK_MS = 300
 const OPEN_FALLBACK_MS = 460
 /** A frame to spare after the drawer stops. */
 const SPARE_MS = 20
-
 
 const vars = (v: Record<string, string | number>) => v as CSSProperties
 const units = (n: number) => `calc(${n} * var(--u))`

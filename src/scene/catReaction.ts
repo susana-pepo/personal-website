@@ -33,11 +33,8 @@ export function choosePetStyle(options: {
   return 'css'
 }
 
-/** Lengths of the reactions that don't come from a video file. */
-export const CSS_STIR_MS = 1700
+/** The length of the still reply, which doesn't come from a video file. */
 export const STILL_REPLY_MS = 3500
-/** Extra time allowed after a clip's own length before the reaction is ended regardless. */
-export const VIDEO_GRACE_MS = 1500
 
 /**
  * Now and then, with nobody touching it, the sleeping cat lets out a couple of

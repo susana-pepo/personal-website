@@ -12,7 +12,6 @@ export const DEF = {
   fade: 'bs-fade',
   coverLight: 'bs-cover-light',
   boardLight: 'bs-board-light',
-  iron: 'bs-iron',
 } as const
 
 export const url = (id: string) => `url(#${id})`

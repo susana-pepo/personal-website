@@ -290,14 +290,6 @@
   }
 }
 
-.player__body {
-  display: contents;
-}
-
-.player__text {
-  display: contents;
-}
-
 .player__title {
   grid-area: title;
   align-self: end;
@@ -335,10 +327,6 @@ a.player__title:hover {
   color: var(--on-sleeve-2);
 }
 
-.player__controls {
-  display: contents;
-}
-
 /* The track, as a fine line that fills. */
 .player__progress {
   grid-area: bar;
@@ -367,7 +355,7 @@ a.player__title:hover {
   gap: 0.15rem;
 }
 
-/* Rain and next: quiet icons beside the play button. */
+/* Sound (station and mix): a quiet icon beside the play button. */
 .player__tool {
   display: grid;
   place-items: center;
@@ -399,14 +387,9 @@ a.player__title:hover {
   transform: scale(0.94);
 }
 
-.player__tool[aria-pressed="true"],
 .player__tool[aria-expanded="true"] {
   color: var(--on-sleeve);
   background: oklch(1 0 0 / 0.1);
-}
-
-.player__tool[aria-pressed="false"] {
-  color: var(--on-sleeve-3);
 }
 
 @media (hover: hover) and (pointer: fine) {

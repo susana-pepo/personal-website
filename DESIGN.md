@@ -213,8 +213,9 @@ bold or an italic.
     dark line" like real glass, not as a border;
   - **the window's sheen** (`.panel__sheen`): one broad, very faint, slanted band of the
     window's cool light high on the face (`--g-sheen`: 0.045 at night, 0.065 at midday, 0.05 at
-    dawn), with a defined start on its window side and gone by 40% of the height (25%, and
-    softer, on phones), well above the body text;
+    dawn; 0.045 on a phone at midday, where it sat behind the tabs), with a soft start on its
+    window side (it ramps in over about 9% of the width, so it reads as a reflection, not a drawn
+    line) and gone by 40% of the height (25%, and softer, on phones), well above the body text;
   - **the room reflected in the face** (`::before`): one still of the whole room per time of day
     (`public/media/panel/reflection-{night,midday,dawn}-{face,edge,top}.webp`, made from the
     stage itself: only its bright shapes, mirrored, softened so the lamp shade reads as a warm
@@ -232,7 +233,8 @@ bold or an italic.
     faint, nearly colourless trace of the room squeezed into the curve (`--g-squeeze`; kept
     inside the curve and dropped when the bulb is far from the edge) and the lamp as a small,
     soft, warm-white point with a short tail at the bulb's height; the top bevel leaves the corner
-    arc faintly warm and turns to the window's cool light along its far part, meeting the cool
+    arc faintly warm and turns to the window's cool light along its far part (its middle stop is
+    an even mix of the two, so dawn's rose tints it too), meeting the cool
     glint at the far corner; small glints where the bevels meet (a tiny warm one by the lamp, a
     cool one at the window's far corner); the far bevel is in shade, caught by the window high
     up and the room low down;
@@ -388,10 +390,19 @@ bold or an italic.
   signature curve, no overshoot, no bounce; three layers (the slab, its shadow, its light).
   - Open (ms from the click): 0-100 the object's own halo warms a touch (nothing moves, the room
     never does); 100-650 the slab pours along one calm S-curve, `(0.4, 0, 0.22, 1)` per slice,
-    the far edge leading and the near edge following out of the object (`lag` 0.4). The neck is
-    thin, half see-through and a touch lamp-warm while it travels, never a dark wedge. Objects
-    under the dock (the cup, the laptop, the desk books at 1440) make it rise out of the object
-    and then widen. The contact shadow trails the slab by 50ms; the lamp-side glint lights only
+    the far edge leading and the near edge following out of the object (`lag` 0.32). It starts
+    as a small piece of the same smoked glass in the object's heart, visible from the first
+    frame, that swells to the neck over the first 13% of the move before anything leaves. From
+    objects left of the dock (the turntable, her) it pours as a funnel: a narrow stream across
+    the room that fans out to the slab's full height only over the last 40-60% of the way to the
+    dock, so it never stands in the room as a tall sheet over her face. It is the settled slab's
+    material all the way: the piece is 82% opaque and solid by a third of its travel, and the
+    neck and stream take the slab's own mean smoke rather than a lighter, milkier average of its
+    lit edge (2.5% of the lamp's warmth is all it carries). Its travelling edges are soft (10%
+    along the travel, 7% across, up to 2.6 times that in the object so the piece and the neck are
+    a soft pool of glass, not a card; gone as each part lands), so it never reads as cut paper.
+    Objects under the dock (the cup, the laptop, the desk books at 1440) make it rise out of the
+    object and then widen. The contact shadow trails the slab by 50ms; the lamp-side glint lights only
     as the slab's lamp edge arrives under the bulb, up to its resting level and no further. On
     landing the lamp's light sweeps once across the slab from its lamp edge (300ms, faint: 4.5%
     warm white, under the text). The real sheet takes over at about 950ms, pixel for pixel.
@@ -403,9 +414,12 @@ bold or an italic.
     open). Contents held hidden after a reopen come back by a transition, never by a second
     animation, for the same reason.
   - Close (about 72% of the opening): the contents fade over 100ms, then the slab pours back on
-    an accelerating curve, `(0.5, 0, 0.78, 0.42)`, over 370ms while the dim lifts in step; the
-    object's halo glows once as it arrives, and only then does the dialog close (SectionPanel
-    awaits the genie's promise). Tabs keep their quick page turn: no pour.
+    an accelerating curve, `(0.5, 0, 0.78, 0.42)`, over 370ms while the dim lifts in step. It is
+    the opening backwards: the slab narrows into the stream as it leaves the dock, and the last
+    20% (about 75ms) is a small piece of glass shrinking into the object, which the halo's one
+    glow answers. Only then does the dialog close (SectionPanel awaits the genie's promise, and
+    closes it whether the slab got home or the pour was cut short, a lost GPU say, so the modal
+    is never left open over an inert room). Tabs keep their quick page turn: no pour.
   - Escape or Close mid-pour turns it round from where it is; coming back mid-close pours it out
     again. A first frame that comes late (the page mounting) delays the pour rather than skipping
     its start.
@@ -416,8 +430,15 @@ bold or an italic.
     glint alone (cropped), and its shadow. A WebGL2 canvas inside the dialog (above the dim,
     under the sheet) warps them on a 128x128 mesh. It is prepared again after a resize, a new
     light or weather, or a stylesheet change, and an open is refused (today's slide runs, and it
-    prepares again) if the dialog or the glass no longer match. Textures and the canvas's back
-    buffer exist only during a move. The live room is never transformed or filtered; no
+    prepares again) if the dialog, the glass, the window or the screen's pixel density no longer
+    match, and a move under way when the window resizes ends at once where it was going. The
+    glint is painted lit only over a 48px strip on the lamp edge. Every painted slab is checked
+    before it is trusted (nearly opaque, a deep smoke, some texture: a picture drawn without its
+    images is refused), and a probe checks once that the browser draws images inside a
+    foreignObject at all. It runs only in Chromium browsers for now: Safari and Firefox keep the
+    slide until it has been verified there (`localStorage['panel-genie'] = 'on'` or `?genie` turns
+    it on to check, 'off' turns it off anywhere). Textures and the canvas's back buffer exist only
+    during a move. The live room is never transformed or filtered; no
     backdrop-filter, no will-change.
 - **The room stays still while a page is open.** No transform, scale or filter on `.cover` or
   the room behind the sheet: scaling the whole room made pages flicker as they opened and closed
@@ -426,9 +447,34 @@ bold or an italic.
   and content together, with no paragraph-by-paragraph cascade. On open it rises 12px and fades
   in over `--dur-panel` from 120ms. On a section change the old page fades over 180ms and slides
   14px away over 260ms; from 60ms the new page moves 18px with the direction of travel over
-  380ms, and the tab ink glides with it. (`--i` is still read, so a section can give itself one
-  deliberate beat; none does today.) Opacity only under reduced motion. No blur inside the
-  scrolling panel.
+  380ms. (`--i` is still read, so a section can give itself one deliberate beat; none does
+  today.) Opacity only under reduced motion. No blur inside the scrolling panel.
+- **The turn as one move** (`turn-fx.css`, `liquidInk.ts`, `turnLight.ts`; timings and curves are
+  tokens there, which the JS reads):
+  - The tab's vermilion mark sets off first, at 0ms, and flows like a drop of ink over 460ms. Its
+    leading edge runs to the far side of the new tab on `--ease-drawer` (it answers the click at
+    once, with a little weight; home by 50%), so for a moment it reaches across both tabs. Its
+    trailing edge lets go at 12% and gathers in on `--ease-sine`, home by 84%. It thins a little
+    while stretched, is back to its full thickness as it gathers, then swells once as it settles
+    under the tab (up to 1.3x tall, from its foot, at about 400ms) and eases to exactly its own
+    size. Neither edge passes the new tab, and nothing bounces. One Web Animation of its
+    transform. A turn made mid-flow sets off from wherever it is, with no pause; a resize reported
+    mid-flow lets it finish.
+  - The lamp's light passes once through the glass as the pages exchange: from 10ms over 480ms on
+    `--ease-sine`, in the direction of travel, its heart crossing the reading column at about
+    200-260ms. It is a broad, soft, leaning band in the lamp's own warm colour
+    (`oklch(0.84 0.075 66)`) under the page, fading with distance from the bulb, with a catch of
+    it in the slab's edge line. Forward it leaves the lamp bright and fades as it goes; back it
+    holds until it reaches the lamp and fades into it. Measured on the slab: about 6-7/255 beside
+    the lamp and 3-4/255 across the reading column, about the lamp's own bloom; the text itself
+    changes by under 1/255. Its strength is the layer's opacity (`--turn-light-face`, `-edge`;
+    three quarters at midday, 0.8 on phones) and the band is drawn at full scale, so the faint
+    result is quantised only once; a still grain in its mask dithers away 1/255 contour steps.
+    Two layers made for the pass inside the sheet, moved by transform and opacity only, removed
+    when it ends or when the panel closes. A turn mid-pass carries the same light on, or back.
+  - Everything has settled by about 490ms, and the new page is readable as early as before.
+    Reduced motion: no light, and the mark is placed at once. The genie's open and close don't
+    use either.
 - **Layers:** no `will-change` on the woman's clips (on their own layer Chrome dropped her for
   single frames on Retina) and no new large GPU layers (`will-change`, `translateZ`, `filter`,
   `backdrop-filter` on big elements). `.cover .stage { transform: translateZ(0) }` is deliberate,

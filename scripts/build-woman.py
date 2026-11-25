@@ -521,13 +521,18 @@ HAIR_RIM = 22  # canvas px: how far in from her outline the outer lock reaches
 HAIR_RIM_CALM = 0.45  # how much of the lock's mottle is calmed towards the hair just inside
 
 
-# Her neck: the export left it out (see-through under the jaw, between her hair and her collar),
-# so the room's peach curtain showed through, its folds reading as noise on her skin. Source px.
+# Her neck: the export leaves it out (under her jaw the room's curtain shows, between her hair and
+# her collar). A painted-in neck was tried and read as a flat pink triangle stuck outside her, so
+# it's off: her jaw sits over her collar, as drawn. The painting below stays for reference. Source px.
+NECK_PAINT = False
 NECK_X = (520, 700)  # columns where the neck can be
 NECK_Y = (700, 900)
-THROAT_TOP = 0.42  # where the throat leaves the jaw: this far from the back of the jaw to the chin
-THROAT_LEAN = 0.3  # how far forward the throat runs, per px down
-NECK_SHADE = (0.86, 0.98)  # right under the jaw (its shadow, about 9 px deep), and below it
+THROAT_TOP = 0.62  # where the throat leaves the jaw: this far from the back of the jaw to the chin
+THROAT_LEAN = 0.18  # how far forward the throat runs, per px down
+NECK_SHADOW = 0.12  # how much deeper the neck is right under the jaw (a soft shadow, about 10 px deep)
+NECK_TINT = (1.0, 1.0, 1.0)  # the neck's colour against the skin around it (below 1: deeper, in shade)
+NECK_LINE = 0.0  # the throat's thin line, in the chin's line colour (0: none, 1: full)
+NECK_MELT = 0.85  # how far the export's cut-out outline and grey leftovers around the hole melt into the neck
 
 
 def _neck_masks(a):
@@ -571,7 +576,8 @@ def _neck_measure(a):
 
 
 def _neck_paint(a, m):
-    """One frame (RGBA array) with the neck painted behind whatever is there."""
+    """One frame (RGBA array) with the neck painted behind whatever is there, in the colour of
+    the skin around it, and the export's cut-out edges around the hole melted into it."""
     import cv2
     if m['jy'] <= 0 or m['tone'] is None:
         return a
@@ -579,73 +585,98 @@ def _neck_paint(a, m):
     H, W = a.shape[:2]
     x0, x1 = NECK_X
     top_x, jy, jaw, col = m['top_x'], m['jy'], m['jaw'], m['col']
-    fill = np.zeros((H, W), np.float32)
-    shade = np.zeros((H, W), np.float32)
-    lo, hi = NECK_SHADE
+    LEAN = THROAT_LEAN
+    fill = np.zeros((H, W), np.float32); under = np.full((H, W), 999.0, np.float32)
     for i, x in enumerate(range(x0, x1)):
-        if jaw[i] < 0 and x > top_x:
-            continue
+        if jaw[i] < 0 and x > top_x: continue
         ytop = jaw[i] if jaw[i] >= 0 else jy
         ybot = col[i] if col[i] >= 0 else ytop + 60
         for y in range(int(ytop) - 2, min(H, int(ybot) + 3)):
-            front = top_x + (y - jy) * THROAT_LEAN  # the throat's line at this height
-            if x > front + 1:
-                continue
+            front = top_x + (y - jy) * LEAN
+            if x > front + 1: continue
             fill[y, x] = np.clip(front + 1 - x, 0, 1)
-            # a short soft shadow right under the jaw, then skin close to the face's own tone
-            shade[y, x] = hi - (hi - lo) * np.exp(-max(0, y - ytop) / 9)
-            if front - 1.6 < x <= front + 1:  # the drawing's thin warm outline along the throat
-                shade[y, x] *= 0.86
+            under[y, x] = max(0, y - ytop)
     fill = cv2.GaussianBlur(fill, (0, 0), 0.8)
-    shade = cv2.GaussianBlur(shade, (0, 0), 1.0)
-    neck = m['tone'][None, None, :] * np.where(shade > 0, shade, 1)[..., None]
+    # the neck's colour: the skin around the hole, carried smoothly into it (no seam with the
+    # skin at the back of her neck or under her jaw)
+    skin, sweater = _neck_masks(a.astype(np.uint8))
+    src = (skin & (fill < 0.05)).astype(np.float32)
+    rgb = a[..., :3]
+    field = None
+    for s in (40, 14, 5):
+        num = cv2.GaussianBlur(rgb * src[..., None], (0, 0), s); den = cv2.GaussianBlur(src, (0, 0), s)
+        f = num / np.maximum(den, 1e-4)[..., None]
+        if field is None: field = f
+        else:
+            w = np.clip(den * 6, 0, 1)[..., None]; field = field * (1 - w) + f * w
+    # a soft shadow under the jaw, the neck a step deeper than her face (it's in the chin's shade),
+    # and the throat drawn with the chin's own thin line, so it never melts into the wall
+    shade = 1 - NECK_SHADOW * np.exp(-np.minimum(under, 60) / 10)
+    Y, X = np.mgrid[0:H, 0:W]
+    front = top_x + (Y - jy) * LEAN
+    neck = field * shade[..., None] * np.array(NECK_TINT, np.float32)
+    if NECK_LINE > 0:
+        ink = m['tone'] * np.array([0.78, 0.66, 0.6], np.float32)
+        line_w = np.clip(1 - np.abs(X - (front - 0.6)) / 1.1, 0, 1) * (Y > jy + 2) * NECK_LINE
+        neck = neck * (1 - line_w[..., None]) + ink * line_w[..., None]
     al = a[..., 3:4] / 255
-    junk = (a[..., 3] < 200) & (fill > 0.5)  # half-see-through leftovers of the old background give way
+    junk = (a[..., 3] < 200) & (fill > 0.5)
     al = np.where(junk[..., None], 0, al)
-    a[..., :3] = a[..., :3] * al + neck * (1 - al) * fill[..., None] + a[..., :3] * (1 - al) * (1 - fill[..., None])
-    a[..., 3] = np.maximum(np.where(junk, 0, a[..., 3]), fill * 255)
+    # the neck goes behind what's there (straight alpha: a half-covered edge pixel takes the
+    # neck's colour, never the export's hidden background colour)
+    cov = (1 - al) * fill[..., None]
+    a_new = al + cov
+    a[..., :3] = np.where(a_new > 1e-3, (a[..., :3] * al + neck * cov) / np.maximum(a_new, 1e-3), a[..., :3])
+    a[..., 3] = a_new[..., 0] * 255
     # the collar's top edge against the new neck takes the sweater's own colour (no old-background fringe)
     _, sweater = _neck_masks(a.astype(np.uint8))
     near = cv2.dilate((fill > 0.3).astype(np.uint8), np.ones((3, 3), np.uint8), iterations=4).astype(bool)
     deep = cv2.erode(sweater.astype(np.uint8), np.ones((3, 3), np.uint8), iterations=5).astype(bool)
-    num = cv2.GaussianBlur(a[..., :3] * deep[..., None], (0, 0), 6)
-    den = cv2.GaussianBlur(deep.astype(np.float32), (0, 0), 6)
+    num = cv2.GaussianBlur(a[..., :3] * deep[..., None], (0, 0), 6); den = cv2.GaussianBlur(deep.astype(np.float32), (0, 0), 6)
     inner = num / np.maximum(den, 1e-4)[..., None]
     rim = near & (a[..., 3] > 0) & (den > 0.05) & ~(fill > 0.5) & (a[..., 2] + 30 > a[..., 0])
     t = inner + ((luma(a[..., :3]) - luma(inner)) * 0.5)[..., None]
     a[..., :3] = np.where(rim[..., None], t, a[..., :3])
-    # In front of the throat (clear room, between the jaw and the collar), any leftover fleck of
-    # the old background goes: it showed as a small greenish speck where the collar starts.
-    (bx0, bx1), (by0, by1) = NECK_X, NECK_Y
-    Y, X = np.mgrid[by0:min(H, by1 + 120), bx0:bx1]
-    front_line = top_x + (Y - jy) * THROAT_LEAN
+    (bx0_, bx1_), (by0_, by1_) = NECK_X, NECK_Y
+    sub = (slice(by0_, min(H, by1_ + 120)), slice(bx0_, bx1_))
+    Ys, Xs = Y[sub], X[sub]; fl = front[sub]
     skin_now, sweater_now = _neck_masks(a.astype(np.uint8))
-    sub = (slice(by0, min(H, by1 + 120)), slice(bx0, bx1))
-    clear = (X > front_line + 2) & (fill[sub] < 0.05) & ~skin_now[sub] & ~sweater_now[sub] & (a[sub][..., 3] < 245)
+    clear = (Xs > fl + 2) & (fill[sub] < 0.05) & ~skin_now[sub] & ~sweater_now[sub] & (a[sub][..., 3] < 245)
     a[sub][clear] = 0
-    # The export's pale cut-out line where her skin and hair met the see-through gap (under the
-    # jaw, down the back of the neck) reads as a cut-out edge now that the neck is behind it: it's
-    # redrawn as the drawing's own warm contour (the colour of the chin's outline).
+    # the export's pale cut-out edge where the hole was: behind the throat it melts into the neck
+    # (no outline), in front of it (the chin's underside) it's the chin's own warm line
     k3 = np.ones((3, 3), np.uint8)
     inside = (fill > 0.5).astype(np.uint8)
     ring = cv2.dilate(inside, k3, iterations=3).astype(bool) & ~inside.astype(bool)
-    rgb = a[..., :3]
-    mx, mn = rgb.max(2), rgb.min(2)
-    sat = (mx - mn) / np.maximum(mx, 1)
-    pale = ring & (a[..., 3] > 40) & ~sweater_now & ((sat < 0.32) | (luma(rgb) > luma(m['tone'][None, None, :])[..., 0] + 6))
-    contour = m['tone'] * np.array([0.78, 0.66, 0.6], np.float32)  # warm, like the chin's line
-    a[..., :3] = np.where(pale[..., None], contour[None, None, :], a[..., :3])
+    rgb = a[..., :3]; mx, mn = rgb.max(2), rgb.min(2); sat = (mx - mn) / np.maximum(mx, 1)
+    pale = ring & (a[..., 3] > 40) & ~sweater_now & (luma(rgb) > 110) & ((sat < 0.32) | (luma(rgb) > luma(m['tone'][None, None, :])[..., 0] + 6))
+    behind = X <= front + 1
+    contour = m['tone'] * np.array([0.78, 0.66, 0.6], np.float32)
+    a[..., :3] = np.where((pale & behind)[..., None], neck, np.where((pale & ~behind)[..., None], contour[None, None, :], a[..., :3]))
     a[..., 3] = np.where(pale, 255, a[..., 3])
-    # Inside the neck, the export's pale fringe along the collar's top (its old background) takes
-    # the neck's colour: it showed as a thin light line between the neck and the collar.
-    rgb = a[..., :3]
-    mx, mn = rgb.max(2), rgb.min(2)
-    sat = (mx - mn) / np.maximum(mx, 1)
+    # the export's own outline along the hole's back and the jaw's underside (now inside her skin),
+    # softened into the neck: a line there only says "cut out"
+    L_ = luma(a[..., :3])
+    gx = cv2.Sobel(L_, cv2.CV_32F, 1, 0, ksize=3); gy = cv2.Sobel(L_, cv2.CV_32F, 0, 1, ksize=3)
+    reach = cv2.dilate(inside, k3, iterations=6).astype(bool) & ~cv2.erode(inside, k3, iterations=1).astype(bool)
+    not_hair = L_ > 85
+    zone = (reach | (fill > 0.3)) & behind & ~sweater_now & (a[..., 3] > 200) & (L_ > 70) & (X < top_x)
+    # the export's outline down the back of the neck (running up and down: it says "cut out")
+    upright = cv2.dilate(((np.abs(gx) > 1.0 * np.abs(gy)) & (np.abs(gx) > 40)).astype(np.uint8), k3, iterations=1).astype(bool)
+    line = zone & upright & (L_ < luma(neck) - 25)
+    # and the export's grey-green leftovers between the back of the neck and the collar
+    r_, g_, b_ = a[..., 0], a[..., 1], a[..., 2]
+    grey = zone & ~skin_now & (g_ >= r_ - 45) & (L_ < luma(neck) - 15)
+    melt = cv2.GaussianBlur((line | grey).astype(np.float32), (0, 0), 0.7) * NECK_MELT
+    melt = np.maximum(melt, (line | grey) * NECK_MELT)
+    a[..., :3] = a[..., :3] * (1 - melt[..., None]) + neck * melt[..., None]
+    # the jaw's underside keeps its line, but softer: under it there's a shadow now
+    jawline = reach & behind & ~sweater_now & (a[..., 3] > 200) & not_hair & ~line & (np.abs(a[..., :3] - neck).sum(2) > 30) & (X >= top_x - 40) & (X < front - 2.5)
+    a[..., :3] = np.where(jawline[..., None], a[..., :3] * 0.6 + neck * 0.4, a[..., :3])
+    rgb = a[..., :3]; mx, mn = rgb.max(2), rgb.min(2); sat = (mx - mn) / np.maximum(mx, 1)
     fringe = (fill > 0.5) & ~sweater_now & ((sat < 0.3) | (luma(rgb) > luma(m['tone'][None, None, :])[..., 0] + 6)) & (luma(rgb) > 90)
     a[..., :3] = np.where(fringe[..., None], neck, a[..., :3])
-    # Where the collar's outline ends at the throat, its last half-see-through pixels showed the
-    # room through them, a small pale-blue fleck: they become the end of the collar's dark line.
-    near_front = (np.abs(X - front_line) < 5) & (Y > jy)
+    near_front = (np.abs(Xs - fl) < 5) & (Ys > jy)
     tip = np.zeros((H, W), bool)
     tip[sub] = near_front & sweater_now[sub] & (a[sub][..., 3] < 210)
     soft_tip = np.zeros((H, W), bool)
@@ -684,11 +715,54 @@ def throat_keep(shape, m):
     return _blurred(keep, 1.0)
 
 
+NAPE = (520, 640, 740, 880)  # where the back of her neck can be (source px)
+NAPE_DOWN, NAPE_BACK, NAPE_FWD = 50, 8, 14  # the strip's box from the back corner of her jaw
+NAPE_UP = 30  # and up from it, to where her hair meets the corner (the brown spot itself)
+
+
+def tidy_nape(a):
+    """(frame, keep mask) for the thin strip of skin at the back of her neck, under the back corner
+    of her jaw. The edge clean-up took it for an edge and repainted it brown from her hair (a brown
+    spot): the mask lets it through untouched. The export's khaki fleck where it meets the collar goes."""
+    import cv2
+    H, W = a.shape[:2]
+    x0, x1, y0, y1 = NAPE
+    r, g, b, al = [a[..., i].astype(np.float32) for i in range(4)]
+    skin = ((al > 200) & (r > 160) & (g > 100) & (r - b > 40)).astype(np.uint8)
+    keep = np.zeros((H, W), np.float32)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(skin, 8)
+    if n < 2:
+        return a, keep
+    face = lab == (1 + np.argmax(st[1:, cv2.CC_STAT_AREA]))
+    rows = [y for y in range(y0, y1) if face[y, x0:x1].any()]
+    if not rows:
+        return a, keep
+    yb = rows[-1]
+    xb = x0 + np.nonzero(face[yb, x0:x1])[0].min()
+    keep[max(0, yb - NAPE_UP):yb + NAPE_DOWN, max(0, xb - NAPE_BACK):xb + NAPE_FWD] = 1
+    a = a.copy()
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    box = (slice(max(0, yb - 8), yb + NAPE_DOWN), slice(max(0, xb - 1), xb + NAPE_FWD))
+    sweater = (al > 200) & (b > r + 8)
+    fleck = (al > 0) & (lum > 80) & (g > 85) & (r - g < 52) & ~sweater & ~(skin > 0)
+    sub = a[box]
+    sub[..., 3] = np.where(fleck[box], 0, sub[..., 3])
+    return a, np.clip(cv2.GaussianBlur(keep, (0, 0), 2.0), 0, 1)
+
+
 def paint_neck_seq(frames, keeps=None):
     """Every frame (RGBA arrays) with her neck painted in, following her head. The jaw, collar and
     throat are measured per frame, then evened out over neighbouring frames, so the neck never
     jitters; its tone is one for the whole clip. If `keeps` is a list, each frame's throat_keep
-    mask is added to it."""
+    mask is added to it. Off (NECK_PAINT False): only the back of her neck is tidied (tidy_nape)."""
+    if not NECK_PAINT:
+        out = []
+        for f in frames:
+            f2, keep = tidy_nape(f)
+            out.append(f2)
+            if keeps is not None:
+                keeps.append(keep)
+        return out
     ms = [_neck_measure(f) for f in frames]
     tones = [m['tone'] for m in ms if m['tone'] is not None]
     tone = np.median(np.stack(tones), 0) if tones else None
@@ -961,10 +1035,11 @@ def build_clip(name, width, quality):
     nb_zone = np.asarray(Image.fromarray((nb_zone * 255).astype(np.uint8)).filter(ImageFilter.GaussianBlur(6)), np.float32) / 255
 
     def finished(img, pen=None):  # the source frame is already prepared (pen, light, hair, shimmer)
-        raw = hair_rim(np.asarray(to_box(img, WOMAN), np.float32), rim_zone, HAIR_RIM * k)
         m = None
         if pen is not None:
             m = np.asarray(to_box(Image.fromarray((np.clip(pen, 0, 1) * 255).astype(np.uint8)).convert('RGBA'), WOMAN).getchannel('R'), np.float32)[..., None] / 255
+        # what's kept (the pen, the back of her neck) never takes the hair's colour either
+        raw = hair_rim(np.asarray(to_box(img, WOMAN), np.float32), rim_zone if m is None else rim_zone * (1 - m[..., 0]), HAIR_RIM * k)
         raw = notebook_outline(raw, nb_zone if m is None else nb_zone * (1 - m[..., 0]))  # never the pen
         done_ = edge_finish(raw, k, room, WRAP['woman'])
         if m is None:

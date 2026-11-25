@@ -53,7 +53,7 @@ Pipeline:
 
 It costs nothing, adds 0 KB and takes 2–4 h, and an affine squash is indistinguishable from true perspective at this size.
 
-1. **Prep** four layers in Photopea or Photoshop: the static player body, the disc un-squashed to a true circle, the static sheen (`public/media/scene/glow/vinyl-sheen.png` already exists), and the tonearm. Use Remove to rebuild the platter under the arm. The label must be asymmetric, or the spin won't read.
+1. **Prep** four layers in Photopea or Photoshop: the static player body, the disc un-squashed to a true circle, the static sheen (`public/media/scene/glow/vinyl-sheen.webp` already exists), and the tonearm. Use Remove to rebuild the platter under the arm. The label must be asymmetric, or the spin won't read.
 2. **Animate.** Rotate the disc inside a parent set to `perspective() rotateX(~62deg) rotateZ()`, tuned until it sits on the painted ellipse. Spin with the Web Animations API (1.8 s per turn is 33⅓ rpm) and ease `playbackRate` up over about 0.8 s and down over about 1.5 s. Rotate the tonearm 18–25° from its pivot.
 3. **Integrate.** A React `playing` state toggled by a click. Start Web Audio on that same click later, when you add opt-in music.
 4. **Reduced motion:** no spin.

@@ -1,9 +1,8 @@
 /*
  * Weather behind the window's glass (see WeatherLayer): the snow canvas, in
  * the view's box and masked to its exact glass (set inline), above the view,
- * its lights and the city's windows (all z 2, drawn after them). The rain itself
- * is WindowLife's CSS layer; here it fades with the weather. Nothing here
- * touches the room's own light.
+ * its lights and the city's windows (all z 2, drawn after them). The rain is
+ * RainLayer's canvas. Nothing here touches the room's own light.
  */
 .weather-layer {
   position: absolute;
@@ -31,12 +30,6 @@
   height: 100%;
   /* in a still room the snow fades in or out as a whole */
   transition: opacity 1200ms var(--weather-ease);
-}
-
-/* The rain is drawn on a canvas (RainLayer); WindowLife's older CSS streaks
-   were too faint to see against a grey day, so they are kept off. */
-.scene[data-weather] .window-rain {
-  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

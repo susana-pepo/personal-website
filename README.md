@@ -61,7 +61,7 @@ sections use URL hashes.
 
 All copy lives in one file: **`src/content/content.ts`**. Types are in `src/content/types.ts`.
 
-- Optional fields (`organization`, `period`, `href`, `email`, `links`, `education`, …) are
+- Optional fields (`period`, `href`, `email`, `links`, `education`, …) are
   simply not shown when empty. Fill them in and they appear.
 - Each section's `summary` in `content.sections` is not shown on the page; the title stands
   alone. Keep copy plain and short: no counts, no labels that repeat a heading.
@@ -77,12 +77,13 @@ The draft deliberately invents nothing, so these are empty right now:
 1. **Contact details** (`contact.email`, `contact.links`): filled in (an email address and
    LinkedIn). The email is reached through "Let's chat" and is never printed on the page. Empty
    both and the Contact page shows `contact.pendingNote` instead.
-2. **Experience details** (`experience.entries[*].organization` / `period` / `location`):
-   employers, dates and locations for each thread, if you want them shown. Add or reorder
-   entries freely. Add `experience.education` entries if you want an Education list.
+2. **Experience details** (`experience.employers`): each employer's `name`, `location` and
+   `period`, and its `roles`. Add or reorder employers and roles freely. Add
+   `experience.education` entries if you want an Education book.
 3. **CV**: put the PDF at `public/cv/susana-perez-posada-cv.pdf` and rebuild. The
    "Download CV" button appears only when that file exists.
-4. **Case studies** (optional): add `href` to any work theme to link it.
+4. **Project links** (optional): add `href` (and `linkLabel`) to any `work.projects.items`
+   entry that is live and public to link it from its page.
 5. **Books** (`bookshelf.books`): title, author, shelf (`reading`, `work` or
    `loved`) and an optional note in your words. In development the shelves show
    clearly labelled sample spines so you can see the design; the live site shows only yours.
@@ -130,7 +131,8 @@ src/
   lib/router.ts                 tiny hash router with tidy history
   styles/                       tokens (palette sampled from the artwork), fonts + base
   assets/fonts/geist/           Geist and Geist Serif (woff2), with their licence
-server/, api/, netlify/         the "now playing" endpoint (one implementation, two hosts)
+server/, api/, netlify/         the "now playing" endpoint (one implementation, two hosts);
+                                server/ also holds the dev-only book notes store (/?notes)
 scripts/                        offline builders for the scene's media (Python) and Spotify sign-in
 ```
 

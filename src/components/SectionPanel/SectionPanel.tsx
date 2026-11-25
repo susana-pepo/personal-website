@@ -18,7 +18,6 @@ import { animationMs, prefersReducedMotion } from '../../lib/motion'
 import { sectionComponent } from '../sections/registry'
 import { lampParts } from '../../scene/scene-layout.json'
 import {
-  inkTransform,
   lampOnSheet,
   tabRowScroll,
   readDuration,
@@ -31,8 +30,11 @@ import { panelGeometry } from './panelGeometry'
 import '../sections/sections.css'
 import '../sections/panel-sections.css'
 import './SectionPanel.css'
+import './turn-fx.css'
 import { HeaderArt } from './HeaderArt'
-import { useGenie } from './genie/useGenie'
+import { moveInk } from './liquidInk'
+import { clearLight, passLight } from './turnLight'
+import { closeAfterPour, useGenie } from './genie/useGenie'
 
 /**
  * Lights the glass from the room's desk lamp: where its bulb is, as --lamp-x and --lamp-y on
@@ -90,8 +92,6 @@ interface Page {
   /** Opening rises; turning moves with the direction of travel. */
   enter: 'open' | 'turn'
   dir: 1 | -1
-  /** The section turned from. */
-  from: SectionId | null
 }
 
 interface LeavingPage extends Page {
@@ -138,7 +138,7 @@ export function SectionPanel({ section }: SectionPanelProps) {
       if (!dialog.open) {
         const active = document.activeElement
         returnFocusRef.current = active instanceof HTMLElement || active instanceof SVGElement ? (active as HTMLElement) : null
-        const next: Page = { id: section, key: ++keyRef.current, enter: 'open', dir: 1, from: null }
+        const next: Page = { id: section, key: ++keyRef.current, enter: 'open', dir: 1 }
         pageRef.current = next
         setPage(next)
         setLeaving(null)
@@ -157,7 +157,7 @@ export function SectionPanel({ section }: SectionPanelProps) {
       if (previous?.id === section) return
       const dir = turnDirection(previous?.id ?? null, section)
       if (previous) setLeaving({ ...previous, dir, offset: bodyRef.current?.scrollTop ?? 0 })
-      const next: Page = { id: section, key: ++keyRef.current, enter: previous ? 'turn' : 'open', dir, from: previous?.id ?? null }
+      const next: Page = { id: section, key: ++keyRef.current, enter: previous ? 'turn' : 'open', dir }
       pageRef.current = next
       setPage(next)
       return
@@ -177,15 +177,13 @@ export function SectionPanel({ section }: SectionPanelProps) {
 
     if (dialog.open) {
       setState('closing')
+      // A light still passing from a last turn goes at once: nothing of it rides the close.
+      clearLight(sheetRef.current)
       // Poured open: it pours back into the object of the page shown, and the dialog closes after.
       const pour = genieRef.current?.close(pageRef.current?.id ?? null)
       if (pour) {
         let live = true
-        void pour.then((home) => {
-          if (!live || !home || !dialog.open) return
-          dialog.close()
-          finish()
-        })
+        void closeAfterPour(pour, dialog, () => live, finish)
         // Reopening mid-close lands here first: the pour turns round (reopen above).
         return () => {
           live = false
@@ -282,19 +280,14 @@ export function SectionPanel({ section }: SectionPanelProps) {
     return () => window.clearTimeout(timer)
   }, [leaving])
 
-  /** Moves the single ink mark under the current tab. */
+  /** Moves the single ink mark under the current tab: on a turn it flows there (liquidInk.ts). */
   const placeInk = useCallback((animate: boolean) => {
     const ink = inkRef.current
     const tab = tabsRef.current?.querySelector<HTMLElement>('a[aria-current]')
     if (!ink || !tab) return
     const instant = !animate || prefersReducedMotion()
-    if (instant) ink.style.transition = 'none'
-    ink.style.transform = inkTransform(tab.offsetLeft, tab.offsetWidth)
+    moveInk(ink, { left: tab.offsetLeft, width: tab.offsetWidth }, !instant)
     ink.style.opacity = '1'
-    if (instant) {
-      void ink.getBoundingClientRect()
-      ink.style.transition = ''
-    }
     // Bring the current tab into view in the sideways-scrolling row, starting at a tab's edge.
     const nav = navRef.current
     if (nav && nav.scrollWidth > nav.clientWidth) {
@@ -323,13 +316,16 @@ export function SectionPanel({ section }: SectionPanelProps) {
   // Each new page starts at the top, takes focus on its heading, and moves the ink.
   const pageKey = page?.key
   const pageEnter = page?.enter
+  const pageDir = page?.dir
   useLayoutEffect(() => {
     if (pageKey === undefined) return
     if (bodyRef.current) bodyRef.current.scrollTop = 0
     headingRef.current?.focus({ preventScroll: true })
     placeInk(pageEnter === 'turn')
+    // A turn: the lamp's light passes through the glass as the pages exchange (turnLight.ts).
+    if (pageEnter === 'turn' && pageDir) passLight(sheetRef.current, pageDir)
     updateProgress()
-  }, [pageKey, pageEnter, placeInk, updateProgress])
+  }, [pageKey, pageEnter, pageDir, placeInk, updateProgress])
 
   // Keep the ink true when the tab row changes size (fonts loading, resizing).
   useEffect(() => {
@@ -508,7 +504,6 @@ function FolioPage({ page, leaving, headingRef }: FolioPageProps) {
       <Suspense fallback={<p className="panel__loading">Opening…</p>}>
         <Content />
       </Suspense>
-
     </article>
   )
 }

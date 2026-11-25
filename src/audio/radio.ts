@@ -486,5 +486,3 @@ export function roomRadio(): RoomRadio {
   instance ??= new RoomRadio()
   return instance
 }
-
-export type { RoomRadio }

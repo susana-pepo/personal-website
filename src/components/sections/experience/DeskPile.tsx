@@ -61,11 +61,6 @@ function bindingsFor(entries: readonly DeskItem[]): Binding[] {
   });
 }
 
-/** The room colour each entry is drawn in, in order, so a page can match its book. */
-export function pileColours(entries: readonly DeskItem[]): string[] {
-  return bindingsFor(entries).map((b) => PALETTE[b.colour].c);
-}
-
 /** Desk books carry a short title, so they are drawn longer than shelf books to give it room. */
 const LENGTHEN = 1.5;
 

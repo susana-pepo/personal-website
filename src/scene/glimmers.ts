@@ -7,7 +7,7 @@
  *
  * One rule for all of them, so a new glimmer only needs a hint:
  *  - Moonlight is theirs: every hint is drawn in one soft moonlight blue (--moon in
- *    HeroScene.css) that nothing else in the room uses, so the colour alone says "a different
+ *    tokens.css) that nothing else in the room uses, so the colour alone says "a different
  *    kind of thing". The bloom is an edge on the hint's own small marks, never a halo.
  *  - In its own nature: the sleeping cat breathes out z's; the lamp's bulb catches, as if a
  *    switch had been touched, and glints run up its brass. The little piano computer plays its

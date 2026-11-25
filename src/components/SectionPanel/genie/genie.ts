@@ -45,11 +45,33 @@ import {
   type Shape,
   type Silhouette,
 } from './geometry'
-import { glassSignature, rasterise, type Surface } from './raster'
+import { checkSurface, glassSignature, rasterise, type Surface } from './raster'
 import { Renderer } from './renderer'
 
 /** Where the genie runs at all. */
 export const GENIE_MEDIA = `(min-width: ${ROOM_ANCHORED_FROM}px) and (hover: hover) and (pointer: fine)`
+
+/**
+ * The browsers it has been verified in: Chromium's (Chrome, Edge, Arc, Brave, Opera). Safari and
+ * Firefox keep today's slide until the pour is checked there (the slab is drawn through an SVG
+ * foreignObject, which WebKit has a history of drawing without its images). To check one, set
+ * localStorage['panel-genie'] = 'on' (or add ?genie to the address); 'off' turns it off anywhere.
+ */
+export function genieEngineOk(): boolean {
+  let flag: string | null = null
+  try {
+    flag = new URLSearchParams(location.search).has('genie') ? 'on' : localStorage.getItem('panel-genie')
+  } catch {
+    flag = null
+  }
+  if (flag === 'on') return true
+  if (flag === 'off') return false
+  const brands = (navigator as Navigator & { userAgentData?: { brands?: { brand: string }[] } }).userAgentData?.brands
+  if (brands?.some((b) => b.brand === 'Chromium')) return true
+  // Chromium browsers that don't list the brand (Vivaldi, some Brave and Opera builds) still say
+  // "Chrome/" in their user agent; Safari and Firefox never do (Chrome on iOS is WebKit: "CriOS").
+  return /\bChrome\/\d/.test(navigator.userAgent)
+}
 
 const now = () => performance.now()
 const stageBox = () => (document.querySelector('.cover .stage') ?? document.querySelector('.stage'))?.getBoundingClientRect() ?? null
@@ -107,6 +129,9 @@ export class Genie {
   private surface: Surface | null = null
   private preparing: Promise<boolean> | null = null
   private stale = true
+  /** Counts what may change the glass, so a prepare that ran across a change knows it's stale. */
+  private generation = 0
+  private dpr = 1
   private necks = new Map<SectionId, Silhouette>()
   private viewW = 0
   private move: Move | null = null
@@ -136,7 +161,17 @@ export class Genie {
   // ── where it runs ──
 
   static eligible(): boolean {
-    return typeof window !== 'undefined' && window.matchMedia(GENIE_MEDIA).matches && !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    return (
+      typeof window !== 'undefined' &&
+      window.matchMedia(GENIE_MEDIA).matches &&
+      !window.matchMedia('(prefers-reduced-motion: reduce)').matches &&
+      genieEngineOk()
+    )
+  }
+
+  private markStale() {
+    this.stale = true
+    this.generation++
   }
 
   private gl(): Renderer | null {
@@ -176,7 +211,9 @@ export class Genie {
     let resizeTimer = 0
     const onResize = () => {
       window.clearTimeout(resizeTimer)
-      this.stale = true
+      this.markStale()
+      // a move can't follow a reflowed panel: it ends where it was going, at once
+      if (this.move) this.jump('resized')
       resizeTimer = window.setTimeout(() => this.schedulePrepare(), 300)
     }
     window.addEventListener('resize', onResize)
@@ -188,7 +225,7 @@ export class Genie {
     const scene = document.querySelector('.scene')
     if (scene) {
       const watch = new MutationObserver(() => {
-        this.stale = true
+        this.markStale()
         this.schedulePrepare(600)
       })
       watch.observe(scene, { attributes: true, attributeFilter: ['data-time', 'data-weather'] })
@@ -200,11 +237,16 @@ export class Genie {
   }
 
   private idleHandle = 0
+  private delayTimer = 0
   /** Prepares at the next idle moment (after `delay`), unless a panel is out: then after it closes. */
   schedulePrepare(delay = 0) {
     if (!Genie.eligible()) return
     const cancel = window.cancelIdleCallback ?? window.clearTimeout
     if (this.idleHandle) cancel(this.idleHandle)
+    this.idleHandle = 0
+    // one pending prepare at a time: a burst of changes (HMR, moods) waits for the last
+    window.clearTimeout(this.delayTimer)
+    this.delayTimer = 0
     const go = () => {
       const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200))
       this.idleHandle = idle(() => {
@@ -213,7 +255,11 @@ export class Genie {
         void this.prepare()
       }, { timeout: 3000 })
     }
-    if (delay) this.later(go, delay)
+    if (delay)
+      this.delayTimer = window.setTimeout(() => {
+        this.delayTimer = 0
+        go()
+      }, delay)
     else go()
   }
 
@@ -224,11 +270,20 @@ export class Genie {
       if (!Genie.eligible() || this.o.dialog.open) return false
       const r = this.gl()
       if (!r) return false
+      const generation = this.generation
       try {
         this.viewW = document.documentElement.clientWidth
+        this.dpr = window.devicePixelRatio || 1
         const room = stageBox()
         const s = await rasterise({ dialog: this.o.dialog, dress: this.o.dress })
         if (this.o.dialog.open) return false // opened meanwhile: prepared again after the close
+        // a picture that came out wrong (an engine that drew it without its images) never pours
+        const bad = checkSurface(s)
+        if (bad) {
+          this.surface = null
+          this.log('prepare refused', { why: bad })
+          return false
+        }
         if (!sameBox(room, stageBox())) {
           // the room was still moving (its entrance, a resize): try again once it rests
           this.log('room moved while preparing')
@@ -237,7 +292,9 @@ export class Genie {
         }
         this.sampleObjects()
         this.surface = s
-        this.stale = false
+        // the light or the window changed while it was being painted: paint it again
+        this.stale = generation !== this.generation
+        if (this.stale) this.schedulePrepare(300)
         this.warm(s)
         this.log('prepared', { ms: s.ms, px: [s.slab.width, s.slab.height], glint: s.glint ? [s.glint.width, s.glint.height] : null })
         return true
@@ -299,6 +356,7 @@ export class Genie {
     const d = s.dock
     if (Math.abs(r.left - d.x) > 1 || Math.abs(r.top - d.y) > 1 || Math.abs(r.width - d.w) > 1 || Math.abs(r.height - d.h) > 1) return 'panel moved'
     if (Math.abs(document.documentElement.clientWidth - this.viewW) > 1) return 'window changed'
+    if (Math.abs((window.devicePixelRatio || 1) - this.dpr) > 0.01) return 'screen changed'
     const sheet = this.o.dialog.querySelector('.panel__sheet')
     if (!sheet || !sameGlass(glassSignature(sheet), s.signature)) return 'glass changed'
     return null
@@ -311,7 +369,7 @@ export class Genie {
     if (why) {
       this.log('open: not poured', { section, why })
       if (why !== 'media') {
-        this.stale = true
+        this.markStale()
         this.schedulePrepare(400) // ready for next time
       }
       return false
@@ -601,6 +659,14 @@ export class Genie {
     if (this.stale) this.schedulePrepare(300)
   }
 
+  /** The window changed under a move: it ends where it was going, at once (no pour to a stale place). */
+  private jump(reason: string) {
+    const m = this.move
+    if (!m) return
+    this.log('jump', { reason, dir: m.dir })
+    this.done(m)
+  }
+
   /** The dialog was closed under us (the browser's own Escape, or the component going). */
   abort(reason: string) {
     if (!this.owned && !this.move) return
@@ -679,6 +745,7 @@ export class Genie {
     this.abort('unmounted')
     for (const id of this.timers) window.clearTimeout(id)
     this.timers.clear()
+    window.clearTimeout(this.delayTimer)
     if (this.idleHandle) (window.cancelIdleCallback ?? window.clearTimeout)(this.idleHandle)
     for (const d of this.disposers.splice(0)) d()
     this.renderer?.destroy()

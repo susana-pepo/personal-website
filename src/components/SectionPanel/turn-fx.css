@@ -1,0 +1,131 @@
+/*
+ * The page turn, as one move (DESIGN.md §6): the tab's mark flows to the new tab first
+ * (liquidInk.ts), the lamp's light passes through the glass as the pages exchange (turnLight.ts),
+ * and the pages turn under it (SectionPanel.css). The JS reads these timings and curves.
+ */
+.panel {
+  /* The mark: its leading edge on --ease-drawer (it answers the click at once, with a little
+     weight), the trailing edge gathering on --ease-sine. */
+  --turn-ink: 460ms;
+  --turn-ink-lead: var(--ease-drawer);
+  --turn-ink-gather: var(--ease-sine);
+  /* The light: it sets off a frame after the mark, glides evenly across the slab while the pages
+     exchange (its heart crosses the reading column at about 200-260ms) and has gone by 490ms,
+     as the mark lands (460ms) and the new page settles (60 + 380ms). */
+  --turn-light-at: 10ms;
+  --turn-light: 480ms;
+  --turn-light-ease: var(--ease-sine);
+  /* The lamp's own warm light, as its bloom on the face, never white. Its strength at the band's
+     heart beside the bulb: on the face (about the lamp's own bloom there, --g-bloom), and the
+     catch of it in the edge line. Measured on the slab: about 6-7/255 beside the lamp and 3-4/255
+     across the reading column at its height, so it reads as the lamp's light gliding through the
+     glass, not a shine passing over it. --turn-light-k scales both for a smaller sheet. */
+  --turn-light-color: 0.84 0.075 66;
+  --turn-light-face: 0.055;
+  --turn-light-edge: 0.2;
+  --turn-light-k: 1;
+  /* A still grain in the band's mask (about ±15%): at these levels a smooth gradient would show
+     as 1/255 contour steps; the grain dithers them away. Never seen as grain itself. */
+  --turn-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.2 0 0 0 .3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+}
+
+/* Daylight: the lamp matters less. */
+.panel[data-light='midday'] {
+  --turn-light-face: 0.041;
+  --turn-light-edge: 0.15;
+}
+
+/* Phones: a smaller sheet lit from above; the light a little quieter. */
+@media (max-width: 639px) {
+  .panel {
+    --turn-light-k: 0.8;
+  }
+}
+
+/* Reduced motion: no light, and the mark is placed at once. */
+@media (prefers-reduced-motion: reduce) {
+  .panel {
+    --turn-ink: 0ms;
+    --turn-light: 0ms;
+  }
+}
+
+/* The light's two layers exist only while it passes. The face layer sits with the glass's own
+   paint, under the page; it fades with distance from the bulb, as the lamp's bloom does. Its
+   strength is the layer's own opacity, and the band inside it is drawn at full scale (its
+   opacity is the pass's brightness): kept apart like this, the faint result is quantised only
+   once, on screen, not stepped at every stage. */
+.panel__light {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: calc(var(--turn-light-face) * var(--turn-light-k));
+  /* Strongest near the lamp, still a breath of it across the reading column; dithered. */
+  -webkit-mask: radial-gradient(farthest-corner at var(--lamp-x) var(--lamp-y), #000, rgb(0 0 0 / 0.55) 30%, rgb(0 0 0 / 0.36) 65%, rgb(0 0 0 / 0.28)), var(--turn-grain);
+  -webkit-mask-composite: source-in;
+  mask: radial-gradient(farthest-corner at var(--lamp-x) var(--lamp-y), #000, rgb(0 0 0 / 0.55) 30%, rgb(0 0 0 / 0.36) 65%, rgb(0 0 0 / 0.28)), var(--turn-grain);
+  mask-composite: intersect;
+}
+
+/* The band: nine tenths of the sheet wide (LIGHT.band in turnLight.ts), a broad Gaussian across
+   with long soft flanks, leaning with the lamp's light about the bulb's height. turnLight.ts
+   moves it by transform and sets its opacity. */
+.panel__light > i {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 90%;
+  opacity: 0;
+  transform-origin: 50% var(--lamp-y);
+  background: linear-gradient(90deg,
+    transparent 0%,
+    oklch(var(--turn-light-color) / 0.026) 5%,
+    oklch(var(--turn-light-color) / 0.056) 10%,
+    oklch(var(--turn-light-color) / 0.110) 15%,
+    oklch(var(--turn-light-color) / 0.198) 20%,
+    oklch(var(--turn-light-color) / 0.325) 25%,
+    oklch(var(--turn-light-color) / 0.487) 30%,
+    oklch(var(--turn-light-color) / 0.667) 35%,
+    oklch(var(--turn-light-color) / 0.835) 40%,
+    oklch(var(--turn-light-color) / 0.956) 45%,
+    oklch(var(--turn-light-color) / 1.000) 50%,
+    oklch(var(--turn-light-color) / 0.956) 55%,
+    oklch(var(--turn-light-color) / 0.835) 60%,
+    oklch(var(--turn-light-color) / 0.667) 65%,
+    oklch(var(--turn-light-color) / 0.487) 70%,
+    oklch(var(--turn-light-color) / 0.325) 75%,
+    oklch(var(--turn-light-color) / 0.198) 80%,
+    oklch(var(--turn-light-color) / 0.110) 85%,
+    oklch(var(--turn-light-color) / 0.056) 90%,
+    oklch(var(--turn-light-color) / 0.026) 95%,
+    transparent 100%);
+}
+
+/* The catch on the edge: the same band, seen only in the 1px line of light inside the slab's
+   edge (as .panel__sheet::after draws it), above the page, fading with distance from the bulb.
+   As the band passes, the rim catches the lamp: the slab tilting toward it. */
+.panel__light--edge {
+  z-index: 3;
+  padding: 1px;
+  opacity: calc(var(--turn-light-edge) * var(--turn-light-k));
+  -webkit-mask:
+    radial-gradient(farthest-corner at var(--lamp-x) var(--lamp-y), #000, rgb(0 0 0 / 0.55) 35%, rgb(0 0 0 / 0.3) 70%, rgb(0 0 0 / 0.2)),
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: source-in, xor;
+  mask:
+    radial-gradient(farthest-corner at var(--lamp-x) var(--lamp-y), #000, rgb(0 0 0 / 0.55) 35%, rgb(0 0 0 / 0.3) 70%, rgb(0 0 0 / 0.2)),
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: intersect, exclude;
+}
+
+@media (prefers-reduced-motion: reduce), (forced-colors: active) {
+  .panel__light {
+    display: none;
+  }
+}

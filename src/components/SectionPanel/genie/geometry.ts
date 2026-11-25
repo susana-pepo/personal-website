@@ -2,11 +2,14 @@
  * The genie's shape and timing: how the glass slab pours out of an object into the dock and back.
  * Pure (no DOM), so it is tested on its own; shaders.ts runs the same per-slice maths on the GPU.
  *
- * The slab is cut into slices across its travel axis. Each slice leaves a narrow neck at the
- * object's painted heart and eases to its place in the dock; the far edge leads and the near edge
- * follows (`lag`), and a slice widens to the slab's full span once it has travelled `flare` of
- * the way. Objects left of the dock pour sideways; objects under it (or above it) rise (or fall)
- * out of the object and then widen.
+ * The slab is cut into slices across its travel axis. First a small piece of the glass forms in
+ * the object's painted heart and swells to the neck (`seed`); then each slice eases from the neck
+ * to its place in the dock, the far edge leading and the near edge following (`lag`). Objects
+ * left of the dock pour sideways through a funnel: the stream stays narrow across the room and
+ * fans out to the slab's full height only over the last part of the way (`fan`), so it never
+ * stands in the room as a tall sheet. Objects under the dock (or above it) rise (or fall) out of
+ * the object and widen as they travel (`flare`). Closing runs the same shape backwards: the slab
+ * narrows into the stream, and a small piece shrinks into the object last.
  */
 
 export type Bezier = readonly [number, number, number, number]
@@ -63,10 +66,17 @@ export type Shape = 'open' | 'close'
 export interface Tuning {
   /** Share of the move by which the near edge trails the far edge. */
   lag: number
-  /** A slice has widened to the slab's full span once it has travelled this far. */
+  /** Rising or falling: a slice has widened to the slab's full span once it has travelled this far. */
   flare: number
-  /** A slice is visible once it has travelled this far from the object. */
-  fadeIn: number
+  /**
+   * Pouring sideways: the stream fans out from the neck's height to the slab's from this share of
+   * the way between the object and the dock's near edge (top edge, bottom edge).
+   */
+  fan: readonly [top: number, bottom: number]
+  /** Share of the move in which the piece forms in the object (opening) or shrinks into it (closing). */
+  seed: { open: number; close: number }
+  /** The piece's size as it first shows, as a share of the neck. */
+  seedScale: number
   /** Each slice's travel when opening: one calm S-curve, no overshoot. */
   ease: Bezier
   /** Each slice's travel back into the object: accelerating (an ease-in). */
@@ -78,9 +88,11 @@ export interface Tuning {
 }
 
 export const TUNING: Tuning = {
-  lag: 0.4,
+  lag: 0.32,
   flare: 0.78,
-  fadeIn: 0.14,
+  fan: [0.62, 0.42],
+  seed: { open: 0.13, close: 0.2 },
+  seedScale: 0.3,
   ease: [0.4, 0, 0.22, 1],
   closeEase: [0.5, 0, 0.78, 0.42],
   neck: { scale: 0.5, min: 44, max: 170 },
@@ -119,22 +131,54 @@ export function planMove(object: Silhouette, shell: Rect, t: Tuning = TUNING): P
   return { axis, neck, shell, N: frameOf(axis, neck), D: frameOf(axis, shell) }
 }
 
+const seedOf = (shape: Shape, t: Tuning) => (shape === 'open' ? t.seed.open : t.seed.close)
+
 /** How far one slice has travelled (0 in the object, 1 home) at the move's progress T. */
 export function travel(T: number, k: number, shape: Shape, t: Tuning = TUNING): number {
+  const seed = seedOf(shape, t)
+  const Tp = clamp01((T - seed) / (1 - seed))
   const kc = clamp01(k)
-  const tau = clamp01((T - (1 - kc) * t.lag) / (1 - t.lag))
+  const tau = clamp01((Tp - (1 - kc) * t.lag) / (1 - t.lag))
   return shape === 'open' ? cubicBezier(t.ease)(tau) : 1 - cubicBezier(t.closeEase)(1 - tau)
+}
+
+/** How grown the piece in the object is (0 → 1) at progress T: it forms first, and goes last. */
+export function seedAt(T: number, shape: Shape, t: Tuning = TUNING): number {
+  return smoothstep(0, seedOf(shape, t), T)
+}
+
+/** How visible the slab is at progress T: the piece fades in as it forms and out as it goes. */
+export function appearAt(T: number, shape: Shape, t: Tuning = TUNING): number {
+  return smoothstep(0, seedOf(shape, t) * 0.7, T)
+}
+
+/** The neck at progress T: the piece swells from `seedScale` of it, about its centre. */
+export function neckAt(plan: Plan, T: number, shape: Shape, t: Tuning = TUNING): Frame {
+  const g = t.seedScale + (1 - t.seedScale) * seedAt(T, shape, t)
+  const [a0, a1, c0, c1] = plan.N
+  const am = (a0 + a1) / 2
+  const cm = (c0 + c1) / 2
+  return [am + (a0 - am) * g, am + (a1 - am) * g, cm + (c0 - cm) * g, cm + (c1 - cm) * g]
 }
 
 /** Slice k (0 near edge, 1 far edge) at progress T: its place along the travel and its span across. */
 export function sliceAt(plan: Plan, T: number, k: number, shape: Shape, t: Tuning = TUNING) {
   const s = travel(T, k, shape, t)
-  const [na0, na1, nc0, nc1] = plan.N
+  const [na0, na1, nc0, nc1] = neckAt(plan, T, shape, t)
   const [da0, da1, dc0, dc1] = plan.D
   const from = na0 + (na1 - na0) * k
   const to = da0 + (da1 - da0) * k
-  const w = smoothstep(0, t.flare, s)
-  return { s, a: from + (to - from) * s, c0: nc0 + (dc0 - nc0) * w, c1: nc1 + (dc1 - nc1) * w }
+  const a = from + (to - from) * s
+  let w0: number
+  let w1: number
+  if (plan.axis === 0) {
+    // the funnel: full height only near the dock, wherever the slice is in its own travel
+    const mid = (plan.N[0] + plan.N[1]) / 2
+    const q = clamp01((a - mid) / Math.max(1, da0 - mid))
+    w0 = smoothstep(t.fan[0], 1, q)
+    w1 = smoothstep(t.fan[1], 1, q)
+  } else w0 = w1 = smoothstep(0, t.flare, s)
+  return { s, a, c0: nc0 + (dc0 - nc0) * w0, c1: nc1 + (dc1 - nc1) * w1 }
 }
 
 /** The furthest any part of the slab is from its place in the dock, in px. */
@@ -181,7 +225,7 @@ export function coverT(plan: Plan, t: Tuning = TUNING): number {
         else hi = mid
       }
     const q = sliceAt(plan, T, hi, 'open', t)
-    return q.s >= t.fadeIn && q.c0 <= dc0 + 2 && q.c1 >= dc1 - 2
+    return q.c0 <= dc0 + 2 && q.c1 >= dc1 - 2
   }
   if (!ok(1)) return 1
   let lo = 0.2

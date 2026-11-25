@@ -1,24 +1,18 @@
-import { useCallback, useEffect, useId, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { content } from '../../content/content'
 import { stationById } from '../../audio/playlist'
 import { clock, focusLeft, rainAudible, rainLevelOf, roomRadio } from '../../audio/radio'
 import { useRainFromScene, useRoomRadio } from '../../audio/useRoomRadio'
 import { DiscoveryHint } from '../DiscoveryHint/DiscoveryHint'
 import { ROOM_POSTER_SRC } from '../../scene/layout'
-import type { ScenePlayback } from '../../hooks/useScenePlayback'
 import { SoundSheet } from './SoundSheet'
 import { StationIcon } from './StationIcon'
 import './SiteFooter.css'
 
-interface SiteFooterProps {
-  playback: ScenePlayback
-  videoRef: RefObject<HTMLVideoElement | null>
-}
-
 /**
  * Beneath the room (the name, menu and scene control are in the masthead
- * above it): the "Focus with me" player, centred, and the copyright small at
- * the right; on a first visit, the "Explore the room" cue rests just inside
+ * above it): the "Focus with me" player at the room's left corner, and the
+ * copyright small at the right; on a first visit, the "Explore the room" cue rests just inside
  * the room's bottom edge.
  *
  * The player is a small glass tile: the station's animated drawing (rain falling
@@ -27,7 +21,7 @@ interface SiteFooterProps {
  * sound (the station and the mix, in a sheet that rises from the tile) and
  * play / pause.
  */
-export function SiteFooter(_props: SiteFooterProps) {
+export function SiteFooter() {
   const radio = useRoomRadio()
   useRainFromScene()
   const progressRef = useRef<HTMLSpanElement>(null)

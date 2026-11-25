@@ -31,9 +31,8 @@
  * width beneath. "With room" is BookshelfSection's `data-paired` (layout.ts): the shelves at
  * least 34rem wide, or any desktop window, whose floating panel can be narrower than that.
  * Both upper shelves span the whole width and the same four rows, as subgrids both ways: their headings, boards and names fall into the two columns, and
- * the fourth row runs the full width under both. That row holds the note on the current
- * read until a book from either shelf is opened; its drawer then opens in the same cell,
- * cover beside words, as on Books I love.
+ * the fourth row runs the full width under both. A book opened from either shelf opens its
+ * drawer in that row, cover beside words, as on Books I love.
  */
 .bs-shelves[data-paired] {
   grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
@@ -46,7 +45,7 @@
  * transparent box the full width of both columns, Books for work (later in the source) on
  * top. Reading now's books still take clicks because its bays are positioned (.bs-bay,
  * position: relative), and so are hit-tested above any unpositioned box; its drawer's inside
- * is a stacking context (contain: paint, below). Its title, name and note are not, so Books
+ * is a stacking context (contain: paint, below). Its title and name are not, so Books
  * for work lets the pointer through itself (pointer-events, just below) and takes it back
  * only on its own pieces. A future background, padding, position, z-index, transform or
  * pointer-events on either section would cover the other shelf and swallow its clicks and
@@ -71,7 +70,7 @@
 }
 
 /* See the note above: the section on top is see-through to the pointer, its pieces are not,
-   so Reading now's title, name and note can be selected and the work books still answer. */
+   so Reading now's title and name can be selected and the work books still answer. */
 .bs-shelves[data-paired] > [data-shelf='work'] {
   pointer-events: none;
 }
@@ -771,7 +770,7 @@
 }
 
 .bs-detail__note {
-  /* as the note on the current read: her words, italic, at the panel tabs' size */
+  /* her words, italic, at the panel tabs' size */
   font-style: italic;
   max-width: 40ch;
   margin-top: var(--space-sm);
@@ -893,7 +892,7 @@
  * its column runs from about 28rem (a 1280px window) to 36rem. Reading now and Books for work
  * always share a row there (layout.ts), each sized to its own column: every book as large as
  * its column allows, up to the size it has on a wide panel, so the current read, the books for
- * work, the name and the note make one spread in the first view. Books I love runs the full
+ * work and the name make one spread in the first view. Books I love runs the full
  * width beneath on a single board (never the phone's two).
  */
 @media (min-width: 1025px) {
@@ -950,12 +949,6 @@
 
   .bs-shelves[data-paired] > [data-shelf='reading'] .bs-bay {
     margin-inline: 0;
-  }
-
-  /* Their lamplight stays on the books: on the shared board it would light two patches of it. */
-  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) .bs-lamp {
-    height: auto;
-    bottom: calc(18 * var(--u));
   }
 
   /* A little tighter than the other pages, so it fits: 1.5rem above Books I love and at the foot. */
@@ -1111,7 +1104,6 @@
     /* The opened book, smaller (zoom, so its box shrinks too), its title and author beside it
        and the note beneath both at the full width of the column, not in a sliver beside the cover. */
     .bs-detail {
-      grid-template-columns: auto minmax(0, 1fr);
       grid-template-areas:
         'stage head'
         'note note'
@@ -1143,11 +1135,6 @@
 
     .bs-detail__actions {
       grid-area: actions;
-    }
-
-    /* The title keeps its size beside the smaller cover, balanced so a long one breaks evenly. */
-    .bs-detail__title {
-      text-wrap: balance;
     }
   }
 }
@@ -1223,5 +1210,4 @@
   .bs-drawer {
     transition: none;
   }
-
 }

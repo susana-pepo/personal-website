@@ -118,8 +118,8 @@ const VIDEO_READY_MS = 5000
 
 /**
  * For a transparent clip's video, once its first frame is decoded: whether this browser really
- * shows it transparent (checked once per visit, on the first such video; if not, every clip
- * falls back to its WebP from then on).
+ * shows it transparent (checked once per visit, on the first such video; if not, nothing
+ * animates from then on and each figure keeps its still picture).
  */
 export function videoAlphaWorks(video: HTMLVideoElement): boolean {
   if (alphaWorks === null) {

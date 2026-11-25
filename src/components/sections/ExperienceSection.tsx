@@ -1,4 +1,4 @@
-import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { content } from "../../content/content";
 import type {
   BookColour,
@@ -6,7 +6,7 @@ import type {
   ExperienceRole,
 } from "../../content/types";
 import { prefersReducedMotion } from "../../lib/motion";
-import { DeskPile, pileColours, type DeskItem } from "./experience/DeskPile";
+import { DeskPile, type DeskItem } from "./experience/DeskPile";
 import { spineTitle, startYear, yearsOf } from "./experience/years";
 import { Topics } from "./Topics";
 
@@ -207,7 +207,6 @@ function Pile({
   const closable = initial === null;
   // A page chosen with the keyboard changes instantly; one chosen by pointer fades in.
   const [instant, setInstant] = useState(true);
-  const colours = useMemo(() => pileColours(items), [items]);
 
   return (
     <section
@@ -239,11 +238,10 @@ function Pile({
           if (next && !byKeyboard) revealPage(pageId(item));
         }}
       />
-      {items.map((item, i) => (
+      {items.map((item) => (
         <Page
           key={item.id}
           item={item}
-          colour={colours[i]!}
           hidden={item.id !== selected}
           instant={instant}
           onClose={
@@ -317,17 +315,15 @@ function putBack(id: string) {
   });
 }
 
-/** One open page, under the desk, in the colour of the book it came from. */
+/** One open page, under the desk. */
 function Page({
   item,
-  colour,
   hidden,
   instant,
   onClose,
   children,
 }: {
   item: PileItem;
-  colour: string;
   hidden: boolean;
   instant: boolean;
   /** Puts the book back on its pile: a quiet control at the page's top right. */
@@ -342,7 +338,6 @@ function Page({
       className="cv-page"
       hidden={hidden}
       data-instant={instant ? "" : undefined}
-      style={{ "--book": colour } as CSSProperties}
     >
       {onClose && (
         <button

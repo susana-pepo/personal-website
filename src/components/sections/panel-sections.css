@@ -1,7 +1,7 @@
 /*
  * The folio's typography and layout for Work, About, Experience and Contact.
  * Scoped to `.section--folio` so Bookshelf and Music keep their own layouts.
- * Rhythm tokens (--rhythm-*) are defined on `.panel`.
+ * Rhythm tokens: --rhythm-group is in tokens.css; the other --rhythm-* are defined on `.panel`.
  */
 
 /*
@@ -17,7 +17,6 @@
 .panel
   :is(
     .panel__title,
-    .folio-subhead,
     .cv-background__title,
     .music-head__title,
     .bs-shelf__title
@@ -29,7 +28,6 @@
   .panel
     :is(
       .panel__title,
-      .folio-subhead,
       .cv-background__title,
       .music-head__title,
       .bs-shelf__title
@@ -38,13 +36,6 @@
   }
 }
 
-/*
- * On wide screens the glass floats as an extension of the room rather than a window-tall
- * sidebar: a little taller than the room's frame and centred on it, anchored to its right
- * edge and hanging just past it, about 39% of the window wide and clear of the desk lamp.
- * The numbers come from panelGeometry.ts (set by SectionPanel.tsx with the lamp's light);
- * until they are measured, the sheet keeps its usual place. Content scrolls inside.
- */
 /*
  * Close: a small pill of liquid glass, the same material as the player and the scene control
  * (SiteFooter.css): a lighter pane on the smoked sheet, a rim that catches the light at its
@@ -165,6 +156,13 @@
   }
 }
 
+/*
+ * On wide screens the glass floats as an extension of the room rather than a window-tall
+ * sidebar: a little taller than the room's frame and centred on it, anchored to its right
+ * edge and hanging just past it, reaching left to the desk lamp's edge (within 28rem–50vw).
+ * The numbers come from panelGeometry.ts (set by SectionPanel.tsx with the lamp's light);
+ * until they are measured, the sheet keeps its usual place. Content scrolls inside.
+ */
 @media (min-width: 1025px) {
   dialog.panel[data-geometry="room"] {
     inset: var(--panel-top) var(--panel-right) auto auto;
@@ -188,15 +186,6 @@
   text-wrap: pretty;
 }
 
-.section--folio .lede--large {
-  max-width: 22ch;
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: var(--text-xl);
-  line-height: 1.15;
-  letter-spacing: -0.01em;
-}
-
 .section--folio .prose {
   display: grid;
   gap: var(--space-sm);
@@ -206,23 +195,6 @@
   line-height: 1.6;
   color: var(--ink-2);
   text-wrap: pretty;
-}
-
-.folio-group {
-  display: grid;
-  gap: var(--rhythm-block);
-}
-
-/* A part's heading: the serif at reading size, so it is told from the body by its face, not
-   its size (the same rule as .cv-background__title, .music-head__title and .bs-shelf__title). */
-.folio-subhead {
-  font-family: var(--font-display);
-  font-weight: 400;
-  font-size: var(--text-section);
-  line-height: 1.3;
-  letter-spacing: 0;
-  text-wrap: balance;
-  color: var(--ink);
 }
 
 .section--folio .topics {
@@ -237,156 +209,6 @@
   padding-inline: 0.5em;
   /* A quiet light dot on the smoked panel, still visible where a list wraps. */
   color: oklch(0.93 0.012 80 / 0.4);
-}
-
-/* ── Numbered entries (Experience; Work borrows .entry__status) ── */
-.entries {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.entry {
-  position: relative;
-  display: grid;
-  grid-template-columns: 2.75rem minmax(0, 1fr);
-  row-gap: var(--rhythm-inline);
-  padding: var(--rhythm-block) 0 var(--space-lg);
-  scroll-margin-top: var(--rhythm-block);
-}
-
-.entry > * {
-  grid-column: 2;
-}
-
-.entry__n {
-  grid-column: 1;
-  grid-row: 1 / span 2;
-  padding-top: 0.42rem;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  line-height: 1.3;
-  font-variant-numeric: tabular-nums;
-  color: var(--spot-ink);
-  transition: color var(--dur-soft) ease;
-}
-
-.entry__meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.25em 1em;
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  line-height: 1.4;
-  color: var(--ink-3);
-}
-
-.entry__status {
-  color: var(--spot-ink);
-}
-
-.entry__status::before {
-  content: "";
-  display: inline-block;
-  width: 5px;
-  height: 5px;
-  margin-right: 0.45em;
-  border-radius: 50%;
-  background: currentColor;
-  vertical-align: 0.15em;
-}
-
-.entry__title {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--text-item);
-  line-height: 1.3;
-  letter-spacing: -0.005em;
-  color: var(--ink);
-  text-wrap: balance;
-}
-
-.entry__body {
-  max-width: 58ch;
-  margin-top: var(--space-3xs);
-  font-family: var(--font-sans);
-  font-size: var(--text-body);
-  line-height: 1.6;
-  color: var(--ink-2);
-  text-wrap: pretty;
-}
-
-.entry .topics {
-  margin-top: var(--space-3xs);
-}
-
-/* Experience: quiet numerals that ink in when their book is chosen. */
-.entries--desk .entry__n {
-  color: var(--ink-3);
-}
-
-.entry::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -1px;
-  height: 2px;
-  background: var(--spot-ink);
-  transform: scaleX(0);
-  transform-origin: 0 50%;
-  transition: transform 520ms var(--ease-out);
-  pointer-events: none;
-}
-
-.entry[data-current]::before {
-  transform: scaleX(1);
-}
-
-.entries--desk .entry[data-current] .entry__n {
-  color: var(--spot-ink);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .entry::before {
-    transform: none;
-    opacity: 0;
-    transition: opacity 160ms ease;
-  }
-
-  .entry[data-current]::before {
-    transform: none;
-    opacity: 1;
-  }
-}
-
-.folio-education {
-  display: grid;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.folio-education li {
-  display: grid;
-  gap: var(--space-3xs);
-  padding: var(--space-sm) 0;
-}
-
-.folio-education__qualification {
-  font-family: var(--font-sans);
-  font-weight: 500;
-  font-size: var(--text-item);
-  letter-spacing: -0.005em;
-  color: var(--ink);
-  text-wrap: balance;
-}
-
-.folio-education__institution {
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
-  color: var(--ink-3);
 }
 
 /* ── About: the sentence it all hangs on (the greeting is the panel heading), then a quiet closing ── */
@@ -555,12 +377,6 @@
   font-family: var(--font-sans);
   font-size: 1.0625rem;
   line-height: 1.6;
-  color: var(--ink-3);
-}
-
-.reach__location {
-  font-family: var(--font-sans);
-  font-size: var(--text-sm);
   color: var(--ink-3);
 }
 
@@ -1059,10 +875,6 @@
 
 /* ── Phones ── */
 @media (max-width: 639px) {
-  .entry {
-    grid-template-columns: 2rem minmax(0, 1fr);
-  }
-
   .cv-facts > div {
     grid-template-columns: minmax(0, 1fr);
     gap: var(--space-3xs);

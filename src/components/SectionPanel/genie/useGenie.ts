@@ -5,6 +5,26 @@ import { Genie } from './genie'
 import './genie.css'
 
 /**
+ * Closes the dialog once the genie's pour back has ended, whether the slab got home (true) or the
+ * pour was cut short (false: a lost GPU, a window that changed), so a modal is never left open over
+ * an inert room. Not when a reopen took the panel back (`live` is false by then). If the dialog was
+ * closed under the pour, it's only tidied up.
+ */
+export function closeAfterPour(
+  pour: Promise<boolean>,
+  dialog: { readonly open: boolean; close(): void },
+  live: () => boolean,
+  finish: () => void,
+): Promise<void> {
+  const settle = () => {
+    if (!live()) return
+    if (dialog.open) dialog.close()
+    finish()
+  }
+  return pour.then(settle, settle)
+}
+
+/**
  * The genie for one panel: created once its dialog and canvas are mounted, so a deep link that
  * opens the panel with the page (before this runs) never pours. SectionPanel drives it through
  * the returned ref: open() after showModal(), close() as the section goes, reopen() if it comes

@@ -26,8 +26,8 @@
 
 /*
  * ── The entrance ──
- * Until the room's pictures and the fonts are ready (scene/entrance.ts sets data-entered on
- * the root), the page's arrival animations (room-in on the room, rise-in on the header and
+ * Until the room's pictures and the fonts are ready (HeroScene.tsx sets data-entered on the
+ * root; scene/entrance.ts waits for it), the page's arrival animations (room-in on the room, rise-in on the header and
  * the row beneath: SiteFooter.css, Masthead.css) wait, unseen, on their first frame. Behind
  * them every object takes its place without its own fade, so when the entrance plays the
  * whole room (every object in it already there) settles into view as one picture, then the
@@ -642,7 +642,7 @@
   }
 }
 
-/* A pet: a soft "purr" and three z's floating up from its head. */
+/* A pet: a soft "purr" and one or two z's floating up from its head. */
 .cat__purr {
   position: absolute;
   left: 21.6%; /* its head, in the box shared by all its clips */
@@ -886,8 +886,7 @@
 }
 
 /* Hover growth only where there is a real pointer; touch gets the light alone.
-   The cat is named on its own: its lean (further down) has the same weight as
-   .scene .scene-object and comes later, so it would otherwise win. */
+   The cat is listed too, though its own rule near the top already keeps it at 1. */
 @media (hover: none), (pointer: coarse) {
   .scene,
   .scene .scene-object,
@@ -929,7 +928,6 @@
   .scene[data-discovering] .scene-object__halo {
     animation: none;
   }
-
 }
 
 /* ── Hotspot layer ── */
@@ -1066,7 +1064,7 @@
   transition-delay: 80ms;
 }
 
-/* Keyboard focus (and the cat's reply) shows it straight away; after the warm rule, so it wins. */
+/* Keyboard focus shows it straight away; after the warm rule, so it wins. */
 .hotspot-label[data-immediate] {
   transition-delay: 0ms;
 }
@@ -1087,7 +1085,6 @@
   border-radius: 3px;
   box-shadow: 0 2px 10px oklch(0.12 0.02 45 / 0.35);
 }
-
 
 /* Leader line and the small dot that sits on the object. */
 .hotspot-label::before,
@@ -1604,96 +1601,21 @@
   opacity: 0;
 }
 
-/* fine rain, only where there is glass */
-.window-rain {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  container-type: size;
-  -webkit-mask: url('/media/scene/window/glass-mask.png') 0 0 / 100% 100% no-repeat;
-  mask: url('/media/scene/window/glass-mask.png') 0 0 / 100% 100% no-repeat;
-}
-
-/*
- * Each sheet is only as big as the glass needs, so its layer stays small. The glass
- * (glass-mask.png, alpha box) spans x 906-1840 and y 0-658 of the 1920 × 1080 canvas;
- * padded by 12 and raised by one tile of travel (300, the near tile; the far one is 220),
- * the sheet must cover x 894-1852, y -312-670 at every moment of its fall. It turns 10deg
- * about the canvas centre (960, 540), so the box it needs is those four corners turned
- * back by 10deg (x' = 960 + dx cos10 + dy sin10, y' = 540 - dx sin10 + dy cos10):
- * x 747-1861, y -454-679, which is 38.9-96.9cqw and -42.0-62.9cqh. Rounded outward
- * below. The turn stays about the canvas centre (transform-origin) and the tiles keep
- * their old origin (background-position = the old corner, -15cqw -30cqh, minus the new
- * one), so every streak falls exactly where it did when the sheet was inset -30% -15%.
- */
-.window-rain__fall {
-  position: absolute;
-  left: 38.5cqw;
-  top: -42.5cqh;
-  width: 58.5cqw;
-  height: 105.5cqh;
-  transform-origin: 11.5cqw 92.5cqh;
-  rotate: 10deg; /* a gentle slant; the streaks fall along it */
-  background-position: -53.5cqw 12.5cqh;
-  background-repeat: repeat;
-  will-change: translate;
-  animation: rain-fall linear infinite;
-}
-
-.window-rain__fall--far {
-  --tile-h: calc(220 / 1920 * 100cqw);
-  background-image: url('/media/scene/window/rain-far.svg');
-  background-size: calc(160 / 1920 * 100cqw) var(--tile-h);
-  opacity: 0.2;
-  animation-duration: 2.6s;
-}
-
-.window-rain__fall--near {
-  --tile-h: calc(300 / 1920 * 100cqw);
-  background-image: url('/media/scene/window/rain-near.svg');
-  background-size: calc(220 / 1920 * 100cqw) var(--tile-h);
-  opacity: 0.26;
-  animation-duration: 1.7s;
-}
-
-@keyframes rain-fall {
-  from {
-    translate: 0 0;
-  }
-  to {
-    translate: 0 var(--tile-h);
-  }
-}
-
-.window-life[data-still] .window-rain__fall {
-  animation-play-state: paused;
-}
-
 /*
  * Phone, with a page open: the sheet rises over the whole room and leaves only a 3.5rem strip
  * of the page above it, where the room never reaches (the room starts 158px down; measured from
  * 320 to 639px wide, and from 640px tall the page cannot scroll the window up into the strip).
- * So the rain and the tower light, which move for ever, are taken out of view under the sheet
- * and stop costing the GPU anything. Hidden rather than paused: the sheet takes about 180ms to
- * cover the window, and a pause from the start would freeze the rain in sight; the 500ms delay
- * lets the sheet land first (and its 180ms fade with reduced motion). They show again the
- * moment the page starts to close, while the sheet still covers the window. The rain's opacity
- * fade is WeatherLayer.css's own, repeated so this rule doesn't cut one short.
+ * So the tower light, which moves for ever, is taken out of view under the sheet and stops
+ * costing the GPU anything. Hidden only once the sheet covers the window (about 180ms): the
+ * 500ms delay lets the sheet land first (and its 180ms fade with reduced motion). It shows again
+ * the moment the page starts to close, while the sheet still covers the window.
  */
 @media (max-width: 639px) and (min-height: 640px) {
-  html[data-panel='open'] .window-rain__fall {
-    visibility: hidden;
-    transition:
-      opacity 1800ms cubic-bezier(0.45, 0, 0.55, 1),
-      visibility 0s linear 500ms;
-  }
-
   html[data-panel='open'] .tower-light__dot {
     visibility: hidden;
     transition: visibility 0s linear 500ms;
   }
 }
-
 
 /* ── Evening mood: a warm dimming over the room and every object, clear where the
    desk lamp reaches, deepest in the far corners. The lamp light (z 10) sits above. ── */
@@ -1790,8 +1712,6 @@
    pours out of the screen's Dock point in 800ms, decelerating, and is drawn back
    in over 600ms. ── */
 .laptop-terminal {
-  --lt-in: cubic-bezier(0.22, 1, 0.36, 1);
-  --lt-out: cubic-bezier(0.4, 0, 0.6, 1);
   --lt-ink: oklch(0.96 0.02 80);
   position: absolute;
   inset: 0;

@@ -9,8 +9,8 @@ import { withNotes } from './notes'
  *  - No invented employers, dates, titles, results, testimonials or links.
  *  - Optional fields (organization, period, href, email, links…) stay empty
  *    until you have the real value. Empty fields are simply not rendered.
- *  - In development (`npm run dev`) a small "Content checklist" button lists
- *    everything that still needs your input.
+ *  - In development (`npm run dev`) the browser console prints a "Content
+ *    checklist" of everything that still needs your input.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 export const content: SiteContent = {
@@ -77,8 +77,8 @@ export const content: SiteContent = {
   work: {
     intro:
       'A few things I’ve built out of curiosity or to solve a problem.',
-    // The map: each area of focus fills one quadrant (see `place` below). The axis
-    // words come from the intro above; change them freely.
+    // Set aside for now: the map of the areas of focus, each filling one quadrant
+    // (see `place` below). Not shown.
     map: {
       label: 'Areas of focus',
       hint: 'Choose one to read about it',
@@ -128,41 +128,6 @@ export const content: SiteContent = {
       label: 'Things I’ve built',
       items: [
         {
-          id: 'chord-builder',
-          title: 'Interactive chord builder',
-          line: 'A concept-heavy topic turned into something learners can inspect and play.',
-          summary:
-            'Choose a root note and a chord type, see the chord on the keyboard and tap the keys to hear it.',
-          status: 'Live',
-          area: 'notation-learning',
-          thumb: 'keys',
-          href: 'https://www.skoove.com/en/tools/piano-chords',
-          linkLabel: 'Try it on Skoove',
-        },
-        {
-          id: 'pm-frameworks',
-          title: 'PM frameworks guidebook',
-          line: 'A field guide to product frameworks, for people who learn by doing.',
-          summary:
-            'A hands-on guide to RICE, MoSCoW, Kano, Jobs-to-be-Done and more, built as a web experience rather than a course: somewhere to find the right framework, use it and come back to it.',
-          status: 'Live',
-          area: 'discovery-engagement',
-          thumb: 'guide',
-          href: 'https://susana-pepo.github.io/PM-Frameworks-Guidebook/',
-          linkLabel: 'Open the guidebook',
-        },
-        {
-          id: 'licensing-engine',
-          title: 'Licensing engine',
-          line: 'A tool to help figure out which songs can be used, where, and under which licensing conditions.',
-          summary:
-            'An in-house rights-clearance system for a music-learning catalogue. The business rules, from how publisher shares map to rights groups to deal terms and restricted writers, live in data files rather than code, so they can be changed without a developer and every change can be reviewed. A dashboard on top shows coverage, scenarios and a plan of action.',
-          status: 'Internal tool',
-          area: 'rights-licensing',
-          thumb: 'ledger',
-          topics: ['Rights data', 'Clearance', 'Rules as data'],
-        },
-        {
           id: 'apartment-studio',
           title: 'Apartment studio',
           line: 'Furnishing a new home at exact scale, in a 2D plan and a 3D walk-through.',
@@ -180,6 +145,41 @@ export const content: SiteContent = {
           status: 'Exploration in progress',
           thumb: 'network',
           topics: ['Work identification', 'Ownership data', 'Contract coverage', 'Reconciliation'],
+        },
+        {
+          id: 'pm-frameworks',
+          title: 'PM frameworks guidebook',
+          line: 'A field guide to product frameworks, for people who learn by doing.',
+          summary:
+            'A hands-on guide to RICE, MoSCoW, Kano, Jobs-to-be-Done and more, built as a web experience rather than a course: somewhere to find the right framework, use it and come back to it.',
+          status: 'Live',
+          area: 'discovery-engagement',
+          thumb: 'guide',
+          href: 'https://susana-pepo.github.io/PM-Frameworks-Guidebook/',
+          linkLabel: 'Open the guidebook',
+        },
+        {
+          id: 'chord-builder',
+          title: 'Interactive chord builder',
+          line: 'A concept-heavy topic turned into something learners can inspect and play.',
+          summary:
+            'Choose a root note and a chord type, see the chord on the keyboard and tap the keys to hear it.',
+          status: 'Live',
+          area: 'notation-learning',
+          thumb: 'keys',
+          href: 'https://www.skoove.com/en/tools/piano-chords',
+          linkLabel: 'Try it on Skoove',
+        },
+        {
+          id: 'licensing-engine',
+          title: 'Licensing engine',
+          line: 'A tool to help figure out which songs can be used, where, and under which licensing conditions.',
+          summary:
+            'An in-house rights-clearance system for a music-learning catalogue. The business rules, from how publisher shares map to rights groups to deal terms and restricted writers, live in data files rather than code, so they can be changed without a developer and every change can be reviewed. A dashboard on top shows coverage, scenarios and a plan of action.',
+          status: 'Internal tool',
+          area: 'rights-licensing',
+          thumb: 'ledger',
+          topics: ['Rights data', 'Clearance', 'Rules as data'],
         },
       ],
     },

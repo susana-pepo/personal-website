@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { content } from '../content/content'
-import { SECTION_IDS } from '../content/types'
 import {
-  inkTransform,
   lampOnSheet,
-  objectLabel,
-  pad,
   readDuration,
   readingProgress,
   tabIndexForKey,
@@ -22,18 +17,6 @@ describe('turnDirection', () => {
   it('moves back when turning to an earlier section', () => {
     expect(turnDirection('contact', 'work')).toBe(-1)
     expect(turnDirection('experience', 'about')).toBe(-1)
-  })
-})
-
-describe('objectLabel', () => {
-  it('names the object a section lives in, capitalised, or nothing', () => {
-    for (const id of SECTION_IDS) {
-      const name = content.sections[id].objectName
-      const label = objectLabel(id)
-      if (!name) expect(label).toBe('')
-      else expect(label.toLowerCase()).toBe(name.trim().toLowerCase())
-      if (label) expect(label.charAt(0)).toBe(label.charAt(0).toUpperCase())
-    }
   })
 })
 
@@ -68,15 +51,6 @@ describe('readingProgress', () => {
 })
 
 describe('small helpers', () => {
-  it('pads section numbers', () => {
-    expect(pad(3)).toBe('03')
-    expect(pad(12)).toBe('12')
-  })
-
-  it('scales the 100px ink mark to the tab', () => {
-    expect(inkTransform(48, 75)).toBe('translateX(48px) scaleX(0.75)')
-  })
-
   it('reads CSS durations', () => {
     expect(readDuration('240ms', 0)).toBe(240)
     expect(readDuration(' 0.12s', 0)).toBe(120)

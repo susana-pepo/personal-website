@@ -2,9 +2,9 @@ import { content } from '../../content/content'
 import { WorkDesktop } from './work/WorkDesktop'
 
 /**
- * Things I've built: the room's tablet, drawn front-on on the walnut board,
+ * Things I've built: the room's tablet, drawn front-on and standing alone,
  * with the projects as big drawings that scroll on its screen. Choosing one
- * fills the screen with that project ("Put it back" returns to the tiles).
+ * fills the screen with that project ("Put it back" returns to the rows).
  * The tablet is one top-level block, so the panel's entrance cascade applies.
  */
 export default function WorkSection() {

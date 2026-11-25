@@ -35,8 +35,8 @@ const PATHS = new Map(HOTSPOTS.map((h) => [h.id, toPathData(h.polygons)]))
 /** The woman at the desk: her greeting and lines float up from her label's spot. */
 const WOMAN = HOTSPOTS.find((h) => h.overlay === 'woman') ?? null
 
-/** Objects that answer in the scene itself rather than with a floating tag (the laptop's terminal, the lamp's splash). */
-const LABELLED_IN_SCENE: ReadonlySet<string> = new Set(['laptop', 'lamp'])
+/** Objects that answer in the scene itself rather than with a floating tag (the laptop's terminal). */
+const LABELLED_IN_SCENE: ReadonlySet<string> = new Set(['laptop'])
 
 /** How long a first hover waits before its label rises (the speech-in delay in HotspotSpeech.css). */
 const LABEL_WAIT_MS = 320
@@ -365,9 +365,9 @@ interface InteractiveHotspotProps {
 /**
  * One interactive object: its outline (position and size from the shared
  * canvas), an accessible name, resting / hover / focus / active states, and
- * either a link to its section or an in-place action (petting the cat).
- * Section objects are real links (`#music`); the cat is a button, activated by
- * click, tap, Enter or Space. Objects painted into the video get a warm wash
+ * either a link to its section or an in-place action (petting the cat, lighting
+ * the lamp, playing the piano). Section objects are real links (`#music`); the
+ * objects with an action are buttons, activated by click, tap, Enter or Space. Objects painted into the video get a warm wash
  * of lamplight here; overlays light their own precomputed halos (SceneObject).
  */
 export function InteractiveHotspot({

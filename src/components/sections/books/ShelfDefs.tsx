@@ -91,11 +91,6 @@ export function ShelfDefs() {
           <stop offset="0.5" stopColor={LAMP} stopOpacity={0} />
           <stop offset="1" stopColor={LAMP} stopOpacity={0.14} />
         </linearGradient>
-        <linearGradient id={DEF.iron} x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stopColor={DARK} stopOpacity={0.3} />
-          <stop offset="0.6" stopColor={LAMP} stopOpacity={0.03} />
-          <stop offset="1" stopColor={LAMP} stopOpacity={0.2} />
-        </linearGradient>
       </defs>
     </svg>
   )
