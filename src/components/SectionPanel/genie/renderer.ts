@@ -4,7 +4,7 @@
  * shrunk to 1x1 px, so a settled panel or a quiet room holds no GPU memory for the genie.
  */
 import type { Plan, Shape } from './geometry'
-import { TUNING, appearAt, neckAt } from './geometry'
+import { TUNING } from './geometry'
 import type { Surface } from './raster'
 import { FRAGMENT, VERTEX } from './shaders'
 
@@ -23,21 +23,15 @@ export interface Look {
   sweep: number | null
 }
 
-/**
- * How the slab looks in flight. It stays the settled slab's material: the piece in the object is
- * nearly opaque (neckAlpha) and opaque by a third of its way; the neck and stream take the slab's
- * own mean smoke (neckSmoke) rather than a lighter, milkier average of its lit edge; a trace of the
- * lamp's warmth is carried in transit (warm); its travelling edges are soft (feather, shares of the
- * slab along and across the travel); and one faint sweep of lamp light crosses it as it lands.
- */
+/** Lamp light: the warmth carried in transit and the neck's light, and the landing sweep. */
 const WARM = [1, 0.78, 0.52] as const
 const SWEEP = [1, 0.93, 0.84] as const
-export const LIGHT = { warm: 0.025, neckAlpha: 0.82, neckSmoke: 0.75, feather: [0.1, 0.07] as const, sweep: 0.045 }
+export const LIGHT = { warm: 0.06, neckAlpha: 0.5, neckLight: 0.16, sweep: 0.045 }
 
 const UNIFORMS = [
-  'uView', 'uPadN', 'uNeck', 'uDock', 'uAxis', 'uShape', 'uT', 'uSeed', 'uLag', 'uE', 'uFlare', 'uFan',
-  'uPass', 'uTex', 'uGlintTex', 'uGlintBox', 'uGlint', 'uShadow', 'uWarm', 'uWarmK', 'uAppear',
-  'uNeckAlpha', 'uNeckSmoke', 'uFeather', 'uSize', 'uLamp', 'uSweep', 'uSweepK', 'uSweepColor',
+  'uView', 'uPadN', 'uNeck', 'uDock', 'uAxis', 'uShape', 'uT', 'uLag', 'uE', 'uFlare',
+  'uPass', 'uTex', 'uGlintTex', 'uGlintBox', 'uGlint', 'uShadow', 'uWarm', 'uWarmK', 'uFadeIn',
+  'uNeckAlpha', 'uNeckLight', 'uSize', 'uLamp', 'uSweep', 'uSweepK', 'uSweepColor',
 ] as const
 type UniformName = (typeof UNIFORMS)[number]
 
@@ -187,20 +181,17 @@ export class Renderer {
     const sh = s.shell
     gl.uniform2f(u.uView, vw, vh)
     gl.uniform4f(u.uPadN, s.x0 / sh.w, s.y0 / sh.h, (s.W - s.x0 - sh.w) / sh.w, (s.H - s.y0 - sh.h) / sh.h)
-    gl.uniform4f(u.uNeck, ...neckAt(plan, look.T, look.shape))
+    gl.uniform4f(u.uNeck, ...plan.N)
     gl.uniform4f(u.uDock, ...plan.D)
     gl.uniform1i(u.uAxis, plan.axis)
     gl.uniform1i(u.uShape, look.shape === 'open' ? 0 : 1)
     gl.uniform1f(u.uT, look.T)
-    gl.uniform1f(u.uSeed, look.shape === 'open' ? TUNING.seed.open : TUNING.seed.close)
     gl.uniform1f(u.uLag, TUNING.lag)
     gl.uniform4f(u.uE, ...(look.shape === 'open' ? TUNING.ease : TUNING.closeEase))
     gl.uniform1f(u.uFlare, TUNING.flare)
-    gl.uniform2f(u.uFan, ...TUNING.fan)
-    gl.uniform1f(u.uAppear, appearAt(look.T, look.shape))
+    gl.uniform1f(u.uFadeIn, TUNING.fadeIn)
     gl.uniform1f(u.uNeckAlpha, LIGHT.neckAlpha)
-    gl.uniform1f(u.uNeckSmoke, LIGHT.neckSmoke)
-    gl.uniform2f(u.uFeather, ...LIGHT.feather)
+    gl.uniform1f(u.uNeckLight, LIGHT.neckLight)
     gl.uniform3f(u.uWarm, ...WARM)
     gl.uniform1f(u.uWarmK, LIGHT.warm)
     gl.uniform2f(u.uSize, sh.w, sh.h)

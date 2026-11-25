@@ -3,12 +3,10 @@ import {
   CLOSE,
   OPEN,
   TUNING,
-  appearAt,
   coverT,
   cubicBezier,
   glintAt,
   landingT,
-  neckAt,
   openTimeline,
   partShadows,
   planMove,
@@ -94,9 +92,7 @@ describe('the pour', () => {
 
   it('closes on an accelerating curve: slow to leave the dock, quickest into the object', () => {
     // T falls from 1 to 0 as the close runs; each step of T moves the slab further than the last
-    // (until the pour is done and only the piece in the object shrinks)
-    const seed = TUNING.seed.close
-    const steps = [1, 0.75, 0.5, 0.25, 0].map((f) => travel(seed + (1 - seed) * f, 0.5, 'close'))
+    const steps = [1, 0.75, 0.5, 0.25, 0].map((T) => travel(T, 0.5, 'close'))
     const moves = steps.slice(1).map((s, i) => steps[i]! - s)
     expect(moves[0]!).toBeLessThan(moves[moves.length - 1]!)
   })
@@ -221,36 +217,6 @@ describe('sameGlass', () => {
     expect(sameGlass(a, a.replace('/ 0.3', '/ 0.2'))).toBe(false)
     expect(sameGlass(a, a.replace('oklch', 'rgb'))).toBe(false)
     expect(sameGlass(a, a.replace('-581px', '-590px'))).toBe(false)
-  })
-})
-
-describe('the pour’s shape: a piece forms in the object, a narrow stream, a fan at the dock', () => {
-  const plan = planMove(recordPlayer, shell)
-
-  it('shows a small piece in the object first, and nothing has left it yet', () => {
-    const T = TUNING.seed.open * 0.5
-    expect(appearAt(T, 'open')).toBeGreaterThan(0.5)
-    for (const k of [0, 0.5, 1]) expect(travel(T, k, 'open')).toBe(0)
-    const [a0, a1] = neckAt(plan, 0, 'open')
-    expect(a1 - a0).toBeCloseTo((plan.N[1] - plan.N[0]) * TUNING.seedScale, 3)
-  })
-
-  it('keeps a sideways stream far shorter than the slab while it crosses the room', () => {
-    // wherever a slice is mid-way between the object and the dock, it is a stream, not a sheet
-    for (let T = 0.15; T < 0.9; T += 0.05)
-      for (let k = 0; k <= 1; k += 0.1) {
-        const q = sliceAt(plan, T, k, 'open')
-        if (q.a < (plan.neck.x + plan.neck.w / 2 + shell.x) / 2) expect(q.c1 - q.c0).toBeLessThan(shell.h * 0.25)
-      }
-  })
-
-  it('closes into a small piece in the object, gone only at the very end', () => {
-    const tail = TUNING.seed.close
-    for (const k of [0, 1]) expect(travel(tail, k, 'close')).toBe(0)
-    expect(appearAt(tail * 0.5, 'close')).toBeGreaterThan(0.3)
-    expect(appearAt(0, 'close')).toBe(0)
-    // the last 20% of a 370ms close is about 74ms of the piece shrinking in the object
-    expect(tail * CLOSE.pourMs).toBeGreaterThanOrEqual(60)
   })
 })
 
