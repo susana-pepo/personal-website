@@ -471,6 +471,20 @@ export const content: SiteContent = {
     coffee: 'Let’s chat',
   },
 
+  susana: {
+    invite: 'Make yourself at home, have a look around',
+    lines: [
+      { about: 'books', text: 'Explore my favourite reads on the bookshelf.' },
+      { about: 'vinyl', text: 'Curious what I’ve been listening to? Check out my records' },
+      { about: 'laptop', text: 'Have a look at my laptop to see what I’ve been working on.' },
+      { about: 'deskbooks', text: 'Explore my work story on the desk' },
+      { about: 'coffee', text: 'Fancy a coffee and a chat?' },
+      { about: 'cat', text: 'Meet Pola. She loves a little attention.' },
+      { about: 'lamp', text: 'Too dark in here? Feel free to turn on the lamp.' },
+      { about: 'piano', text: 'There’s a little piano on the shelf. Wanna jam a little?' },
+    ],
+  },
+
   discovery: {
     title: 'Explore the room',
     hint: 'Hover or tap the objects',

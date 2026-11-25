@@ -77,10 +77,17 @@
 }
 
 /* Her greeting is the room's first words: a touch larger and warmer than the others' lines,
-   and it arrives on its own on a first visit (HotspotLayer's `greeting`). */
+   and it arrives on its own on a first visit (HotspotLayer's `speech`). Her longer lines about the
+   room (on hover) wrap onto a second line, centred, rather than running across the painting. */
 .hotspot-labels .hotspot-label--greeting .hotspot-label__text {
   font-size: clamp(14px, 1.3cqi, 22px);
   letter-spacing: 0.005em;
+  white-space: normal;
+  width: max-content;
+  max-width: 17em;
+  text-align: center;
+  text-wrap: balance;
+  line-height: 1.25;
   text-shadow:
     0 1px 2px oklch(0.2 0.03 45 / 0.65),
     0 0 14px oklch(0.2 0.03 45 / 0.4),
@@ -96,6 +103,24 @@
 
 .hotspot-labels .hotspot-label--speech[data-greeting] .hotspot-label__text {
   animation: none;
+}
+
+/* Her lines about the room (on hover) are hints, not her greeting: a touch smaller. */
+.hotspot-labels .hotspot-label--greeting[data-line] .hotspot-label__text {
+  font-size: clamp(12px, 1.12cqi, 19px);
+}
+
+/* Her greeting itself is brief: the same float, over 3 s, so it has faded before her second line. */
+.hotspot-labels .hotspot-label--speech[data-visible][data-greeting][data-brief] {
+  animation-duration: 3s;
+}
+
+/* Her second line on arrival ("Make yourself at home…"): the very same float, in the same place,
+   starting as the greeting is almost gone (at 2.3 s it's down to a third and fading out), so the
+   two hand over without overlapping (GREETING_FOR_MS in HeroScene.tsx covers both). */
+.hotspot-labels .hotspot-label--speech.hotspot-label--follow[data-visible][data-greeting] {
+  pointer-events: none;
+  animation-delay: 2.3s;
 }
 
 @keyframes greet-float {

@@ -293,6 +293,13 @@ export interface SiteContent {
   contact: ContactContent
   /** Small tooltips on the transparent objects (shown after a short hover, or on focus). */
   objectTooltips: { vinyl: string; books: string; laptop: string; deskbooks: string; woman: string; coffee: string }
+  /**
+   * What Susana says, above her like her greeting: an invitation that floats up on its own just
+   * behind the greeting (a second line beneath it), then, each time she's hovered, a line about one thing in the room the
+   * visitor hasn't found or opened yet. `about` is that object (a glimmer's id, or a section
+   * object's overlay id); it answers as she says it (src/scene/roomCues.ts).
+   */
+  susana: { invite: string; lines: readonly { about: string; text: string }[] }
   /** A quiet, dismissible first-visit hint under the room. Hidden after the first interaction. */
   discovery: {
     title: string

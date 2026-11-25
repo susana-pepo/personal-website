@@ -55,17 +55,10 @@ const SPRITES = PIANO_KEYS.map((key) => {
   }
 })
 
-/** Its glimmer hint: three small notes in moonlight, rising one after another (offsets in em). */
-const NOTES = [
-  { dx: 0.7, dy: -1.9, rotate: 10, delay: 0, size: 0.85 },
-  { dx: 1.6, dy: -3.2, rotate: -6, delay: 0.6, size: 1 },
-  { dx: 2.6, dy: -4.6, rotate: 12, delay: 1.2, size: 1.2 },
-] as const
-const HINT_MS = 4200
 /**
  * Its hover splash, like the cat's when it's petted: two or three cream notes float up and away from
  * its screen, each a little different every time (drift, tilt, size, a staggered start). One per
- * hover; never as the idle hint (that's the moonlight notes above).
+ * hover, and one each time its paced hint plays the hover on its own (HeroScene, `highlighted`).
  */
 const between = (a: number, b: number) => a + Math.random() * (b - a)
 function makeSplash() {
@@ -342,15 +335,13 @@ export function PianoScreenGlow({ on }: { on: boolean }) {
 }
 
 interface PianoArtProps {
-  /** Bumped by the room to ask for its glimmer hint. */
-  tell?: number
-  /** Hovered or focused: it grows a little and its screen lights up. */
+  /** Hovered or focused, or giving its paced hint: it grows a little and its screen lights up. */
   highlighted?: boolean
   /** Brought close (its close-up is showing): it leaves the shelf meanwhile. */
   away?: boolean
 }
 
-export function PianoArt({ tell = 0, away = false, highlighted = false }: PianoArtProps) {
+export function PianoArt({ away = false, highlighted = false }: PianoArtProps) {
   // Its close-up's pictures are fetched once the room is calm, so it comes close at once.
   useEffect(() => {
     const later = window.setTimeout(() => {
@@ -358,8 +349,7 @@ export function PianoArt({ tell = 0, away = false, highlighted = false }: PianoA
     }, PRELOAD_AFTER_MS)
     return () => window.clearTimeout(later)
   }, [])
-  const [hint, setHint] = useState(0)
-  // a fresh splash each time it's hovered (or focused), and only then
+  // a fresh splash each time it's hovered (or focused, or gives its hint), and only then
   const lit = highlighted && !away
   const [splash, setSplash] = useState<{ id: number; notes: ReturnType<typeof makeSplash> } | null>(null)
   useEffect(() => {
@@ -368,13 +358,6 @@ export function PianoArt({ tell = 0, away = false, highlighted = false }: PianoA
     const done = window.setTimeout(() => setSplash(null), 3200)
     return () => window.clearTimeout(done)
   }, [lit])
-  useEffect(() => {
-    if (tell === 0 || document.hidden) return
-    setHint(tell)
-    const done = window.setTimeout(() => setHint(0), HINT_MS)
-    return () => window.clearTimeout(done)
-  }, [tell])
-
   return (
     <SceneObject overlay={PIANO} highlighted={lit} discoveryIndex={-1} className="piano" dataAttributes={{ 'data-away': away ? '' : undefined }}>
       <img src={PIANO.src} alt="" width={Math.round(PIANO.width)} height={Math.round(PIANO.height)} decoding="async" draggable={false} />
@@ -384,27 +367,6 @@ export function PianoArt({ tell = 0, away = false, highlighted = false }: PianoA
             <span
               key={i}
               className="piano__splash-note"
-              style={
-                {
-                  '--dx': `${note.dx}em`,
-                  '--dy': `${note.dy}em`,
-                  '--rot': `${note.rotate}deg`,
-                  '--size': note.size,
-                  animationDelay: `${note.delay}s`,
-                } as CSSProperties
-              }
-            >
-              <Note />
-            </span>
-          ))}
-        </span>
-      )}
-      {hint > 0 && !away && (
-        <span key={hint} className="piano__hint" style={HINT_FROM} aria-hidden="true">
-          {NOTES.map((note, i) => (
-            <span
-              key={i}
-              className="piano__note"
               style={
                 {
                   '--dx': `${note.dx}em`,

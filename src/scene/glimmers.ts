@@ -10,20 +10,21 @@
  *    HeroScene.css) that nothing else in the room uses, so the colour alone says "a different
  *    kind of thing". The bloom is an edge on the hint's own small marks, never a halo.
  *  - In its own nature: the sleeping cat breathes out z's; the lamp's bulb catches, as if a
- *    switch had been touched, and glints run up its brass; a few notes rise from the little
- *    piano computer, as if someone had just played it.
+ *    switch had been touched, and glints run up its brass. The little piano computer plays its
+ *    own hover for a moment (it grows a touch, its screen flickers on and blinks its name, a
+ *    few cream notes float up): the one hint not in moonlight, since its screen is its voice.
  *  - The room's pace: hints ease in softly (about a second, out of a slight blur, like her
  *    greeting), drift on the room's curves, and fade as they go. Never held, never snapped.
  *  - Bolder, not bigger: noticed through a firm stroke, each covering about the same area.
  *  - Looped while unfound, one at a time, on the room's one clock (src/scene/roomCues.ts):
- *    each unfound glimmer once every TELL_CYCLE_MS, in turn; while section objects are still
- *    breathing, hints and breaths alternate instead. The first starts once the room's first
+ *    each unfound glimmer once every TELL_CYCLE_MS, in turn (and a glimmer Susana mentions when
+ *    she's hovered answers her with its hint). The first starts once the room's first
  *    look and her greeting are over. Never while a page is open, the room is paused, the tab
  *    is hidden or an object is being pointed at (that turn waits, it isn't queued). With
  *    reduced motion a hint fades in and out where it stands.
  *  - Their own cursors, in the room's ink (GlimmerCursor): over the cat, a hand that
- *    strokes; over the lamp, a little bulb that flicks on; over the piano, two notes that
- *    sway in time. No hover label on any of them (screen readers keep each one's name).
+ *    strokes; over the lamp, a little bulb that flicks on; over the piano, a pixel-art note
+ *    that hops on the beat. No hover label on any of them (screen readers keep each one's name).
  *  - Found: once a glimmer has been met (hovered, focused or tapped), its hint stops, for
  *    good, in this browser. When all are found, the room is quiet again.
  *

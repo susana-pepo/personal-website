@@ -24,7 +24,8 @@ import { LampLiquid } from './lamp/LampLiquid'
 import { LampColour } from './lamp/LampColour'
 import { nextTone, splashColour, toneAt } from '../../scene/lampTones'
 import { LampSplash, type LampSplashHandle } from './lamp/LampSplash'
-import { findGlimmer, isGlimmer } from '../../scene/glimmers'
+import { findGlimmer, isGlimmer, unfoundGlimmers } from '../../scene/glimmers'
+import { BREATH_MS, linesLeft, nextLine } from '../../scene/roomCues'
 import { useRoomCues } from './useRoomCues'
 import { TowerLight } from './window/TowerLight'
 import { LaptopTerminal } from './overlays/LaptopTerminal'
@@ -62,13 +63,15 @@ const sandboxRequested =
   import.meta.env.DEV && typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('sandbox') === '1'
 
 const OBJECTS = OVERLAYS.filter((o) => o.id !== 'cat' && o.id !== 'vinyl' && o.id !== 'coffee' && o.id !== 'woman' && o.id !== 'piano' && o.id !== 'plant')
-/** The section objects that breathe now and then (their amber halo swells and settles) until
- * their section has been opened: every object with a section and a halo (src/scene/roomCues.ts). */
+/** The section objects (every object with a section and a halo): each breathes (its amber halo
+ * swells and settles) as Susana mentions it on hover, until its section has been opened. */
 const GLOWING = new Set(OVERLAYS.filter((o) => o.glow).map((o) => o.id))
 const BREATHER_OF_SECTION = new Map(
   HOTSPOTS.flatMap((h) => (h.section && h.overlay && GLOWING.has(h.overlay) ? [[h.section, h.overlay] as const] : [])),
 )
 const BREATHERS = [...BREATHER_OF_SECTION.values()]
+/** Her outline (the woman at the desk): hovering it, she says something about the room. */
+const WOMAN_HOTSPOT = HOTSPOTS.find((h) => h.overlay === 'woman')?.id ?? null
 // The clip and its poster are drawn slightly zoomed so the painted room lines up with the objects.
 const ROOM_BOX = {
   left: pctX(ROOM_FRAME.x),
@@ -89,6 +92,13 @@ const DISCOVERY_DELAY_MS = 2100
 const DISCOVERY_STEP_MS = 180
 const DISCOVERY_TOTAL_MS = DISCOVERY_DELAY_MS + (DISCOVERY_ORDER.length - 1) * DISCOVERY_STEP_MS + 820 + 100
 
+/** How long the piano's hint plays its hover (its screen's name blinks a few times meanwhile). */
+const PIANO_HINT_MS = 3600
+/** Once the piano has been found, its screen still blinks its name on its own: the first time 2 s
+ * after her opening lines, then every 10 s. */
+const PIANO_BLINK_FIRST_MS = 2000
+const PIANO_BLINK_EVERY_MS = 10_000
+
 /** The lamp's current light, as announced (or that it's off). */
 const lampName = (step: number) => {
   const tone = toneAt(step)
@@ -98,7 +108,9 @@ const lampName = (step: number) => {
 const CLOCK_CHECK_MS = 60_000
 /** Her greeting on a first visit: how long into the entrance it rises in, and how long it stays. */
 const GREETING_IN_MS = 550
-const GREETING_FOR_MS = 4700 // as long as its float (HotspotSpeech.css: greet-float)
+// her brief greeting (3 s float) and then her second line (2.3 s in, as the greeting is almost
+// gone, the 4.6 s greet-float): HotspotSpeech.css
+const GREETING_FOR_MS = 7000
 const OVERLAY_OF = new Map(HOTSPOTS.flatMap((h) => (h.overlay ? [[h.id, h.overlay] as const] : [])))
 /** Each object's left and right edge on the canvas, to bring it into view on a phone's panning room. */
 const SPAN_OF = new Map(
@@ -181,18 +193,16 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   const [pressed, setPressed] = useState<string | null>(null)
   const pressedOverlay = (pressed && OVERLAY_OF.get(pressed)) || null
   const section = useSection()
-  // Until the visitor first hovers, focuses or taps an object (her greeting gives way then).
-  const [explored, setExplored] = useState(false)
-  // The section objects whose section has been opened in this visit: they stop breathing.
+  // The section objects whose section has been opened in this visit: she stops mentioning them.
   const [opened, setOpened] = useState<ReadonlySet<string>>(() => new Set())
   useEffect(() => {
     const object = section ? BREATHER_OF_SECTION.get(section) : undefined
     if (object) setOpened((current) => (current.has(object) ? current : new Set(current).add(object)))
   }, [section])
-  const breathers = useMemo(() => (reducedMotion ? [] : BREATHERS.filter((b) => !opened.has(b))), [opened, reducedMotion])
-  // First visit: her greeting ("Hey there, I'm Susana") is part of the entrance: it rises in
-  // as the room arrives, stays a few seconds, then fades away (sooner if the visitor touches
-  // the room). After that it shows on hover, like every object's line.
+  const unopened = useMemo(() => BREATHERS.filter((b) => !opened.has(b)), [opened])
+  // Her greeting ("Hey there, I'm Susana"), then her second line, are part of the entrance: they
+  // float up as the room arrives and play through to the end, whatever the visitor points at
+  // meanwhile (nothing interrupts them). After that she speaks when she's hovered.
   const [greetingOn, setGreetingOn] = useState(false)
   // Her greeting's time has passed (whether or not it showed): the glimmers' hints may begin.
   const [greetingOver, setGreetingOver] = useState(false)
@@ -214,10 +224,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
       window.clearTimeout(off)
     }
   }, [])
-  const greeting = greetingOn && !explored
-  useEffect(() => {
-    if (active) setExplored(true)
-  }, [active])
+  const greeting = greetingOn
 
   // The time of day outside the window follows the visitor's own clock, from the
   // first paint, until they pick a time themselves; then it stays as they left it.
@@ -295,13 +302,37 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   const [pianoClose, setPianoClose] = useState(false)
   // Bumped each time a pointer comes onto the hanging plant: its leaves sway once more (PlantOverlay).
   const [plantStir, setPlantStir] = useState(0)
-  // Glimmer hints and section breaths take turns on one clock (src/scene/roomCues.ts).
-  const { tells, breath } = useRoomCues({
+  // The glimmers' hints, on one clock (src/scene/roomCues.ts), from the end of the first look and
+  // her greeting (and her second line, which floats up just behind the greeting).
+  const { tells, tell } = useRoomCues({
     moving: playback.motionAllowed,
     ready: greetingOver && (discovery === 'done' || reducedMotion),
     busy: active !== null || pianoClose,
-    breathers,
   })
+  // What she says on her own: her greeting, and just behind it her invitation, both with its float.
+  const saying = greeting ? content.objectTooltips.woman : null
+  // Hovering her: each time a new line about something not found or opened yet ("I keep the books
+  // I love on the shelf"), and what she mentions answers her: a section object breathes, a glimmer
+  // gives its hint. When nothing is left, her usual line.
+  const [herLine, setHerLine] = useState<string | null>(null)
+  const [breath, setBreath] = useState<string | null>(null)
+  const lastLine = useRef<string | null>(null)
+  const hoveringHer = active === WOMAN_HOTSPOT
+  useEffect(() => {
+    // (not while she's still greeting: those two lines play through untouched; hovering on
+    // through their end, she says her line then)
+    if (!hoveringHer || greeting) return
+    const line = nextLine(linesLeft(content.susana.lines, unfoundGlimmers(), unopened), lastLine.current, Math.random())
+    setHerLine(line?.text ?? null)
+    if (!line?.about) return
+    lastLine.current = line.text
+    if (isGlimmer(line.about)) return tell(line.about)
+    if (reducedMotion) return
+    setBreath(line.about)
+    const settle = window.setTimeout(() => setBreath(null), BREATH_MS)
+    return () => window.clearTimeout(settle)
+    // (only on a new hover: what's still unfound or unopened is read at that moment)
+  }, [hoveringHer, greeting])
   useEffect(() => {
     if (isGlimmer(active)) findGlimmer(active)
   }, [active])
@@ -310,8 +341,50 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   useEffect(() => {
     if (tells.lamp > 0) lampSplash.current?.glint()
   }, [tells.lamp])
+  // The piano's hint is its own hover, played on its own for a moment: it grows a little, its
+  // screen flickers on and blinks its name, and a few cream notes float up.
+  const [pianoHinting, setPianoHinting] = useState(false)
+  useEffect(() => {
+    if (tells.piano === 0) return
+    setPianoHinting(true)
+    const done = window.setTimeout(() => setPianoHinting(false), PIANO_HINT_MS)
+    return () => window.clearTimeout(done)
+  }, [tells.piano])
+  const pianoLit = litOverlay === 'piano' || pianoHinting
+  // Once it's been found, the piano no longer gives its hint, but its little screen still flickers
+  // on and blinks its name on its own (2 s after her opening lines, then every 10 s): no grow, no
+  // notes. Not while the room keeps still (a page open, the room paused, the tab hidden, something
+  // pointed at, the piano up close), not before her greeting is over, never with reduced motion.
+  const [pianoBlink, setPianoBlink] = useState(false)
+  const keepStill = useRef(false)
+  keepStill.current = active !== null || pianoClose
+  useEffect(() => {
+    if (!playback.motionAllowed || reducedMotion || !greetingOver) return
+    let timer: number | undefined
+    let off: number | undefined
+    let first = true
+    const next = () => {
+      const wait = first ? PIANO_BLINK_FIRST_MS : PIANO_BLINK_EVERY_MS
+      first = false
+      timer = window.setTimeout(
+        () => {
+          if (!document.hidden && !keepStill.current && !unfoundGlimmers().includes('piano')) {
+            setPianoBlink(true)
+            off = window.setTimeout(() => setPianoBlink(false), PIANO_HINT_MS)
+          }
+          next()
+        },
+        wait,
+      )
+    }
+    next()
+    return () => {
+      window.clearTimeout(timer)
+      window.clearTimeout(off)
+      setPianoBlink(false)
+    }
+  }, [playback.motionAllowed, reducedMotion, greetingOver])
   const onAction = useCallback((action: HotspotAction) => {
-    setExplored(true)
     if (action === 'pet') {
       findGlimmer('cat')
       catRef.current?.pet()
@@ -468,7 +541,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
               onReaction={onCatReaction}
               tell={tells.cat}
             />
-            <PianoArt tell={tells.piano} away={pianoClose} highlighted={litOverlay === 'piano'} />
+            <PianoArt away={pianoClose} highlighted={pianoLit} />
           </PressedObject>
           {/* Evening mood over the room and every object; the lamp's light sits above it. */}
           <span className="room-mood" aria-hidden="true" />
@@ -476,7 +549,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
           <span className="time-light time-light--day" aria-hidden="true" />
           <span className="time-light time-light--night" aria-hidden="true" />
           <PowerLight highlighted={litOverlay === 'vinyl'} motionAllowed={playback.motionAllowed} />
-          <PianoScreenGlow on={litOverlay === 'piano' && !pianoClose} />
+          <PianoScreenGlow on={(pianoLit || pianoBlink) && !pianoClose} />
 
           <LampLiquid motionAllowed={playback.motionAllowed} tone={lampTone} hovered={lampLit} flick={tells.lamp} />
           <LampColour tone={lampTone} />
@@ -489,7 +562,9 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
             onAction={onAction}
             onFocusObject={revealObject}
             lampTone={lampName(lampTone)}
-            greeting={greeting}
+            speech={saying}
+            herLine={herLine}
+            follow={greeting ? content.susana.invite : null}
           />
           <PianoCloseUp open={pianoClose} onClosed={() => setPianoClose(false)} />
 

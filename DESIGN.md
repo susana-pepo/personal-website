@@ -126,7 +126,7 @@ bold or an italic.
   vermilion. On touch screens each object shows a steady 9px vermilion dot ringed in light, and
   the tap area is widened invisibly. The cat is an easter egg ("Shh… sleeping."), not a link.
 - **Glimmers (the room's small surprises):** objects that answer in place instead of opening a
-  section: today the cat (pet it) and the lamp (click it). They have no halo and no label, so each
+  section: today the cat (pet it), the lamp (click it) and the piano (click it to play it). They have no halo and no label, so each
   has a *hint*: a small sign of life that makes a visitor curious, never an instruction (no hands,
   arrows, rings or words like "click"). One rule for all of them (`src/scene/glimmers.ts`):
   - **Moonlight is theirs.** Every hint is drawn in one soft moonlight blue (`--moon`, with a faint
@@ -135,21 +135,27 @@ bold or an italic.
   - **In its own nature.** The sleeping cat breathes out three z's, bold rather than big (Geist
     700, about 18 → 23 → 29px on a laptop), drifting up from its head. The lamp's bulb catches,
     a soft dip and back and a smaller one, as if a switch had been touched, and three four-point
-    glints twinkle up its brass.
+    glints twinkle up its brass. The piano plays its own hover for about 3.6 s: it grows a touch,
+    its screen flickers on and blinks PIXEL / JAM / PIANO, and a few cream notes float up. It is
+    the one hint not in moonlight, since its screen is its voice. Once the piano is found, its
+    screen alone still blinks its name on its own, like a vintage CRT (a white line snapping open, scanlines, a rolling bar, now and then a red/cyan glitch), 2 s after her opening lines, then every 10 s;
+    no grow, no notes; not with reduced motion).
   - **The room's pace.** Hints ease in over most of a second, out of a slight blur like her
     greeting, drift on `--ease-drift` or breathe on `--ease-sine`, and fade as they go: never held,
     never snapped. Each covers about the same area, on the window side of its object.
-  - **Looped while unfound, one at a time.** Every 9 s, the unfound ones spread evenly across the
-    cycle. The first comes once the room's first look and her greeting are over (the greeting's
-    timing never moves). Never while a page is open, the room is paused, the tab is hidden or
+  - **Looped while unfound, one at a time.** On the room's one clock (`src/scene/roomCues.ts`):
+    each unfound glimmer in turn, every 13.5 s round, from a second after the first look and her
+    greeting. The first cue
+    comes once the room's first look and her greeting are over (the greeting's timing never
+    moves). Never while a page is open, the room is paused, the tab is hidden or
     something is pointed at; that turn is skipped. With reduced motion a hint fades where it
     stands.
   - **Their own cursors.** With a mouse over a glimmer, the cursor is drawn in the room's ink
     (cream, warm-brown line; `GlimmerCursor`). Over the cat it is a hand that strokes, gliding
     along its fingers and back, and a click pats. Over the lamp it is a little bulb that flicks
     on now and then (on, a catch, on), glows a moment with a small moonlight spark and eases
-    off; it stays on while the button is down. Over the piano it is two beamed notes swaying
-    in time, with a moonlight spark on the beat; a press makes them hop. No glimmer has a hover
+    off; it stays on while the button is down. Over the piano it is a small pixel-art note that
+    hops one pixel on the beat, with a moonlight sparkle; a press holds it up. No glimmer has a hover
     label: the cursor and the object's own answer say it (screen readers keep each name). The section objects keep the plain pointer. Still
     with reduced motion; never on touch or for the keyboard.
   - **Always an answer.** A pet while the cat is still answering the last one doesn't start
@@ -312,19 +318,22 @@ bold or an italic.
   single frames on Retina) and no new large GPU layers (`will-change`, `translateZ`, `filter`,
   `backdrop-filter` on big elements). `.cover .stage { transform: translateZ(0) }` is deliberate,
   for Safari's rounded clip.
-- **Section breaths:** now and then one section object's amber halo swells softly, about two
-  thirds of the way to its hover glow (60% → 80%), and settles, while the object lifts by a hair
-  (0.6%, far less than on hover): a sign it opens something. About 3.8 s: in over 1.4 s, a
-  moment held, out over 2 s, on `--ease-sine`. One object at a time, in a shuffled order, never
-  the same one twice running. Breaths and the glimmers' hints share one clock
-  (`src/scene/roomCues.ts`): the first cue is a breath, half a second after the first look and her
-  greeting; while both are waiting they alternate, one start every 5.5 s; once
-  every glimmer is found, a breath comes every 9–13 s, never on a beat. An object stops
-  breathing once its section has been opened in this visit (it resets on the next visit); when
-  all are opened the room is still. Nothing before the first look and her greeting are over,
-  while a page is open, the room is paused, the tab is hidden or something is pointed at, nor
-  for 1.5 s after; never with reduced motion (the steady resting glow stays). This replaces the
-  old nonstop `halo-breathe` invitation (each `glow.invite` in `scene-layout.json` is now unused).
+- **Susana's lines:** her greeting ("Hey there, I'm Susana") is brief: the same `greet-float`
+  over 3 s. As it is almost gone (2.3 s in), her second line, "Make yourself at home, have a look
+  around", floats up in the same place with the same style and the full 4.6 s float. Nothing
+  interrupts these two: they play through whatever the visitor points at meanwhile, hovering her
+  included; her hover lines wait until they're done. Everything else she says only when she's hovered (or focused): each time a new
+  line with the same float, never the same twice running, about something in the room not found or
+  opened yet, saying where it is and what it holds ("You can find some of the books I love on the
+  bookshelf."), a touch smaller than her greeting (about 15px against 17px on a laptop). Longer
+  lines wrap onto two balanced, centred lines (17em at most). What she
+  mentions answers her as she says it: a section object breathes (its amber halo swells about two
+  thirds of the way to its hover glow and settles, the object lifting by a hair, about 3.8 s; not
+  with reduced motion); a glimmer gives its hint. When nothing is left to find or open she says her
+  usual "Hey there, I'm Susana". The lines live in `content.susana`; they are hers, in her voice
+  (the glimmer rule against instructions is for the objects' own hints). The old nonstop
+  `halo-breathe` invitation and the timed section breaths are gone; each `glow.invite` in
+  `scene-layout.json` is unused.
 - **Texture:** a 5% light grain on a fixed layer behind the page (never over the painting); a
   7% grain painted into the panel's smoked glass.
 - **Feedback:** pressable things scale to 0.94–0.97 on `:active`. Hover lifts only under

@@ -19,15 +19,21 @@ interface HotspotLayerProps {
   /** The lamp's current light, spoken with its control (e.g. "Lamp light on"). */
   lampTone?: string
   /**
-   * First visit, before the visitor has touched the room: the woman greets them on her own
-   * ("Hey there, I'm Susana") until they hover or open something.
+   * What the woman says on her own on arrival (her greeting), floating up above her, or null. It
+   * plays through to the end whatever is pointed at meanwhile, and so does her second line (`follow`).
    */
-  greeting?: boolean
+  speech?: string | null
+  /** What she says while she's hovered or focused (a line about the room), in place of her usual line. */
+  herLine?: string | null
+  /** Her second line on arrival, floating up just behind her greeting, beneath it (while she greets). */
+  follow?: string | null
   /** A pointer has come onto a hover-only outline (the plant, which sways). */
   onHoverZone?: (id: string) => void
 }
 
 const PATHS = new Map(HOTSPOTS.map((h) => [h.id, toPathData(h.polygons)]))
+/** The woman at the desk: her greeting and lines float up from her label's spot. */
+const WOMAN = HOTSPOTS.find((h) => h.overlay === 'woman') ?? null
 
 /** Objects that answer in the scene itself rather than with a floating tag (the laptop's terminal, the lamp's splash). */
 const LABELLED_IN_SCENE: ReadonlySet<string> = new Set(['laptop', 'lamp'])
@@ -63,7 +69,7 @@ export function accessibleLabelFor(hotspot: Hotspot): string {
  * outline, plus the small tooltips. Hover state changes only on enter/leave,
  * never on pointer movement, so moving inside an object doesn't re-render.
  */
-export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusObject, lampTone, greeting = false, onHoverZone }: HotspotLayerProps) {
+export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusObject, lampTone, speech = null, herLine = null, follow = null, onHoverZone }: HotspotLayerProps) {
   const uid = useId().replace(/:/g, '')
   const reducedMotion = usePrefersReducedMotion()
   const [hovered, setHovered] = useState<string | null>(null)
@@ -230,7 +236,12 @@ export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusO
           // Objects that show their own label in the painting (the laptop's terminal types it).
           if (hotspot.overlay && LABELLED_IN_SCENE.has(hotspot.overlay)) return null
           const greets = hotspot.overlay === 'woman'
-          const greetingNow = greets && greeting && active === null
+          // She speaks with her greeting's float: on her own (greeting, invitation), and when
+          // hovered with a line about the room (it rises and fades like the greeting).
+          // her greeting and second line play through untouched, whatever is pointed at meanwhile
+          const greetingNow = greets && speech !== null
+          const lineNow = greets && !greetingNow && herLine !== null && active === hotspot.id && hushed !== hotspot.id
+          const floating = greetingNow || lineNow
           const shown = (active === hotspot.id && hushed !== hotspot.id) || greetingNow
           return (
             <span
@@ -240,20 +251,34 @@ export function HotspotLayer({ onActiveChange, onPressChange, onAction, onFocusO
               data-visible={shown ? '' : undefined}
               data-immediate={shown && viaFocus ? '' : undefined}
               data-warm={shown && warm && active === hotspot.id ? '' : undefined}
-              data-greeting={greetingNow ? '' : undefined}
+              data-greeting={floating ? '' : undefined}
+              data-brief={greetingNow ? '' : undefined}
+              data-line={lineNow ? '' : undefined}
               style={{ left: pctX(hotspot.label.x), top: pctY(hotspot.label.y) }}
               onPointerEnter={() => shown && enter(hotspot.id)}
               onPointerLeave={() => leave(hotspot.id)}
             >
-              <span className="hotspot-label__text">{tooltipFor(hotspot)}</span>
+              <span className="hotspot-label__text">{greetingNow ? speech : lineNow ? herLine : tooltipFor(hotspot)}</span>
             </span>
           )
         })}
+        {/* her second line on arrival: the same float, in the same place, once her greeting has faded */}
+        {follow && WOMAN && (
+          <span
+            className="hotspot-label hotspot-label--speech hotspot-label--greeting hotspot-label--follow"
+            data-placement={WOMAN.label.placement}
+            data-visible=""
+            data-greeting=""
+            style={{ left: pctX(WOMAN.label.x), top: pctY(WOMAN.label.y) }}
+          >
+            <span className="hotspot-label__text">{follow}</span>
+          </span>
+        )}
         {HOTSPOTS.filter((hotspot) => hotspot.section).map((hotspot) => (
           <span
             key={`marker-${hotspot.id}`}
             className="hotspot-marker"
-            data-hidden={active === hotspot.id || (greeting && active === null && hotspot.overlay === 'woman') ? '' : undefined}
+            data-hidden={active === hotspot.id || (speech !== null && hotspot.overlay === 'woman') ? '' : undefined}
             style={{ left: pctX(hotspot.label.x), top: pctY(hotspot.label.y) }}
           />
         ))}
