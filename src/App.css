@@ -107,9 +107,10 @@
  * cat to the right. The height is what the screen has left once the masthead and the player
  * (about 20rem together) and a little air have their place, between three quarters of the
  * room's width and 1.15 times it. Touch screens only: a narrow window with a mouse, which
- * can't swipe, keeps the whole room in view.
+ * can't swipe, keeps the whole room in view. A tablet held upright pans too, a little less
+ * (see the tablet rule just below).
  */
-@media (max-width: 639px) and (orientation: portrait) and (pointer: coarse) {
+@media (max-width: 1024px) and (orientation: portrait) and (pointer: coarse) {
   .cover {
     --room-w: calc(100vw - 1.5rem);
   }
@@ -264,7 +265,7 @@
   }
 }
 
-@media (max-width: 639px) and (orientation: portrait) and (pointer: coarse) and (prefers-reduced-motion: reduce) {
+@media (max-width: 1024px) and (orientation: portrait) and (pointer: coarse) and (prefers-reduced-motion: reduce) {
   .room-pan::before,
   .room-pan::after,
   .room-pan__arrow {
@@ -277,6 +278,57 @@
 
   .room-pan__arrow:active {
     transform: none;
+  }
+}
+
+/*
+ * A tablet held upright pans as a phone does, so the room fills the screen instead of sitting as
+ * a short strip between two wide bands of empty page, and its objects are about half as big
+ * again under a finger. It pans less than a phone: at most 0.9 times as tall as it is wide, so
+ * about three fifths of the room shows at once (on a phone, about half). Its height is what the
+ * screen leaves once the masthead, the player and some air have their place (about 24rem).
+ */
+@media (min-width: 640px) and (max-width: 1024px) and (orientation: portrait) and (pointer: coarse) {
+  .cover {
+    /* the room's width on a tablet: the page less its gutters, at most 92% of the screen */
+    --room-w: min(92vw, calc(100vw - 2 * var(--gutter)));
+  }
+
+  .cover .stage {
+    height: clamp(calc(var(--room-w) * 0.7), calc(100svh - 24rem), calc(var(--room-w) * 0.9));
+  }
+
+  /* the edge fades and arrows at a tablet's scale */
+  .room-pan::before,
+  .room-pan::after {
+    width: 2.25rem;
+  }
+
+  .room-pan__arrow {
+    width: 2.25rem;
+    height: 2.25rem;
+    margin-top: -1.125rem;
+  }
+
+  .room-pan__arrow--start {
+    left: 0.75rem;
+  }
+
+  .room-pan__arrow--end {
+    right: 0.75rem;
+  }
+
+  .room-pan__arrow svg {
+    width: 15px;
+    height: 15px;
+  }
+}
+
+/* A tablet upright with a mouse (no swipe) keeps the whole room in view, but shows the painting's
+   full 16:9 as a phone's does, instead of trimming it for a cinematic frame it has no need of. */
+@media (min-width: 640px) and (max-width: 1024px) and (orientation: portrait) {
+  .page {
+    --room-aspect: calc(16 / 9);
   }
 }
 

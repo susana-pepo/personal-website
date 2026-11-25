@@ -112,7 +112,7 @@ const GREETING_IN_MS = 550
 // gone, the 4.6 s greet-float): HotspotSpeech.css
 const GREETING_FOR_MS = 7000
 const OVERLAY_OF = new Map(HOTSPOTS.flatMap((h) => (h.overlay ? [[h.id, h.overlay] as const] : [])))
-/** Each object's left and right edge on the canvas, to bring it into view on a phone's panning room. */
+/** Each object's left and right edge on the canvas, to bring it into view on a phone's or tablet's panning room. */
 const SPAN_OF = new Map(
   HOTSPOTS.map((h) => {
     const box = boundsOf(h.polygons)
@@ -142,7 +142,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   const blendBRef = useRef<HTMLCanvasElement>(null)
   const [blendRefs] = useState(() => [blendARef, blendBRef] as const)
   const reducedMotion = usePrefersReducedMotion()
-  // A portrait phone pans across the room (App.css): keyboard focus brings each object into view.
+  // A portrait phone or tablet pans across the room (App.css): keyboard focus brings each object into view.
   const roomPan = useRoomPan(stageRef, pan, reducedMotion)
   const { reveal } = roomPan
   // An arrow goes once the room ends that way: focus on it moves to the other one, not off the page.
@@ -592,7 +592,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
           {announcement}
         </p>
       </div>
-      {/* A portrait phone's room pans: soft fades at the edges with more of the room beyond them,
+      {/* A portrait phone's or tablet's room pans: soft fades at the edges with more of the room beyond them,
           and an arrow on each to look that way (a swipe does the same). */}
       {pan && (
         <div ref={panArrows} className="room-pan" data-start={roomPan.more.start ? '' : undefined} data-end={roomPan.more.end ? '' : undefined}>

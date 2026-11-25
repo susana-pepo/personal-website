@@ -16,7 +16,7 @@ const STEP = 0.7
 const NONE = { start: false, end: false }
 
 /**
- * The sideways pan of the room on a portrait phone (`pan` from useCoverFit; null elsewhere,
+ * The sideways pan of the room on a portrait phone or tablet (`pan` from useCoverFit; null elsewhere,
  * where this does nothing). The room opens centred on ROOM_PAN.startX, and keeps the same
  * point in the middle if the frame is resized. Reports which edges have more room beyond
  * them, for the edge fades.
