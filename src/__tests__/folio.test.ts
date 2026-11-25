@@ -4,6 +4,7 @@ import {
   readDuration,
   readingProgress,
   tabIndexForKey,
+  tabRowFit,
   tabRowScroll,
   turnDirection,
 } from '../components/SectionPanel/folio'
@@ -56,6 +57,23 @@ describe('small helpers', () => {
     expect(readDuration(' 0.12s', 0)).toBe(120)
     expect(readDuration('', 240)).toBe(240)
     expect(readDuration('fast', 240)).toBe(240)
+  })
+})
+
+describe('tabRowFit', () => {
+  // the six tabs' words at 15px: about 320px together
+  const words = [48, 36, 78, 70, 42, 46]
+
+  it('keeps the usual spacing when it fits', () => {
+    expect(tabRowFit(words, 460)).toBe('roomy')
+  })
+
+  it('draws the tabs closer in a narrower sheet', () => {
+    expect(tabRowFit(words, 392)).toBe('snug')
+  })
+
+  it('scrolls when even the closer spacing is too wide', () => {
+    expect(tabRowFit(words, 344)).toBe('scroll')
   })
 })
 

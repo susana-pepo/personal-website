@@ -342,6 +342,21 @@
   }
 }
 
+/* ── A tablet: the screen fills what is left of the panel's first view under the intro
+   (--fit-h, measured by WorkDesktop.tsx), so a tall portrait sheet shows more rows instead
+   of an empty stretch under a short tablet, and a short landscape one shows the whole tablet
+   without scrolling. Never shorter than about one and a half rows, never taller than one and
+   a half times its width. ── */
+@media (min-width: 640px) and (max-width: 1024px) {
+  .wdesk {
+    --screen-h: clamp(
+      min(20rem, calc((100cqw - 38px) * 0.86)),
+      var(--fit-h, calc((100cqw - 38px) * 0.86)),
+      calc((100cqw - 38px) * 1.5)
+    );
+  }
+}
+
 /* ── Phones and narrow panels: each row reads top to bottom, the drawing across the screen
    and the name beneath it ── */
 /* Below the wide layout only: on a desktop the panel can be as narrow as this, and keeps the wide tablet. */
@@ -497,6 +512,14 @@
     .wdesk__line {
       font-size: 0.875rem;
       line-height: 1.45;
+    }
+  }
+
+  /* Shorter still (a tablet on its side, a short window): the name and three lines no longer fit,
+     so the line stops at two with an ellipsis instead of being cut off mid-sentence. */
+  @container wrow (max-height: 5.5rem) {
+    .wdesk__line {
+      -webkit-line-clamp: 2;
     }
   }
 }

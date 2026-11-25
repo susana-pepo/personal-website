@@ -19,6 +19,7 @@ import { sectionComponent } from '../sections/registry'
 import { lampParts } from '../../scene/scene-layout.json'
 import {
   lampOnSheet,
+  tabRowFit,
   tabRowScroll,
   readDuration,
   readingProgress,
@@ -345,14 +346,21 @@ export function SectionPanel({ section }: SectionPanelProps) {
     updateProgress()
   }, [pageKey, pageEnter, pageDir, placeInk, updateProgress])
 
-  // Keep the ink true when the tab row changes size (fonts loading, resizing).
+  // Keep the ink true when the tab row changes size (fonts loading, resizing), and let a sheet too
+  // narrow for the usual spacing (a tablet on its side) draw its tabs closer, or scroll them with a
+  // fade, instead of cutting the last one off against the close button.
   useEffect(() => {
     const tabs = tabsRef.current
-    if (!tabs || typeof ResizeObserver === 'undefined') return
+    const nav = navRef.current
+    if (!tabs || !nav || typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(() => {
+      const widths = Array.from(tabs.querySelectorAll<HTMLElement>('a')).map((a) => a.getBoundingClientRect().width)
+      const fit = tabRowFit(widths, nav.clientWidth)
+      if (nav.dataset.fit !== fit) nav.dataset.fit = fit
       if (pageRef.current) placeInk(false)
     })
     observer.observe(tabs)
+    observer.observe(nav)
     return () => observer.disconnect()
   }, [placeInk])
 

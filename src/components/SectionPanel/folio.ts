@@ -50,6 +50,24 @@ export function readDuration(value: string, fallback: number): number {
   return v.endsWith('ms') ? n : v.endsWith('s') ? n * 1000 : n
 }
 
+/** The tab row's gaps: its usual one, and the closer one a narrow sheet uses (SectionPanel.css). */
+export const TAB_GAP_PX = 24
+export const TAB_GAP_SNUG_PX = 14
+
+/**
+ * How the six tabs sit in a sheet `viewport` px wide for their words (each tab's own width, which
+ * the gap doesn't change): spaced as usual, closer together, or, when even that is too wide,
+ * scrolling sideways with a fade at the end so a cut word never shows hard against the close button.
+ */
+export function tabRowFit(widths: readonly number[], viewport: number): 'roomy' | 'snug' | 'scroll' {
+  const words = widths.reduce((sum, w) => sum + w, 0)
+  const gaps = Math.max(0, widths.length - 1)
+  // (1px of leeway for sub-pixel widths)
+  if (words + gaps * TAB_GAP_PX <= viewport + 1) return 'roomy'
+  if (words + gaps * TAB_GAP_SNUG_PX <= viewport + 1) return 'snug'
+  return 'scroll'
+}
+
 /**
  * Where the sideways-scrolling tab row should rest so the current tab shows whole. It starts at a
  * tab's own edge, never halfway through a word: the tab before the current one when it fits (so

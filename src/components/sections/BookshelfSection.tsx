@@ -2,7 +2,7 @@ import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from
 import { content } from '../../content/content'
 import { SAMPLE_BOOKS } from '../../content/sampleBooks'
 import type { Book, ShelfId } from '../../content/types'
-import { useMediaQuery, usePrefersReducedMotion } from '../../hooks/useMediaQuery'
+import { useCoarsePointer, useMediaQuery, usePrefersReducedMotion } from '../../hooks/useMediaQuery'
 import { ShelfBoard } from './books/ShelfBoard'
 import { ShelfDefs } from './books/ShelfDefs'
 import { ShelfRow } from './bookshelf/ShelfRow'
@@ -78,13 +78,16 @@ export default function BookshelfSection() {
   // (bookshelf.css) to the height the rest of the page leaves (fitScale). The bays are the only
   // part that scales, and all of a bay is drawn in book units, so its height is linear in --fit.
   // Opening a drawer never resizes the shelves (the page scrolls for it instead).
+  // A touch screen (a tablet on its side) keeps the books at their full size and scrolls instead:
+  // shrunk to fit, a spine was under 20px, too thin to choose with a finger.
+  const touch = useCoarsePointer()
   const fitRef = useRef(1)
   useLayoutEffect(() => {
     const root = rootRef.current
     const page = root?.closest<HTMLElement>('.panel__page')
     const body = root?.closest<HTMLElement>('.panel__body')
     if (!root) return
-    if (!desktop || !paired || !page || !body) {
+    if (!desktop || touch || !paired || !page || !body) {
       fitRef.current = 1
       root.style.removeProperty('--fit')
       return
@@ -115,7 +118,7 @@ export default function BookshelfSection() {
     observer.observe(body)
     observer.observe(root)
     return () => observer.disconnect()
-  }, [desktop, paired])
+  }, [desktop, touch, paired])
 
   const toggle = useCallback((key: string) => setOpen((current) => (current === key ? null : key)), [])
 

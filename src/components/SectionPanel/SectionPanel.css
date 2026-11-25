@@ -609,6 +609,27 @@ html:has(.panel[open]) {
   white-space: nowrap;
 }
 
+/* A sheet too narrow for the usual spacing (a tablet on its side, a narrow desktop window): the
+   tabs draw closer; if even that is too wide, the row scrolls and fades at its end as on a phone,
+   so the last tab never stops hard against the close button (tabRowFit in folio.ts). */
+@media (min-width: 640px) {
+  .panel__nav:is([data-fit='snug'], [data-fit='scroll']) .panel__tabs ul {
+    --tab-gap: 14px; /* TAB_GAP_SNUG_PX */
+  }
+
+  .panel__nav[data-fit='scroll'] {
+    mask-image: linear-gradient(90deg, #000 82%, transparent);
+  }
+
+  .panel__nav[data-fit='scroll'][data-scrolled] {
+    mask-image: linear-gradient(90deg, transparent, transparent 0.5rem, #000 2.25rem, #000 82%, transparent);
+  }
+
+  .panel__nav[data-fit='scroll'] .panel__tabs ul {
+    padding-inline-end: 3rem;
+  }
+}
+
 .panel__tabs a {
   display: inline-flex;
   align-items: center;

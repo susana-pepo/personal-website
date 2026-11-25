@@ -9,12 +9,14 @@ import {
 } from 'react'
 import type { WorkProject } from '../../../content/types'
 import { cssToken, prefersReducedMotion } from '../../../lib/motion'
-import { ROOM_ANCHORED_FROM } from '../../SectionPanel/panelGeometry'
 import { MOVE, WHEEL_GESTURE_GAP, fitScreenHeight, placeOver, rowIndexForKey, wheelGoesToPage, type Box } from './desktop'
 import { ProjectPage, projectRowId } from './ProjectPage'
 import { TabletFrame } from './TabletFrame'
 import { WorkThumb } from './thumbs/WorkThumb'
 import './desktop.css'
+
+/** Below this width (a phone) the screen keeps its own shape; above it, it fits the panel's first view. */
+const PHONE_BELOW = 640
 
 /** Brings an element into view only if it is outside the window, by the smallest move. */
 function bringIntoView(el: HTMLElement | null | undefined, smooth: boolean) {
@@ -264,7 +266,9 @@ export function WorkDesktop({ label, projects }: WorkDesktopProps) {
   }, [phase])
 
   // On a desktop the screen is as tall as the panel's first view allows (see fitScreenHeight); the
-  // rows then take half of it each. Below that width the screen keeps its own proportions.
+  // rows then take half of it each. A tablet's screen also fills its first view (desktop.css), so
+  // a tall portrait sheet holds more rows instead of an empty stretch under the tablet; a phone's
+  // keeps its own proportions.
   useLayoutEffect(() => {
     const root = rootRef.current
     const pad = root?.closest<HTMLElement>('.pad')
@@ -272,7 +276,7 @@ export function WorkDesktop({ label, projects }: WorkDesktopProps) {
     const section = pad?.parentElement
     const view = root && scrollBox(root)
     if (!root || !pad || !screen || !section || !view) return
-    const wide = window.matchMedia(`(min-width: ${ROOM_ANCHORED_FROM}px)`)
+    const wide = window.matchMedia(`(min-width: ${PHONE_BELOW}px)`)
     const fit = () => {
       if (!wide.matches) {
         root.style.removeProperty('--fit-h')
