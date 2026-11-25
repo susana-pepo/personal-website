@@ -56,6 +56,85 @@ const SPRITES = PIANO_KEYS.map((key) => {
 })
 
 /**
+ * The light of a played key: one cool colour (--keylight, PianoOverlay.css), as if the key were lit
+ * from inside. Each key's light is three small layers around it (the key's outline is its hit path, in
+ * the picture's pixels), so each is drawn once and the browser only fades and composites them:
+ *  - its halo: light spilling out of the gaps around the key, onto the wood rail behind it, its
+ *    neighbours' edges and the lip of the case below (screened, and kept off the key itself);
+ *  - its face: the key taking on the light, brightest towards its front (overlaid, so the key's own
+ *    shading and shape stay);
+ *  - its strike: a hotter core that flashes as the key goes down and settles while it is held.
+ */
+const GLOW_PAD = 44 // (room around the key for the halo, in the picture's pixels)
+const GLOWS = PIANO_KEYS.map((key) => {
+  const [x, y, w, h] = key.box
+  const box: [number, number, number, number] = [x - GLOW_PAD, y - GLOW_PAD, w + GLOW_PAD * 2, h + GLOW_PAD * 2]
+  const id = `piano-keylight-${key.id.replace('#', 's')}`
+  const black = key.kind === 'black'
+  return { key, box, id, black, style: boxStyle(box) }
+})
+const tone = (name: 'glow' | 'core' | 'hot', alpha = 1): CSSProperties => ({ stopColor: `var(--keylight-${name})`, stopOpacity: alpha, fill: `var(--keylight-${name})` })
+
+function KeyGlow({ glow, down }: { glow: (typeof GLOWS)[number]; down: boolean }) {
+  const { key, box, id, black } = glow
+  const [x, y, w, h] = key.box
+  const [bx, by, bw, bh] = box
+  const view = box.join(' ')
+  const state = { 'data-down': down ? '' : undefined, 'data-black': black ? '' : undefined }
+  return (
+    <>
+      <span className="piano-keylight piano-keylight--halo" {...state} style={glow.style}>
+        <svg viewBox={view} preserveAspectRatio="none">
+          <defs>
+            <filter id={`${id}-bloom`} x="-50%" y="-50%" width="200%" height="200%" colorInterpolationFilters="sRGB">
+              <feGaussianBlur stdDeviation="13" />
+            </filter>
+            <filter id={`${id}-edge`} x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="2" />
+            </filter>
+            <mask id={`${id}-out`} maskUnits="userSpaceOnUse" x={bx} y={by} width={bw} height={bh}>
+              <rect x={bx} y={by} width={bw} height={bh} fill="#fff" />
+              <path d={key.hit} fill="#000" filter={`url(#${id}-edge)`} />
+            </mask>
+          </defs>
+          <g mask={`url(#${id}-out)`} filter={`url(#${id}-bloom)`}>
+            <path d={key.hit} style={tone('glow')} />
+            {!black && <ellipse cx={x + w * 0.55} cy={y + h + 6} rx={w * 0.4} ry={10} style={tone('glow')} />}
+          </g>
+        </svg>
+      </span>
+      <span className="piano-keylight piano-keylight--face" {...state} style={glow.style}>
+        <svg viewBox={view} preserveAspectRatio="none">
+          <defs>
+            <radialGradient id={`${id}-face`} cx="0.5" cy={black ? 0.7 : 0.76} r="0.8" fx="0.5" fy={black ? 0.78 : 0.86}>
+              <stop offset="0" style={tone('core')} />
+              <stop offset="0.55" style={tone('glow', 0.7)} />
+              <stop offset="1" style={tone('glow', 0.15)} />
+            </radialGradient>
+          </defs>
+          <path d={key.hit} fill={`url(#${id}-face)`} />
+        </svg>
+      </span>
+      <span className="piano-keylight piano-keylight--strike" {...state} style={glow.style}>
+        <svg viewBox={view} preserveAspectRatio="none">
+          <defs>
+            <filter id={`${id}-hot`} x="-50%" y="-50%" width="200%" height="200%" colorInterpolationFilters="sRGB">
+              <feGaussianBlur stdDeviation="10" />
+            </filter>
+            <clipPath id={`${id}-in`}>
+              <path d={key.hit} />
+            </clipPath>
+          </defs>
+          <g clipPath={`url(#${id}-in)`}>
+            <ellipse cx={x + w * 0.52} cy={y + h * (black ? 0.64 : 0.74)} rx={w * 0.36} ry={h * 0.2} style={tone('hot')} filter={`url(#${id}-hot)`} />
+          </g>
+        </svg>
+      </span>
+    </>
+  )
+}
+
+/**
  * Its hover splash, like the cat's when it's petted: two or three cream notes float up and away from
  * its screen, each a little different every time (drift, tilt, size, a staggered start). One per
  * hover, and one each time its paced hint plays the hover on its own (HeroScene, `highlighted`).
@@ -793,6 +872,11 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
             {SPRITES.map((sprite) => (
               <span key={sprite.id} className="piano-close__key" data-down={down.has(sprite.id) ? '' : undefined} style={sprite.style} />
             ))}
+            <div className="piano-close__light-of-keys" aria-hidden="true">
+              {GLOWS.map((glow) => (
+                <KeyGlow key={glow.id} glow={glow} down={down.has(glow.key.id)} />
+              ))}
+            </div>
             {/* The screen: a pixel-art landscape that answers the music (src/scene/pianoScreen.ts),
                 clipped to the glass's outline, behind faint scanlines. */}
             <div className="piano-close__screen" data-screen="" style={SCREEN_STYLE}>
