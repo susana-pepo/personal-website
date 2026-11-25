@@ -1,5 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { GAP_MS, SWIPE_PX, createRecognizer, lean, type WheelInput } from '../components/SectionPanel/panelGestures'
+import {
+  GAP_MS,
+  SWIPE_PX,
+  createRecognizer,
+  createRoomRecognizer,
+  lean,
+  type RoomWheel,
+  type WheelInput,
+} from '../components/SectionPanel/panelGestures'
 
 /** A run of wheel events 16ms apart, from `t0`. */
 const run = (t0: number, steps: Array<Partial<WheelInput>>) =>
@@ -81,9 +89,9 @@ describe('panel swipe', () => {
     expect(gos(feedAll(createRecognizer(), run(0, repeat(10, { dx: 3, mode: 1 }))))).toEqual([])
   })
 
-  it('stops the browser’s own back swipe while it decides and while it swipes', () => {
-    const outs = feedAll(createRecognizer(), run(0, repeat(4, { dx: 6 })))
-    expect(outs.every((o) => o.prevent)).toBe(true)
+  it('never cancels a swipe or a scroll (cancelling the first event would freeze a scroll)', () => {
+    const outs = feedAll(createRecognizer(), run(0, [...repeat(4, { dx: 6 }), ...flick(18), { dx: 0, dy: 0 }]))
+    expect(outs.some((o) => o.prevent)).toBe(false)
   })
 
   it('leans with the fingers, against their travel, and never past 1', () => {
@@ -189,5 +197,62 @@ describe('scroll up to close', () => {
 
   it('a scroll down at the top is reading, never a close', () => {
     expect(feedAll(createRecognizer(), run(1000, repeat(30, { dy: 10, atTop: true }))).some((o) => o.close)).toBe(false)
+  })
+
+  it('a scroll that reaches the top, then a new pull up before its glide ends, closes', () => {
+    const reading = Array.from({ length: 25 }, (_, i) => ({ dy: -20 * 0.85 ** i, atTop: i > 8 }))
+    const pullUp = [-4, -8, -12, -14, -14, -14, -12, -10].map((dy) => ({ dy, atTop: true }))
+    expect(feedAll(createRecognizer(), run(1000, [...reading, ...pullUp])).filter((o) => o.close)).toHaveLength(1)
+  })
+})
+
+describe('scroll down in the room opens About', () => {
+  const down = (n: number, extra: Partial<RoomWheel> = {}) =>
+    Array.from({ length: n }, (_, i) => ({ t: 1000 + i * 16, dx: 0, dy: 10, mode: 0, ctrl: false, canScrollDown: false, ...extra }))
+
+  it('a scroll down from rest opens once', () => {
+    const rec = createRoomRecognizer()
+    expect(down(20).map((e) => rec.feed(e)).filter(Boolean)).toHaveLength(1)
+  })
+
+  it('not when the page or a list under the pointer can still scroll down', () => {
+    const rec = createRoomRecognizer()
+    expect(down(20, { canScrollDown: true }).some((e) => rec.feed(e))).toBe(false)
+  })
+
+  it('a scroll up, a sideways one, a pinch or a short nudge never opens', () => {
+    for (const extra of [{ dy: -10 }, { dx: 12, dy: 3 }, { ctrl: true }]) {
+      const rec = createRoomRecognizer()
+      expect(down(20, extra).some((e) => rec.feed(e))).toBe(false)
+    }
+    const rec = createRoomRecognizer()
+    expect(down(5).some((e) => rec.feed(e))).toBe(false)
+  })
+
+  it('the tail of a gesture held while the room was busy never opens', () => {
+    const rec = createRoomRecognizer()
+    rec.hold(990)
+    expect(down(20).some((e) => rec.feed(e))).toBe(false)
+  })
+
+  it('a mouse wheel scroll down opens too', () => {
+    const rec = createRoomRecognizer()
+    expect(down(3, { dy: 3, mode: 1 }).map((e) => ({ ...e, t: e.t * 1 })).some((e) => rec.feed(e))).toBe(true)
+  })
+})
+
+describe('scroll down in the room: reliability', () => {
+  const ev = (i: number, dy: number, extra: Partial<RoomWheel> = {}) => ({ t: 1000 + i * 16, dx: 0, dy, mode: 0, ctrl: false, canScrollDown: false, ...extra })
+
+  it('a brisk scroll whose first step is big still opens', () => {
+    const rec = createRoomRecognizer()
+    expect([35, 30, 20, 10].map((dy, i) => rec.feed(ev(i, dy))).some(Boolean)).toBe(true)
+  })
+
+  it('a scroll down made while a scroll up is still gliding opens', () => {
+    const rec = createRoomRecognizer()
+    const glideUp = Array.from({ length: 20 }, (_, i) => ev(i, -20 * 0.85 ** i))
+    const down = [4, 8, 13, 18, 18, 18].map((dy, i) => ev(20 + i, dy))
+    expect([...glideUp, ...down].map((e) => rec.feed(e)).filter(Boolean)).toHaveLength(1)
   })
 })

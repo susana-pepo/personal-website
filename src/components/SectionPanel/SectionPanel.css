@@ -740,6 +740,19 @@ html[data-panel] {
   overscroll-behavior-x: none;
 }
 
+/* Desktop: no rubber-band bump. In the room (which doesn't scroll) a scroll down opens About and
+   inside the panel a scroll up from the top closes it (usePanelGestures.ts); the screen bouncing
+   first would read as a stumble. Phones keep their native bounce and pull-to-refresh. */
+@media (hover: hover) and (pointer: fine) {
+  html {
+    overscroll-behavior-y: none;
+  }
+
+  .panel .panel__body {
+    overscroll-behavior: none;
+  }
+}
+
 .panel__body {
   flex: 1;
   overflow-y: auto;

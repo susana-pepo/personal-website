@@ -2,7 +2,7 @@ import { useEffect, type RefObject } from 'react'
 import { SECTION_IDS, type SectionId } from '../../content/types'
 import { closeSection, currentSection, hrefFor } from '../../lib/router'
 import { prefersReducedMotion } from '../../lib/motion'
-import { FOLLOW_PX, createRecognizer, type WheelInput } from './panelGestures'
+import { FOLLOW_PX, createRecognizer, createRoomRecognizer, type WheelInput } from './panelGestures'
 
 /** Desktop with a trackpad or mouse: phones and tablets keep their own touch behaviour. */
 const GESTURE_MEDIA = '(min-width: 640px) and (hover: hover) and (pointer: fine)'
@@ -124,12 +124,13 @@ export function usePanelGestures(
 
     const onWheel = (event: WheelEvent) => {
       if (!media.matches || !dialog.open) return
-      // still arriving, or over the dimmed room rather than the panel: this gesture doesn't count
-      if (performance.now() - openedAt < SETTLE_MS || event.target === dialog) {
+      // still arriving: this gesture doesn't count
+      if (performance.now() - openedAt < SETTLE_MS) {
         rec.hold(event.timeStamp)
         setLean(0)
         return
       }
+      const overRoom = event.target === dialog
       const out = rec.feed({
         t: event.timeStamp,
         dx: event.deltaX,
@@ -138,8 +139,9 @@ export function usePanelGestures(
         ctrl: event.ctrlKey,
         ctrlHeld,
         shift: event.shiftKey,
-        scroller: sideScroller(event.target, dialog),
-        atTop: atTop(event.target, dialog),
+        // anywhere on the site counts: over the dimmed room, it's the panel's page that's read
+        scroller: overRoom ? null : sideScroller(event.target, dialog),
+        atTop: atTop(overRoom ? dialog.querySelector('.panel__body') : event.target, dialog),
       })
       if (out.prevent && event.cancelable) event.preventDefault()
 
@@ -186,4 +188,76 @@ export function usePanelGestures(
       }
     }
   }, [dialogRef, pagesRef, openedAt])
+}
+
+/**
+ * Whether something under the pointer, or the page itself, can still scroll that way (down for a
+ * positive dy, up for a negative one), by more than a hair.
+ */
+function canScroll(target: EventTarget | null, dy: number): boolean {
+  const room = (el: Element) => (dy > 0 ? el.scrollHeight - el.clientHeight - el.scrollTop > 4 : el.scrollTop > 4)
+  let el = target instanceof Element ? target : null
+  while (el && el !== document.documentElement && el !== document.body) {
+    if (room(el)) {
+      const y = getComputedStyle(el).overflowY
+      if (y === 'auto' || y === 'scroll') return true
+    }
+    el = el.parentElement
+  }
+  const root = document.scrollingElement
+  return !!root && getComputedStyle(root).overflowY !== 'hidden' && room(root)
+}
+
+/** After the panel closes, the closing gesture's own tail never reopens it. */
+const ROOM_REST_MS = 900
+
+/**
+ * In the room (no panel out), a scroll down opens About, the first section, poured by the genie
+ * like a click on its object. Desktop only; never while the room is still entering, while anything
+ * else is open over it (the piano, the sound sheet), or while the page itself could scroll.
+ */
+export function useRoomScrollOpen(closed: boolean, settled: Promise<void>) {
+  useEffect(() => {
+    if (!closed) return
+    const media = window.matchMedia(GESTURE_MEDIA)
+    const rec = createRoomRecognizer()
+    const since = performance.now()
+    let ready = false
+    let live = true
+    void settled.then(() => {
+      if (live) ready = true
+    })
+    const onWheel = (event: WheelEvent) => {
+      if (!media.matches) return
+      const target = event.target instanceof Element ? event.target : null
+      const over = !!document.querySelector('dialog[open]') || !!target?.closest('input, textarea, select, [contenteditable="true"], [role="dialog"]')
+      // A scroll with nothing to scroll would only bounce the whole screen (a Mac's rubber band)
+      // before About pours out: it's stopped. Never a zoom, and never where something can scroll.
+      const vertical = Math.abs(event.deltaY) > Math.abs(event.deltaX)
+      if (!over && !event.ctrlKey && vertical && event.cancelable && !canScroll(target, event.deltaY)) event.preventDefault()
+      const busy =
+        !ready ||
+        performance.now() - since < ROOM_REST_MS ||
+        over
+      if (busy) {
+        rec.hold(event.timeStamp)
+        return
+      }
+      const open = rec.feed({
+        t: event.timeStamp,
+        dx: event.deltaX,
+        dy: event.deltaY,
+        mode: event.deltaMode,
+        ctrl: event.ctrlKey,
+        shift: event.shiftKey,
+        canScrollDown: canScroll(target, 1),
+      })
+      if (open && !currentSection()) window.location.hash = hrefFor(SECTION_IDS[0])
+    }
+    window.addEventListener('wheel', onWheel, { passive: false })
+    return () => {
+      live = false
+      window.removeEventListener('wheel', onWheel)
+    }
+  }, [closed, settled])
 }

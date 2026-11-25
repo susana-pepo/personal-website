@@ -36,8 +36,12 @@ import { HeaderArt } from './HeaderArt'
 import { moveInk } from './liquidInk'
 import { clearLight, passLight } from './turnLight'
 import { clearMelt, holdArrival } from './meltTurn'
-import { swipeDirection, usePanelGestures } from './usePanelGestures'
+import { swipeDirection, usePanelGestures, useRoomScrollOpen } from './usePanelGestures'
 import { closeAfterPour, useGenie } from './genie/useGenie'
+import { whenSettled } from '../../scene/entrance'
+
+/** The room has finished entering (once per page). */
+const roomSettled = typeof document === 'undefined' ? Promise.resolve() : whenSettled()
 
 /**
  * Lights the glass from the room's desk lamp: where its bulb is, as --lamp-x and --lamp-y on
@@ -136,6 +140,8 @@ export function SectionPanel({ section }: SectionPanelProps) {
   useEffect(() => setOpenedAt(state === 'open' ? (prev) => prev ?? performance.now() : null), [state])
   const genieRef = useGenie(dialogRef, canvasRef, placeLamp)
   usePanelGestures(dialogRef, pagesRef, openedAt)
+  // In the room, a scroll down opens About, the first section.
+  useRoomScrollOpen(state === 'closed', roomSettled)
 
   // Open, turn or close in response to the URL.
   useLayoutEffect(() => {

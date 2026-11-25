@@ -3,7 +3,7 @@
  * typed by these interfaces, so copy can be edited without touching components.
  */
 
-export const SECTION_IDS = ['work', 'about', 'experience', 'bookshelf', 'music', 'contact'] as const
+export const SECTION_IDS = ['about', 'work', 'experience', 'bookshelf', 'music', 'contact'] as const
 export type SectionId = (typeof SECTION_IDS)[number]
 
 export function isSectionId(value: string): value is SectionId {
