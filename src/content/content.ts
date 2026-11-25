@@ -130,18 +130,18 @@ export const content: SiteContent = {
         {
           id: 'apartment-studio',
           title: 'Apartment studio',
-          line: 'Furnishing a new home at exact scale, in a 2D plan and a 3D walk-through.',
+          line: 'Plan a new home at true scale: the layout, the furniture and the budget.',
           summary:
-            'A private planner for furnishing a new apartment at real-world scale. The floor plans are converted from the official drawings; furniture is placed on a 2D plan and checked in a 3D walk-through.',
+            'An apartment planner built on open-source code from openPlan3D. Explore to-scale 2D/3D plans, try real-size furniture, check what fits and export a shopping list with costs. Drop me a line for access.',
           status: 'Personal',
           thumb: 'plan',
         },
         {
           id: 'rights-intelligence',
           title: 'Rights Intelligence',
-          line: 'An independent exploration of tooling for music rights data.',
+          line: 'Exploring open data and open-source tools for music rights.',
           summary:
-            'A personal exploration of tooling for musical-work identification, ownership, contract coverage and rights reconciliation. I use it to test ideas about how rights information could become easier to trust and act on. It is an independent project, not a commercial product.',
+            'I’m exploring how open data and open-source tools can help identify musical works, trace ownership and work out who to report usage to. Still at the research stage. Happy to exchange ideas.',
           status: 'Exploration in progress',
           thumb: 'network',
           topics: ['Work identification', 'Ownership data', 'Contract coverage', 'Reconciliation'],
@@ -151,7 +151,7 @@ export const content: SiteContent = {
           title: 'PM frameworks guidebook',
           line: 'A field guide to product frameworks, for people who learn by doing.',
           summary:
-            'A hands-on guide to RICE, MoSCoW, Kano, Jobs-to-be-Done and more, built as a web experience rather than a course: somewhere to find the right framework, use it and come back to it.',
+            'A guide to 24 product frameworks with quizzes, interactive exercises and comparisons to help you understand when and how to use each one. Also useful for interview preparation.',
           status: 'Live',
           area: 'discovery-engagement',
           thumb: 'guide',
@@ -163,7 +163,7 @@ export const content: SiteContent = {
           title: 'Interactive chord builder',
           line: 'A concept-heavy topic turned into something learners can inspect and play.',
           summary:
-            'Choose a root note and a chord type, see the chord on the keyboard and tap the keys to hear it.',
+            'A little tool to make chord theory easier to understand. Pick a root and chord type, see the notes and intervals on the piano, explore inversions and hear chords or arpeggios.',
           status: 'Live',
           area: 'notation-learning',
           thumb: 'keys',
@@ -175,7 +175,7 @@ export const content: SiteContent = {
           title: 'Licensing engine',
           line: 'A tool to help figure out which songs can be used, where, and under which licensing conditions.',
           summary:
-            'An in-house rights-clearance system for a music-learning catalogue. The business rules, from how publisher shares map to rights groups to deal terms and restricted writers, live in data files rather than code, so they can be changed without a developer and every change can be reviewed. A dashboard on top shows coverage, scenarios and a plan of action.',
+            'An in-house tool for checking which songs can be used against public rights data and licensing rules stored separately from code. It compares clearance options based on actual song usage.',
           status: 'Internal tool',
           area: 'rights-licensing',
           thumb: 'ledger',

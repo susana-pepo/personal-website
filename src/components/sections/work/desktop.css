@@ -410,9 +410,10 @@
 }
 
 /* ── A desktop: the panel floats beside the room, shorter than the window, and the screen holds
-   exactly two rows. WorkDesktop.tsx measures how tall the screen may be (--fit-h) for the tablet
-   to sit inside the panel's first view with a breath under it; each row takes half of that, and
-   the screen ends just after the second row, the third waiting under the hills. ── */
+   two whole rows and the top of a third. WorkDesktop.tsx measures how tall the screen may be
+   (--fit-h) for the tablet to sit inside the panel's first view with a breath under it; the
+   screen is two slots of half that, and each row is a little shorter than its slot, so the
+   third row's top shows above the hills, fading out, as a hint that the list scrolls. ── */
 @media (min-width: 1025px) {
   .wdesk {
     --rows-top: 1.125rem;
@@ -423,17 +424,20 @@
        read and the panel scrolls a little instead. */
     --fit: max(var(--fit-h, 60svh), calc((100cqw - 38px) * 0.5625));
     /* Half the room, but no taller than the drawing at its usual width (46% of the row). */
-    --row-h: min(
+    --slot-h: min(
       calc((var(--fit) - var(--rows-fixed)) / 2),
       calc((100cqw - 38px - 2 * var(--pad-x) - 1.5rem) * 0.46 * 0.75)
     );
-    --screen-h: calc(var(--row-h) * 2 + var(--rows-fixed));
+    --screen-h: calc(var(--slot-h) * 2 + var(--rows-fixed));
+    /* What each row gives up so the third one peeks: twice this, less the gap, shows above the hills. */
+    --peek: 1rem;
+    --row-h: calc(var(--slot-h) - var(--peek));
   }
 
-  /* Rows snap two to a view, so the screen always shows two whole projects. The fade is short:
-     it falls in the gap after the second row. */
+  /* Rows snap two to a view, so the screen always shows two whole projects and the top of the
+     next. The fade covers just that peek, so the second row stays clean. */
   .wdesk__rows {
-    --fade: 0.5rem;
+    --fade: 1.5rem;
     gap: var(--rows-gap);
     padding: var(--rows-top) var(--pad-x) var(--rows-end);
     scroll-snap-type: y mandatory;

@@ -21,10 +21,10 @@ describe('content', () => {
     }
   })
 
-  it('marks Rights Intelligence as an independent exploration', () => {
+  it('marks Rights Intelligence as an exploration still at the research stage', () => {
     const ri = content.work.projects.items.find((p) => p.id === 'rights-intelligence')
-    expect(ri?.line).toMatch(/independent/i)
-    expect(ri?.summary).toMatch(/not a commercial product/i)
+    expect(ri?.line).toMatch(/exploring/i)
+    expect(ri?.summary).toMatch(/research stage/i)
   })
 
   it('links only live work, over https, and ties projects to real areas', () => {
