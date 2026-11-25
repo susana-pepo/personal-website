@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
 import { afterPainted, arrivedClipFile, clipsCanPlay, fetchClipFile, prepareClip, type PreparedClip } from '../../../scene/clipFiles'
 import { whenEntered, whenSettled } from '../../../scene/entrance'
@@ -8,13 +8,76 @@ import { SceneObject } from './SceneObject'
 import './PlantOverlay.css'
 
 const PLANT = overlay('plant')
+const [CLIP_W, CLIP_H] = PLANT_MEDIA.size
 /** If a sway's end is never heard (a hidden tab pauses it), it hands back this long after its length. */
 const END_GRACE_MS = 1500
+/** The middle of the pot, as a fraction of the clip's frame: solid in every frame (only the leaves move). */
+const POT = [0.5, 0.55] as const
+
+/**
+ * How the sway reaches the screen, decided on the first sway of the visit:
+ *  - 'canvas': each frame is copied into a canvas painted with the room, like a picture. The browser
+ *    never draws the video itself, so it can't drop it: Chrome-based browsers put a video on a layer
+ *    of its own and can leave that layer out for a moment (the woman blinked out that way; see
+ *    HeroScene.css), and with the still stepped aside that left the shelf bare, caught on loads.
+ *    The still steps aside in the same moment the canvas draws the clip's first frame, and comes
+ *    back in the same moment as its last: both are the still's own pose, so nothing ever shows
+ *    between them.
+ *  - 'video': where a browser can't copy the frames with their transparency, the video is shown
+ *    itself, and the still steps aside only once its frames are really there.
+ */
+let mode: 'canvas' | 'video' | null = null
+
 /** When the room settled (performance.now()): its beat is counted from there, for the whole visit. */
 let settledAt: number | null = null
 if (typeof document !== 'undefined') void whenSettled().then(() => (settledAt ??= performance.now()))
 
 const savingData = () => (navigator as Navigator & { connection?: { saveData?: boolean } }).connection?.saveData === true
+
+/** Copies the clip's current frame into the canvas (the video's padding row is left out). */
+function drawFrame(ctx: CanvasRenderingContext2D, video: HTMLVideoElement) {
+  ctx.clearRect(0, 0, CLIP_W, CLIP_H)
+  ctx.drawImage(video, 0, 0, CLIP_W, CLIP_H, 0, 0, CLIP_W, CLIP_H)
+}
+
+/** Whether the canvas holds the plant with its transparency: the corner clear, the pot solid. */
+function canvasLooksRight(ctx: CanvasRenderingContext2D): boolean {
+  try {
+    const corner = ctx.getImageData(1, 1, 1, 1).data[3]!
+    const pot = ctx.getImageData(Math.floor(CLIP_W * POT[0]), Math.floor(CLIP_H * POT[1]), 1, 1).data[3]!
+    return corner < 16 && pot > 200
+  } catch {
+    return false
+  }
+}
+
+/** For 'video' mode: resolves true once the video shows the plant (a few frames in, the pot there), false if not soon. */
+function whenVideoShown(video: HTMLVideoElement): Promise<boolean> {
+  const rvfc = (video as HTMLVideoElement & { requestVideoFrameCallback?: (cb: (now: number, meta: { presentedFrames: number }) => void) => number })
+    .requestVideoFrameCallback
+  if (typeof rvfc !== 'function') return new Promise((done) => window.setTimeout(() => done(true), 300))
+  return new Promise((done) => {
+    const probe = document.createElement('canvas')
+    probe.width = CLIP_W
+    probe.height = CLIP_H
+    const ctx = probe.getContext('2d', { willReadFrequently: true })
+    let from: number | null = null
+    const timer = window.setTimeout(() => done(false), 700)
+    const each = (_: number, meta: { presentedFrames: number }) => {
+      from ??= meta.presentedFrames
+      let drawn = true
+      if (ctx) {
+        drawFrame(ctx, video)
+        drawn = canvasLooksRight(ctx)
+      }
+      if (meta.presentedFrames - from >= 2 && drawn) {
+        window.clearTimeout(timer)
+        void afterPainted(0).then(() => done(true))
+      } else rvfc.call(video, each)
+    }
+    rvfc.call(video, each)
+  })
+}
 
 interface PlantOverlayProps {
   /** The room is allowed to move right now (see useScenePlayback). */
@@ -27,20 +90,18 @@ interface PlantOverlayProps {
  * The hanging pothos on the shelf. Its leaves sway and settle (plant-stir, about 5 s, one turn of
  * the record; scripts/build-plant.py): on their own, on the room's beat from the moment it settles
  * (with the steam, the cat and the woman), and whenever a pointer comes onto it
- * (src/scene/plantSway.ts). Its clip loads as the room is revealed, and the copy for its next
- * sway is always decoded in advance, so each sway starts right on its beat. Played the way the cat plays its clips
- * (src/scene/clipFiles.ts): as transparent video, each sway from a fresh copy of the file, put on
- * screen only once its first frame is decoded. The still stays underneath until that frame has
- * surely been painted, and comes back the same way at the end. Every sway starts and ends exactly
- * on the still, so no hand-over shows, and one sway can follow another without a seam (the last
- * copy holds its final frame until the next one's first is up). With reduced motion, a paused room,
- * or where video can't play, it simply stays still.
+ * (src/scene/plantSway.ts). Its clip loads as the room is revealed, and the copy for its next sway
+ * is always decoded in advance, so each sway starts right on its beat. Every sway starts and ends
+ * exactly on the still's pose, so one can follow another without a seam, and the still takes over
+ * again without a jump. How its frames reach the screen: see `mode` above. With reduced motion, a
+ * paused room, or where video can't play, it simply stays still.
  */
 export function PlantOverlay({ motionAllowed, stir }: PlantOverlayProps) {
   const reducedMotion = usePrefersReducedMotion()
   const moving = motionAllowed && !reducedMotion
   const host = useRef<HTMLSpanElement>(null)
-  const [swaying, setSwaying] = useState(false)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const stillRef = useRef<HTMLImageElement>(null)
   const hover = useRef<(() => void) | null>(null)
 
   // Its clip loads as the room is revealed, whatever else is going on (it's only skipped with
@@ -58,10 +119,10 @@ export function PlantOverlay({ motionAllowed, stir }: PlantOverlayProps) {
 
   useEffect(() => {
     const box = host.current
-    if (!moving || !box) {
-      setSwaying(false)
-      return
-    }
+    const canvas = canvasRef.current
+    const still = stillRef.current
+    const ctx = canvas?.getContext('2d', { willReadFrequently: true }) ?? null
+    if (!moving || !box || !canvas || !still) return
     let stopped = false
     let state: SwayState = 'rest'
     let current: PreparedClip | null = null
@@ -70,6 +131,13 @@ export function PlantOverlay({ motionAllowed, stir }: PlantOverlayProps) {
     let preparing = false
     let beatTimer: number | undefined
     let endTimer: number | undefined
+    let frameLoop = 0
+
+    // The still and the sway trade places in one step (one painted frame), never with a gap.
+    const showStill = (on: boolean) => {
+      still.style.visibility = on ? '' : 'hidden'
+      if (on && ctx) ctx.clearRect(0, 0, CLIP_W, CLIP_H)
+    }
 
     const prepareNext = async () => {
       if (ready || preparing || stopped || !arrivedClipFile(PLANT_MEDIA.stir.src)) return
@@ -81,45 +149,87 @@ export function PlantOverlay({ motionAllowed, stir }: PlantOverlayProps) {
     }
 
     const rest = () => {
-      // The last frame is the still: show it, then take the clip away once that has been painted.
       state = 'rest'
+      cancelAnimationFrame(frameLoop)
+      showStill(true)
       const clip = current
       current = null
-      setSwaying(false)
-      void afterPainted(0).then(() => clip?.release())
+      if (mode === 'canvas') clip?.release()
+      else void afterPainted(0).then(() => clip?.release()) // (the video's last frame, the still's pose, until the still is painted)
     }
 
     const play = async () => {
       const clip = ready ?? (await prepareClip(PLANT_MEDIA.stir.src, 'plant-stir')) // (a hover may come before it's ready)
       if (clip === ready) ready = null
       if (stopped) return clip?.release()
-      if (!clip) return rest() // video can't play here: it stays still
-      const previous = current // a sway just ended holds its last frame (the still) until this one is up
+      if (!clip || !(clip.el instanceof HTMLVideoElement)) return rest() // video can't play here: it stays still
+      const video = clip.el
+      const previous = current // a sway just ended: its last frame (the still's pose) is still showing
       current = clip
-      box.appendChild(clip.el)
+
+      // The first sway of the visit decides how frames reach the screen (see `mode`).
+      if (mode === null) {
+        if (ctx) {
+          drawFrame(ctx, video)
+          mode = canvasLooksRight(ctx) ? 'canvas' : 'video'
+          ctx.clearRect(0, 0, CLIP_W, CLIP_H)
+        } else mode = 'video'
+      }
+      box.dataset.mode = mode
+      box.appendChild(video)
+
       let ended = false
       const end = () => {
-        if (ended || stopped) return
+        if (ended || stopped || current !== clip) return
         ended = true
         window.clearTimeout(endTimer)
+        if (mode === 'canvas' && ctx) drawFrame(ctx, video) // its very last frame: the still's pose
         const next = onSwayEnd(state)
         state = next.state
         if (next.again) void play()
         else rest()
       }
-      clip.el.addEventListener('ended', end, { once: true })
-      try {
-        await clip.start() // resolves once its first frame is on screen
-      } catch {
-        clip.release()
-        current = previous
-        return rest()
+      video.addEventListener('ended', end, { once: true })
+
+      if (mode === 'canvas' && ctx) {
+        // Its first frame (the still's pose) into the canvas, and the still away, in one step.
+        drawFrame(ctx, video)
+        showStill(false)
+        previous?.release()
+        try {
+          await video.play()
+        } catch {
+          current = previous
+          clip.release()
+          return rest()
+        }
+        if (stopped || current !== clip) return
+        // Each new frame into the canvas, painted with the room.
+        let last = -1
+        cancelAnimationFrame(frameLoop)
+        const copy = () => {
+          if (stopped || current !== clip || ended) return
+          if (video.currentTime !== last) {
+            last = video.currentTime
+            drawFrame(ctx, video)
+          }
+          frameLoop = requestAnimationFrame(copy)
+        }
+        frameLoop = requestAnimationFrame(copy)
+      } else {
+        try {
+          await clip.start() // resolves once its first frame is decoded
+        } catch {
+          current = previous
+          clip.release()
+          return rest()
+        }
+        if (stopped) return
+        void whenVideoShown(video).then((shown) => {
+          previous?.release()
+          if (shown && !stopped && current === clip && !ended) showStill(false)
+        })
       }
-      if (stopped) return
-      // Its first frame is up, and it is the still: the still can step aside now. The sway before
-      // (if any) goes once this one has surely been painted over it.
-      setSwaying(true)
-      void afterPainted(0).then(() => previous?.release())
       endTimer = window.setTimeout(end, PLANT_MEDIA.stir.ms + END_GRACE_MS)
       void prepareNext() // the copy for the next sway, decoded while this one plays
     }
@@ -164,10 +274,11 @@ export function PlantOverlay({ motionAllowed, stir }: PlantOverlayProps) {
       hover.current = null
       window.clearTimeout(beatTimer)
       window.clearTimeout(endTimer)
+      cancelAnimationFrame(frameLoop)
+      showStill(true)
       current?.release()
       ready?.release()
       for (const el of [...box.children]) el.remove()
-      setSwaying(false)
     }
   }, [moving])
 
@@ -175,21 +286,15 @@ export function PlantOverlay({ motionAllowed, stir }: PlantOverlayProps) {
     if (stir > 0) hover.current?.()
   }, [stir])
 
-  const [w, h] = PLANT_MEDIA.size
-  const [W, H] = [w + (w % 2), h + (h % 2)]
+  const [W, H] = [CLIP_W + (CLIP_W % 2), CLIP_H + (CLIP_H % 2)]
   return (
     <SceneObject overlay={PLANT} highlighted={false} discoveryIndex={0} className="plant">
-      <img
-        src={PLANT_MEDIA.still}
-        alt=""
-        width={Math.round(PLANT.width)}
-        height={Math.round(PLANT.height)}
-        decoding="async"
-        draggable={false}
-        style={swaying ? { visibility: 'hidden' } : undefined}
-      />
-      {/* The video is padded to an even size on the right and at the bottom: that falls just outside the box. */}
-      <span ref={host} className="plant__clip" style={{ width: `${(100 * W) / w}%`, height: `${(100 * H) / h}%` }} />
+      <img ref={stillRef} src={PLANT_MEDIA.still} alt="" width={Math.round(PLANT.width)} height={Math.round(PLANT.height)} decoding="async" draggable={false} />
+      {/* The sway, painted with the room (see `mode`). */}
+      <canvas ref={canvasRef} className="plant__frames" width={CLIP_W} height={CLIP_H} aria-hidden="true" />
+      {/* The video: only the source of the frames, unless it has to be shown itself. Padded to an
+          even size on the right and at the bottom, which falls just outside the box. */}
+      <span ref={host} className="plant__clip" style={{ width: `${(100 * W) / CLIP_W}%`, height: `${(100 * H) / CLIP_H}%` }} />
     </SceneObject>
   )
 }

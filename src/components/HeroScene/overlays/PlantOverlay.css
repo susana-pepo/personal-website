@@ -1,5 +1,18 @@
-/* The hanging plant's sway (PlantOverlay): the clip sits over its still, from the top-left corner,
-   its box a touch larger than the plant's where the video is padded to an even size. */
+/* The hanging plant's sway (PlantOverlay). Its frames are copied into a canvas over the still,
+   painted with the room like a picture (the browser never draws the video itself, so it can't drop
+   it). The video sits beside it, unseen, only as the source of the frames; where a browser can't
+   copy them with their transparency it's shown itself (data-mode="video"). */
+.plant__frames {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+/* From the top-left corner, its box a touch larger than the plant's where the video is padded to
+   an even size. */
 .plant__clip {
   position: absolute;
   top: 0;
@@ -14,4 +27,8 @@
   width: 100%;
   height: 100%;
   object-fit: fill;
+}
+
+.plant__clip[data-mode='canvas'] > video {
+  opacity: 0;
 }
