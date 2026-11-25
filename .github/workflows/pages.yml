@@ -28,10 +28,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm test
+      # Served at the root of https://susanapepo.com (the custom domain set in
+      # Settings → Pages), so the build keeps its default base of '/'.
       - run: npm run build
-        env:
-          # GitHub serves this repository at https://<user>.github.io/personal-website/
-          SITE_BASE: /personal-website/
       # Hash links (#music) work as they are; a copy of the page as 404.html also
       # catches any other path under the site and opens the room.
       - run: cp dist/index.html dist/404.html

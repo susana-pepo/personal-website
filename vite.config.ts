@@ -86,9 +86,9 @@ function nowPlayingDevRoute(mode: string): Plugin {
 }
 
 /**
- * Where the site is served from. '/' everywhere except GitHub Pages, which serves this
- * repository at /personal-website/ (the workflow in .github/workflows/pages.yml sets
- * SITE_BASE). Vite already prefixes the paths it bundles, in CSS and in index.html's tags.
+ * Where the site is served from. '/' by default, as on https://susanapepo.com; set
+ * SITE_BASE (e.g. /personal-website/) only to build for a sub-path. Vite already
+ * prefixes the paths it bundles, in CSS and in index.html's tags.
  */
 const BASE = process.env.SITE_BASE ?? '/'
 
