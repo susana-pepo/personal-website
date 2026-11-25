@@ -42,7 +42,8 @@ export function SiteFooter() {
     if (returnFocus) soundRef.current?.focus()
   }, [])
 
-  // Follow the session's clock without re-rendering React on every frame.
+  // Follow the session's clock without re-rendering React on every frame. The clock only runs
+  // while the music plays: otherwise it is drawn once, as it stands, and no frame loop runs.
   useEffect(() => {
     let frame = 0
     const tick = () => {
@@ -50,11 +51,11 @@ export function SiteFooter() {
       if (progressRef.current) progressRef.current.style.transform = `scaleX(${Math.min(1, elapsed / total)})`
       const left = clock(focusLeft(elapsed, total))
       if (leftRef.current && leftRef.current.textContent !== left) leftRef.current.textContent = left
-      frame = requestAnimationFrame(tick)
+      if (on) frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [])
+  }, [on, radio.status])
 
   const meta =
     radio.status === 'error'

@@ -88,7 +88,9 @@ export function WeatherSky({ weather, time }: WeatherSkyProps) {
 
   useEffect(() => {
     const el = blend.current
-    const scene = svgRef.current?.closest<HTMLElement>('.scene')
+    // Nudged on the view itself, the only thing the filter draws: set on the whole room, the
+    // property would restyle every object in it on every frame of the fade.
+    const scene = svgRef.current?.closest<HTMLElement>('.scene')?.querySelector<HTMLElement>('.window-view') ?? null
     let tick = 0
     const apply = (t: number) => {
       el?.setAttribute('k2', t.toFixed(4))

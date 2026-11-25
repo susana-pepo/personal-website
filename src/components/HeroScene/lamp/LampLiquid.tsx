@@ -141,11 +141,24 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false, flick = 0
   const [failed, setFailed] = useState(false)
   // Hidden until its first frame is drawn: a blank (black) canvas would darken the room.
   const [ready, setReady] = useState(false)
-  const running = motionAllowed && !reducedMotion
+  // The light is off and has finished fading out: the canvas would only draw its neutral grey
+  // (no light at all), so it is out of view and draws nothing. That takes a room-sized,
+  // blended and masked layer off the GPU and a 30 fps loop off the page while the lamp is off
+  // (as the room opens). It comes back the moment the light is turned on, for its whole glide.
+  const [dark, setDark] = useState(() => !LAMP_TONES[tone])
+  const running = motionAllowed && !reducedMotion && !dark
   const draw = useRef<((time: number) => void) | null>(null)
   const timeRef = useRef(12.0) // start mid-flow, not at a symmetric moment
-  // The light as drawn right now; the click choreography and hover move it.
-  const light = useRef({ core: [...LAMP_TONES[0]!.core] as Rgb, glow: [...LAMP_TONES[0]!.glow] as Rgb, gain: 1, flicker: 1, hover: 1, catch: 1 })
+  // The light as drawn right now; the click choreography and hover move it. It starts as the
+  // light it opens with (off, as the room opens: no glide from on to off behind the entrance).
+  const light = useRef({
+    core: [...LAMP_TONES[0]!.core] as Rgb,
+    glow: [...LAMP_TONES[0]!.glow] as Rgb,
+    gain: LAMP_TONES[tone]?.gain ?? 0,
+    flicker: 1,
+    hover: 1,
+    catch: 1,
+  })
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -236,13 +249,14 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false, flick = 0
 
   // A new colour: the flicker and the glide, drawn every frame until it settles
   // (the room's own loop may be paused, so this keeps its own frames).
-  const shown = useRef(0)
+  const shown = useRef(tone)
   // Read, not depended on: a change of the setting mid-glide must not cut the glide short.
   const reducedRef = useRef(reducedMotion)
   reducedRef.current = reducedMotion
   useEffect(() => {
     if (tone === shown.current) return
     shown.current = tone
+    setDark(false) // in view for the whole glide, on or off
     const l = light.current
     // Off: the light fades away in its own colour (light only ever adds, so at 0 the room
     // shows just its own painted light).
@@ -270,7 +284,10 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false, flick = 0
       }
       draw.current?.(timeRef.current)
       if (ms < total) frame = requestAnimationFrame(step)
-      else l.flicker = 1
+      else {
+        l.flicker = 1
+        if (l.gain === 0) setDark(true) // faded right out: nothing left to draw
+      }
     }
     frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frame)
@@ -320,5 +337,5 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false, flick = 0
   }, [flick])
 
   if (failed) return LAMP_TONES[tone] ? <LampLight motionAllowed={motionAllowed} /> : null // the still version, unless the light is off
-  return <canvas ref={canvasRef} className="lamp-liquid" width={640} height={360} aria-hidden="true" data-ready={ready ? '' : undefined} />
+  return <canvas ref={canvasRef} className="lamp-liquid" width={640} height={360} aria-hidden="true" data-ready={ready && !dark ? '' : undefined} />
 }

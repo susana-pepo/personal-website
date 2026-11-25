@@ -198,7 +198,8 @@
     -webkit-tap-highlight-color: transparent;
     transition:
       opacity 200ms var(--ease-out),
-      transform 160ms var(--ease-out);
+      transform 160ms var(--ease-out),
+      visibility 0s;
   }
 
   .room-pan__arrow--start {
@@ -216,9 +217,15 @@
     inset: -7px;
   }
 
+  /* Gone at an end of the room: once faded, out of view too, so its glass keeps no blur of the
+     moving room behind it. */
   .room-pan__arrow:disabled {
     opacity: 0;
+    visibility: hidden;
     pointer-events: none;
+    transition:
+      opacity 200ms var(--ease-out),
+      visibility 0s linear 200ms;
   }
 
   .room-pan__arrow:active {
