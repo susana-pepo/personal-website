@@ -36,6 +36,7 @@ import { HeaderArt } from './HeaderArt'
 import { moveInk } from './liquidInk'
 import { clearLight, passLight } from './turnLight'
 import { clearMelt, holdArrival } from './meltTurn'
+import { swipeDirection, usePanelGestures } from './usePanelGestures'
 import { closeAfterPour, useGenie } from './genie/useGenie'
 
 /**
@@ -122,6 +123,7 @@ export function SectionPanel({ section }: SectionPanelProps) {
   const inkRef = useRef<HTMLSpanElement>(null)
   const progressRef = useRef<HTMLSpanElement>(null)
   const returnFocusRef = useRef<HTMLElement | null>(null)
+  const pagesRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<Page | null>(null)
   const keyRef = useRef(0)
   const [page, setPage] = useState<Page | null>(null)
@@ -129,7 +131,11 @@ export function SectionPanel({ section }: SectionPanelProps) {
   const [state, setState] = useState<PanelState>('closed')
   // Wide screens with a mouse: the glass pours out of its object and back (genie/genie.ts).
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Trackpad: a two-finger swipe turns the section; a pinch in, or a scroll up from the top, closes (usePanelGestures.ts).
+  const [openedAt, setOpenedAt] = useState<number | null>(null)
+  useEffect(() => setOpenedAt(state === 'open' ? (prev) => prev ?? performance.now() : null), [state])
   const genieRef = useGenie(dialogRef, canvasRef, placeLamp)
+  usePanelGestures(dialogRef, pagesRef, openedAt)
 
   // Open, turn or close in response to the URL.
   useLayoutEffect(() => {
@@ -157,7 +163,8 @@ export function SectionPanel({ section }: SectionPanelProps) {
       genieRef.current?.reopen()
       const previous = pageRef.current
       if (previous?.id === section) return
-      const dir = turnDirection(previous?.id ?? null, section)
+      // a swipe past the last section loops round, and still turns the way the fingers went
+      const dir = swipeDirection(section) ?? turnDirection(previous?.id ?? null, section)
       // a page still condensing melts away from where it is, not from sharp
       if (previous) holdArrival(dialog)
       if (previous) setLeaving({ ...previous, dir, offset: bodyRef.current?.scrollTop ?? 0 })
@@ -460,7 +467,7 @@ export function SectionPanel({ section }: SectionPanelProps) {
         </div>
 
         <div ref={bodyRef} className="panel__body" onScroll={onBodyScroll}>
-          <div className="panel__pages">
+          <div className="panel__pages" ref={pagesRef}>
             {pages.map((p) => (
               <FolioPage
                 key={p.key}

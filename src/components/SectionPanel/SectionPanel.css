@@ -586,6 +586,8 @@ html:has(.panel[open]) {
   min-width: 0;
   overflow-x: auto;
   scrollbar-width: none;
+  /* a sideways scroll that reaches the row's end stops there: never the browser's back swipe */
+  overscroll-behavior-x: none;
 }
 
 .panel__nav::-webkit-scrollbar {
@@ -732,9 +734,17 @@ html:has(.panel[open]) {
 }
 
 /* ── Body and pages ── */
+/* While a panel is out, a sideways swipe never becomes the browser's own back/forward swipe, even
+   where the panel's handler can't cancel it (usePanelGestures.ts turns sections with it instead). */
+html[data-panel] {
+  overscroll-behavior-x: none;
+}
+
 .panel__body {
   flex: 1;
   overflow-y: auto;
+  /* never a sideways scroller (a swipe's lean must not give it a sideways range) */
+  overflow-x: hidden;
   overscroll-behavior: contain;
   scroll-padding-top: var(--rhythm-block);
 }

@@ -49,6 +49,8 @@
   /* Leaving: the whole page thins and drifts back, 200ms × --melt-leave-slow (SectionPanel reads this to remove it).
      It holds most of its light while the new page begins, so the glass never goes dark. */
   .panel .panel__page.is-leaving {
+    /* a swipe's turn: the page leaves from where the fingers leaned it (usePanelGestures.ts) */
+    translate: var(--swipe-carry, 0px) 0;
     animation: melt-leave calc(200ms * var(--melt-leave-slow)) linear forwards;
     will-change: opacity, transform;
   }
