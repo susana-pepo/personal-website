@@ -307,7 +307,7 @@ def source_frames(path):
     return [f.convert('RGBA') for f in ImageSequence.Iterator(Image.open(path))]
 
 
-def _hair_fill(img):
+def _hair_fill(img, nape=False):
     """Fill the export's see-through slivers between the outer strands of her hair, and the
     pale or grey bits of its old background caught there, with the colour of the hair around
     them, so the room never shows through her hair. Only within HAIR_ZONE, and only pixels
@@ -318,6 +318,24 @@ def _hair_fill(img):
     zone = np.zeros((H, W), bool)
     x0, y0, x1, y1 = HAIR_ZONE
     zone[y0:y1, x0:x1] = True
+    # never at the back of her neck: the room showing past its thin strip, above the collar, isn't
+    # a gap in her hair (filled, it was the brown spot and the specks where the strip meets the collar)
+    # (only the strip's own skin and the room past it: gaps in her hair beside it are still filled)
+    at = nape_anchor(np.asarray(img)) if nape is False else nape
+    if at is not None:
+        import cv2
+        xb, yb = at
+        B = (slice(max(0, yb - NAPE_SPARE[1]), min(H, yb + NAPE_SPARE[3])), slice(max(0, xb - NAPE_SPARE[0]), min(W, xb + NAPE_SPARE[2])))
+        r_, g_, b_ = [x[..., i][B] for i in range(3)]
+        skin = ((a[B] > 200) & (r_ > 160) & (g_ > 100) & (r_ - b_ > 40)).astype(np.uint8)
+        _, lab = cv2.connectedComponents(skin, connectivity=8)
+        ay, ax = yb - B[0].start, xb - B[1].start
+        neck = (lab == lab[ay, ax]) & (skin > 0) if 0 <= ay < skin.shape[0] and 0 <= ax < skin.shape[1] and skin[ay, ax] else np.zeros(skin.shape, bool)
+        clear = (a[B] < 128).astype(np.uint8)
+        _, lab = cv2.connectedComponents(clear, connectivity=8)
+        room = np.isin(lab, np.unique(lab[:, -1][clear[:, -1] > 0])) & (clear > 0)  # the room, open to the right
+        spare = cv2.dilate((neck | room).astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+        zone[B] &= ~spare
     lum = rgb @ np.array([0.2126, 0.7152, 0.0722], np.float32)
     mx, mn = rgb.max(-1), rgb.min(-1)
     sat = (mx - mn) / np.maximum(mx, 1)
@@ -359,7 +377,7 @@ def fill_hair_gaps_seq(frames):
     frame by frame it differs a little each time, and the filled strands' edges flickered
     (measured: 77% more than the export's own). Her hair down her back hardly moves, so a short
     average over time is enough and doesn't trail."""
-    parts = [_hair_fill(f) for f in frames]
+    parts = [_hair_fill(f, at) for f, at in zip(frames, nape_anchors([np.asarray(f) for f in frames]))]
     k = np.exp(-0.5 * (np.arange(-3, 4) / HAIR_STEADY) ** 2)
     out = []
     for t, (rgb, a, col, _, _, here) in enumerate(parts):
@@ -715,39 +733,197 @@ def throat_keep(shape, m):
     return _blurred(keep, 1.0)
 
 
-NAPE = (520, 640, 740, 880)  # where the back of her neck can be (source px)
+NAPE = (495, 640, 740, 880)  # where the back of her neck can be (source px)
 NAPE_DOWN, NAPE_BACK, NAPE_FWD = 50, 8, 14  # the strip's box from the back corner of her jaw
 NAPE_UP = 30  # and up from it, to where her hair meets the corner (the brown spot itself)
 
 
-def tidy_nape(a):
-    """(frame, keep mask) for the thin strip of skin at the back of her neck, under the back corner
-    of her jaw. The edge clean-up took it for an edge and repainted it brown from her hair (a brown
-    spot): the mask lets it through untouched. The export's khaki fleck where it meets the collar goes."""
+NAPE_X_OK = (495, 565)  # where the back corner of her jaw is found in every clip (source px)
+NAPE_SPARE = (16, 40, 44, 8)  # where the hair-gap filling looks for the strip and the room past it: back, up, forward, down (source px)
+NAPE_FOOT = 7  # a gap up to this tall (source px) between the strip's foot and the collar is filled
+NAPE_SPECK = 5  # specks and thin sprigs narrower than this (source px) go from where the strip meets the collar
+
+
+def nape_anchor(a):
+    """(x, y) of the back corner of her jaw, above the strip at the back of her neck, or None
+    where it isn't found (or lands somewhere it never is, like under her chin)."""
     import cv2
-    H, W = a.shape[:2]
     x0, x1, y0, y1 = NAPE
     r, g, b, al = [a[..., i].astype(np.float32) for i in range(4)]
     skin = ((al > 200) & (r > 160) & (g > 100) & (r - b > 40)).astype(np.uint8)
-    keep = np.zeros((H, W), np.float32)
     n, lab, st, _ = cv2.connectedComponentsWithStats(skin, 8)
     if n < 2:
-        return a, keep
-    face = lab == (1 + np.argmax(st[1:, cv2.CC_STAT_AREA]))
+        return None
+    # her face and neck: the skin most in the box (her arm, raised to turn a page, can be bigger)
+    inside = np.bincount(lab[y0:y1, x0:x1].ravel(), minlength=n)
+    inside[0] = 0
+    face = lab == int(np.argmax(inside))
     rows = [y for y in range(y0, y1) if face[y, x0:x1].any()]
     if not rows:
-        return a, keep
+        return None
     yb = rows[-1]
-    xb = x0 + np.nonzero(face[yb, x0:x1])[0].min()
+    xb = x0 + int(np.nonzero(face[yb, x0:x1])[0].min())
+    return (xb, yb) if NAPE_X_OK[0] <= xb <= NAPE_X_OK[1] else None
+
+
+def nape_anchors(frames):
+    """Each frame's anchor (nape_anchor); a frame where it isn't found borrows its nearest
+    neighbour's, so the strip is looked after in every frame, and each is the median of five."""
+    found = [nape_anchor(f) for f in frames]
+    have = [i for i, p in enumerate(found) if p is not None]
+    if not have:
+        return found
+    filled = [p if p is not None else found[min(have, key=lambda j: abs(j - i))] for i, p in enumerate(found)]
+    # evened over neighbouring frames: where it's found can hop a few px, and the strip mustn't
+    return [tuple(int(v) for v in np.median(np.array(filled[max(0, i - 2):i + 3]), 0).round()) for i in range(len(filled))]
+
+
+def tidy_nape(a, anchor=None):
+    """(frame, keep mask) for the thin strip of skin at the back of her neck, under the back corner
+    of her jaw. The edge clean-up took it for an edge and repainted it brown from her hair (a brown
+    spot): the mask lets it through untouched. Where it meets the collar, the export's specks,
+    sprigs and khaki or grey edge pixels go, so what's let through is clean."""
+    import cv2
+    H, W = a.shape[:2]
+    keep = np.zeros((H, W), np.float32)
+    if anchor is None:
+        anchor = nape_anchor(a)
+    if anchor is None:
+        return a, keep
+    xb, yb = anchor
     keep[max(0, yb - NAPE_UP):yb + NAPE_DOWN, max(0, xb - NAPE_BACK):xb + NAPE_FWD] = 1
     a = a.copy()
+    r, g, b, al = [a[..., i].astype(np.float32) for i in range(4)]
+    skin = (al > 200) & (r > 160) & (g > 100) & (r - b > 40)
     lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
-    box = (slice(max(0, yb - 8), yb + NAPE_DOWN), slice(max(0, xb - 1), xb + NAPE_FWD))
     sweater = (al > 200) & (b > r + 8)
-    fleck = (al > 0) & (lum > 80) & (g > 85) & (r - g < 52) & ~sweater & ~(skin > 0)
-    sub = a[box]
-    sub[..., 3] = np.where(fleck[box], 0, sub[..., 3])
+    # the junction: the strip's foot, the collar's top and the bit of room between them
+    jy0, jy1 = max(0, yb - 8), min(H, yb + NAPE_DOWN)  # from the strip's side only: never into her hair,
+    jx0, jx1 = max(0, xb - 1), min(W, xb + NAPE_FWD + 16)  # whose pale shine would go see-through
+    J = (slice(jy0, jy1), slice(jx0, jx1))
+    fleck = (al > 0) & (lum > 80) & (g > 85) & (r - g < 52) & ~sweater & ~skin
+    a[..., 3][J] = np.where(fleck[J], 0, a[..., 3][J])
+    # the strip's foot is skin to the end: its pale highlight there reads as a light dot
+    near = skin[max(0, yb - 30):max(1, yb - 6), max(0, xb - NAPE_BACK):xb + NAPE_FWD]
+    tone = neck = None
+    if near.sum() > 20:
+        tone = np.median(a[max(0, yb - 30):max(1, yb - 6), max(0, xb - NAPE_BACK):xb + NAPE_FWD][near][:, :3], 0)
+        tl = 0.2126 * tone[0] + 0.7152 * tone[1] + 0.0722 * tone[2]
+        F = (slice(max(0, yb - 8), min(H, yb + 10)), slice(max(0, xb - NAPE_BACK - 4), min(W, xb + NAPE_FWD + 16)))
+        fr, fg, fb_ = [a[F][..., i].astype(np.float32) for i in range(3)]
+        fl = 0.2126 * fr + 0.7152 * fg + 0.0722 * fb_
+        # too light, or the export's khaki: a pale line where the strip meets the collar
+        light = (a[F][..., 3] > 0) & ((fl > tl + 22) | ((fl > 90) & ((fr - fb_) / np.maximum(fr, 1) < 0.3))) & ~(fb_ > fr + 8)
+        # only on the strip itself (touching its skin), never the shine on her hair beside it
+        _, lab = cv2.connectedComponents(skin.astype(np.uint8), connectivity=8)
+        neck = (lab == lab[yb, xb]) if skin[yb, xb] else np.zeros_like(skin)
+        light &= cv2.dilate(neck[F].astype(np.uint8), np.ones((5, 5), np.uint8)) > 0
+        a[F][..., :3][light] = tone.round().astype(np.uint8)
+    # specks and sprigs: what an opening takes off her outline, and bits not joined to her
+    solid = (a[..., 3][J] > 100).astype(np.uint8)
+    disc = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (NAPE_SPECK, NAPE_SPECK))
+    body = cv2.morphologyEx(solid, cv2.MORPH_OPEN, disc)
+    body = body | (solid & cv2.dilate(body, np.ones((3, 3), np.uint8)))
+    n, lab, st, _ = cv2.connectedComponentsWithStats(body, 8)
+    edge = np.zeros_like(body, bool)
+    edge[0, :] = edge[-1, :] = edge[:, 0] = edge[:, -1] = True
+    joined = np.isin(lab, np.unique(lab[edge & (body > 0)])) & (body > 0)  # her, carrying on outside the box
+    near = cv2.dilate(joined.astype(np.uint8), np.ones((3, 3), np.uint8)) > 0
+    a[..., 3][J] = np.where(near, a[..., 3][J], 0)
+    # grey, lilac or khaki pixels left on the strip's edge take the nearest clean colour (skin or collar)
+    sub = a[J].astype(np.float32)
+    sr, sg, sb, sal = [sub[..., i] for i in range(4)]
+    slum = 0.2126 * sr + 0.7152 * sg + 0.0722 * sb
+    rim = cv2.dilate((sal < 50).astype(np.uint8), np.ones((5, 5), np.uint8)) > 0  # her outline, not the hair's shine inside
+    pale = rim & (sal > 0) & (slum > 85) & ((sr - sb) / np.maximum(sr, 1) < 0.36) & ~(sb > sr)
+    good = (sal > 200) & ~pale & (slum > 60)
+    if pale.any() and good.any():
+        _, nl = cv2.distanceTransformWithLabels((~good).astype(np.uint8), cv2.DIST_L2, 5, labelType=cv2.DIST_LABEL_PIXEL)
+        gy, gx = np.nonzero(good)
+        col = np.zeros((nl.max() + 1, 3), np.uint8)
+        col[nl[gy, gx]] = a[J][gy, gx, :3]
+        py, px = np.nonzero(pale)
+        a[jy0 + py, jx0 + px, :3] = col[nl[py, px]]
+    # and it reaches the collar: what's left between its foot and the collar's dark edge (part
+    # see-through, so the lit room showed as a pale line there) is filled with its skin
+    if tone is not None and neck.any():
+        for x in range(F[1].start, F[1].stop):
+            ys = np.nonzero(neck[F[0].start:yb + 6, x])[0]
+            if not len(ys):
+                continue
+            ys_ = F[0].start + ys[-1]
+            if ys_ < yb - 1:  # only under the foot itself: never a wedge past its slanting edge
+                continue
+            below = np.nonzero(a[ys_ + 1:ys_ + 1 + NAPE_FOOT, x, 3] > 200)[0]
+            if not len(below) or below[0] == 0:
+                continue
+            gap = slice(ys_ + 1, ys_ + 1 + below[0])
+            a[gap, x, :3] = tone.round().astype(np.uint8)
+            a[gap, x, 3] = 255
     return a, np.clip(cv2.GaussianBlur(keep, (0, 0), 2.0), 0, 1)
+
+
+def nape_foot(f, ox, oy, k):
+    """A finished frame (uint8 RGBA, the box's pixels) with the strip's foot reaching the collar:
+    any see-through or pale pixel with the strip's skin just above it and the collar just below
+    takes the skin's colour. Done last, on what's shown: steps that smooth over time had left it
+    part see-through there, a pale line of the lit room between her neck and her collar."""
+    H, W = f.shape[:2]
+    r0 = max(0, oy - round(10 * k)); r1 = min(H, oy + round(10 * k))
+    c0 = max(0, ox - round(16 * k)); c1 = min(W, ox + round(16 * k))
+    a = f[r0:r1, c0:c1].astype(np.float32)
+    r, g, b, al = a[..., 0], a[..., 1], a[..., 2], a[..., 3]
+    lum = 0.2126 * r + 0.7152 * g + 0.0722 * b
+    skin = (al > 220) & (r - b > 40) & (lum > 100) & (lum < 215)
+    if skin.sum() < 6:
+        return f
+    tone = np.median(a[skin][:, :3], 0)
+    collar = (al > 200) & ((lum < 70) | (b > r + 8))
+    pale = (lum > 0.2126 * tone[0] + 0.7152 * tone[1] + 0.0722 * tone[2] + 18) | ((r - b) / np.maximum(r, 1) < 0.3)
+    out = f.copy()
+    sub = out[r0:r1, c0:c1]
+    hair = (al > 200) & (lum < 90) & ~collar & (r >= b)
+    foot = np.zeros_like(skin)
+    foot[max(0, oy - round(5 * k) - r0):, :] = True  # only at its foot, never the neck's own shine higher up
+    low = np.zeros_like(skin)
+    low[max(0, oy - round(9 * k) - r0):, :] = True
+    for _ in range(6):  # a band a few px tall fills from the top down
+        above = np.zeros_like(skin)
+        below = np.zeros_like(skin)
+        for d in (1, 2, 3):
+            above[d:] |= skin[:-d]
+        for d in range(1, 6):
+            below[:-d] |= collar[d:]
+        beside = np.zeros_like(skin)
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                beside |= np.roll(np.roll(skin, dy, 0), dx, 1)
+        # a see-through sliver between her hair and the strip shows the room too
+        left = np.zeros_like(skin)
+        right = np.zeros_like(skin)
+        warm = (al > 200) & (lum >= 90) & ~collar & (r - b > 25)
+        for d in range(1, 7):
+            left[:, d:] |= hair[:, :-d]
+            right[:, :-d] |= warm[:, d:]
+        fill = ~collar & ~skin & ~hair & (((al < 250) & above & below) | (pale & (al > 40) & beside & below & foot)
+                                          | ((al < 250) & left & right & low))
+        if not fill.any():
+            break
+        sub[fill, :3] = tone.round().astype(np.uint8)
+        sub[fill, 3] = 255
+        al = np.where(fill, 255, al)
+        skin = skin | fill
+    # and a small see-through hole enclosed by her there (the room through it) is closed
+    import cv2
+    clear = (al < 128).astype(np.uint8)
+    n, lab, st, _ = cv2.connectedComponentsWithStats(clear, 4)
+    edge = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]])))
+    for i in range(1, n):
+        if i not in edge and st[i, cv2.CC_STAT_AREA] <= round(40 * k * k):
+            hole = (lab == i) & low
+            sub[hole, :3] = tone.round().astype(np.uint8)
+            sub[hole, 3] = 255
+    return out
 
 
 def paint_neck_seq(frames, keeps=None):
@@ -757,8 +933,8 @@ def paint_neck_seq(frames, keeps=None):
     mask is added to it. Off (NECK_PAINT False): only the back of her neck is tidied (tidy_nape)."""
     if not NECK_PAINT:
         out = []
-        for f in frames:
-            f2, keep = tidy_nape(f)
+        for f, at in zip(frames, nape_anchors(frames)):
+            f2, keep = tidy_nape(f, at)
             out.append(f2)
             if keeps is not None:
                 keeps.append(keep)
@@ -1061,6 +1237,8 @@ def build_clip(name, width, quality):
     throats = []
     srcs = paint_neck_seq(srcs, throats)  # 3b. her neck, which the export left out, painted in
     srcs = calm_shimmer(srcs, keep=pens)  # 4. the shimmer calmed (not the clean pen)
+    feet = [(round((WOMAN['x'] + x * WOMAN['scale'] - bx0) * k), round((WOMAN['y'] + y * WOMAN['scale'] - by0) * k))
+            if x is not None else None for x, y in ((p if p else (None, None)) for p in nape_anchors(srcs))]
     # 5. what the edge clean-up must leave alone: the clean pen, the frame's own pen wherever
     # that shows (lifted to turn a page, the clean pen can't follow it), and the throat's line
     keeps = [np.maximum(own_pen(f) if m is None else np.maximum(m, own_pen(f)), t) for f, m, t in zip(srcs, pens, throats)]
@@ -1068,9 +1246,12 @@ def build_clip(name, width, quality):
     del srcs
     home_keep = home_throat[0] if home_pen[0] is None else np.maximum(home_pen[0], home_throat[0])
     home = finished(Image.fromarray(home_ready), home_keep) if name != HOME else None
+    hf = nape_anchor(home_ready)
+    if home is not None and hf is not None:
+        home = nape_foot(home, round((WOMAN['x'] + hf[0] * WOMAN['scale'] - bx0) * k), round((WOMAN['y'] + hf[1] * WOMAN['scale'] - by0) * k), k)
     out, holds = [], []
     for i, (img, hold, pen) in enumerate(layers):
-        out.append(finished(img, pen))
+        out.append(finished(img, pen) if feet[i] is None else nape_foot(finished(img, pen), *feet[i], k))  # 5b. the strip's foot
         holds.append(hold)
         if i % 30 == 0:
             print(f'{name}: {i}/{len(layers)} frames finished', flush=True)
