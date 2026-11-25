@@ -23,7 +23,8 @@
     "scene:windows": "python3 scripts/build-window-views.py",
     "scene:piano": "python3 scripts/build-piano.py",
     "scene:plant": "python3 scripts/build-plant.py",
-    "scene:landscapes": "python3 scripts/paint-landscapes.py"
+    "scene:landscapes": "python3 scripts/paint-landscapes.py",
+    "scene:social": "python3 scripts/build-social-preview.py"
   },
   "dependencies": {
     "react": "^19.3.1",

@@ -98,9 +98,10 @@ The draft deliberately invents nothing, so these are empty right now:
    the record set in `music.listening.onTurntable`, labelled "On the turntable".
 8. **Music links** (optional): add `link` to a music card only for content you own or are
    free to share.
-9. **Social preview image**: once you have a domain, change `og:image` in `index.html` to an
-   absolute URL (e.g. `https://your-domain/media/scene/room.webp`); most link previews
-   require that.
+9. **Social preview image**: `public/social-preview.jpg`, painted from the room by
+   `npm run scene:social` (rerun it when the room changes). `og:image` in `index.html` points
+   at it by absolute URL; change that URL if the site moves to its own domain. The same file
+   can be uploaded as the repository's social preview (GitHub: Settings → General → Social preview).
 10. **Illustration credit**: if the artwork's licence asks for attribution, add it to
    `footer.note` in `content.ts`.
 
