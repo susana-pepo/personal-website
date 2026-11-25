@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import WorkSection from '../components/sections/WorkSection'
-import { MOVE, placeOver, rowIndexForKey, wheelGoesToPage } from '../components/sections/work/desktop'
+import { MOVE, fitScreenHeight, placeOver, rowIndexForKey, wheelGoesToPage } from '../components/sections/work/desktop'
 import { ProjectPage, projectRowId } from '../components/sections/work/ProjectPage'
 import { content } from '../content/content'
 
@@ -178,5 +178,21 @@ describe('the move between the rows and a page', () => {
   it('takes the words away first on the way back', () => {
     expect(MOVE.wordsOut).toBeLessThan(MOVE.back)
     expect(MOVE.fade).toBeLessThan(MOVE.travel)
+  })
+})
+
+describe('fitScreenHeight', () => {
+  it('gives the screen what is left of the panel\'s first view under the tablet\'s top, its frame and a breath', () => {
+    // 1440x900: a 666px view, the tablet 274px down it, a 38px frame and a 48px breath.
+    expect(fitScreenHeight({ view: 666, above: 274, frame: 38, breath: 48 })).toBe(306)
+  })
+
+  it('rounds down, so the tablet never pokes past the breath', () => {
+    expect(fitScreenHeight({ view: 666.6, above: 274, frame: 38, breath: 48 })).toBe(306)
+  })
+
+  it('never squeezes the screen below its least height on a very short panel', () => {
+    expect(fitScreenHeight({ view: 400, above: 274, frame: 38, breath: 48 })).toBe(200)
+    expect(fitScreenHeight({ view: 400, above: 274, frame: 38, breath: 48 }, 160)).toBe(160)
   })
 })

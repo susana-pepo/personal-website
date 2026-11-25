@@ -14,17 +14,43 @@
   --cup-shadow: oklch(0.1 0.012 45 / 0.6); /* where the coaster meets the page */
 }
 
-/* The lede: the section's usual DM Sans lede, nothing beside it. */
-.contact-v-cup .cup__intro {
-  max-width: 34ch;
-  margin: 0;
+/* The page is centred on the glass, a short note rather than a column: the greeting, the
+   lede and the still life share one middle axis. (The header is the shared one; only its
+   alignment changes here, and only on this page.) */
+.panel__page[data-section="contact"] > .panel__header {
+  grid-template-columns: minmax(0, 1fr);
 }
 
-/* The still life: the words, then the mug, bottoms on one line, kept together at the left. */
+.panel__page[data-section="contact"] .panel__title {
+  text-align: center;
+}
+
+/* And in the middle of the glass's height: the page fills the sheet's view, and the note sits
+   halfway down it (the page's own top and bottom padding are equal, so it is the true middle).
+   Taller than the view, it simply starts at the top and scrolls, as any page does. */
+.panel__pages:has(> .panel__page[data-section="contact"]:not(.is-leaving)) {
+  min-height: 100%;
+}
+
+.panel__page[data-section="contact"]:not(.is-leaving) {
+  display: grid;
+  align-content: center;
+}
+
+/* The lede: the section's usual lede, centred, nothing beside it. */
+.contact-v-cup .cup__intro {
+  max-width: 34ch;
+  margin: 0 auto;
+  text-align: center;
+  text-wrap: balance; /* centred lines of even length, never a short last one */
+}
+
+/* The still life: the words, then the mug, bottoms on one line, kept together as one group
+   in the middle; the words keep their left edge beside the mug. */
 .contact-v-cup .cup__still {
   display: grid;
   grid-template-columns: auto var(--cup-w);
-  justify-content: start;
+  justify-content: center;
   align-items: end;
   column-gap: var(--space-xl);
 }
@@ -36,16 +62,16 @@
   min-width: 0;
 }
 
-/* "Let's chat": the invitation and the email in one. A step below the page heading. */
+/* "Let's chat": the invitation and the email in one, a clear step below the page heading. */
 .contact-v-cup .cup__invite {
   display: inline-block;
   padding-block: 0.16em 0.2em; /* with the line height, a 44px-plus target at every size */
   /* The serif at its one weight, a step below "Say hello" so the two never compete. */
   font-family: var(--font-display);
-  font-size: clamp(2rem, 1.6rem + 1.4vw, 2.6rem);
+  font-size: clamp(1.5rem, 1.3rem + 0.5vw, 1.75rem);
   font-weight: 400;
   line-height: 1.05;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.012em;
   text-wrap: balance;
   color: var(--ink);
   text-decoration: none;
@@ -160,7 +186,7 @@
   }
 
   .contact-v-cup .cup__intro {
-    max-width: none;
+    max-width: 30ch;
   }
 }
 

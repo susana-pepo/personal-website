@@ -39,13 +39,14 @@ illustration. All neutrals are warm, tinted toward that label's hue (≈ 40°), 
 
 **Insert (panels): smoked glass**
 
-The panel is one opaque sheet of dark "smoked glass" taken from the room at night. `.panel`
+The panel is one slab of polished, nearly opaque dark "smoked glass", lit by the room's desk lamp. `.panel`
 (`SectionPanel.css`) redefines the `--card` and `--ink` tokens for everything inside it, so the
 sections keep writing `var(--ink)` and `var(--card)` and read correctly on the dark surface. The
 cream root values in `tokens.css` (#EFECE8 card, #1B1613 ink) are overridden inside the panel.
-- **Smoke** (#29211C, `--card`) — the panel's ground. The sheet itself is painted with a 150°
-  gradient from #342923 to #1B1412, a faint bloom of lamp light at the top left, a little more
-  shade toward the bottom and a 7% grain so the gradient reads as a material and never bands.
+- **Smoke** (#29211C, `--card`) — the panel's ground. The slab itself is painted with a 165°
+  gradient from #251F1B to #14100D (`--g-top`, `--g-bottom`: a deep smoke, less brown than leather or card), slow density clouds
+  (`public/media/panel/smoke.webp`), a little more shade toward the foot and a 7% grain, so it
+  reads as a material and never bands. Its light and bevels are described in §4.
 - **Smoke Shade** (#201915, `--card-shade`) — loading blocks and placeholders on the panel.
 - **Lamp Ink** (#ECE7DF, `--ink`) — headings and primary text on the panel.
 - **Ink Two** (#DFDAD2) — reading text.
@@ -77,11 +78,14 @@ Open Font Licence 1.1; files and `LICENSE.txt` in `src/assets/fonts/geist/`, dec
 bold or an italic.
 
 - **Titles: Geist Serif** (`--font-display`). One weight, 400, and no italic. Used for page
-  titles (`--text-title`, clamp 2.5→3.75rem), the titles of a page's parts (`--text-section`,
-  clamp 1.4375→1.75rem: Music's shelves, Experience's second pile, a page's subheads), the
-  wordmark in the masthead, the few invitations set like titles ("Let's chat" on Contact), and
-  the Bookshelf's shelf names.
-  Large serif type sits a little tighter: `--track-title` is −0.025em. The one weight is never made bolder; size and full ink carry it.
+  titles (`--text-title`, clamp 1.875→2.5rem: 40px on a desktop, 30px on a phone), the titles
+  of a page's parts (`--text-section`, 1.25rem: Music's shelves, Experience's second pile, a
+  page's subheads, the Bookshelf's shelf names), the wordmark in the masthead, and the few
+  invitations set like titles ("Let's chat" on Contact, clamp 1.5→1.75rem).
+  Page titles are tracked a little tighter (`--track-title`, −0.025em, shared with the
+  wordmark); part titles, near body size, keep normal tracking. The one weight is never made
+  bolder; size and full ink carry it.
+  On the panel's glass, page titles and section headings take `--ink-display`, oklch(0.95 0.02 80): a warmer cream than the body's `--ink`, as if the desk lamp falls on them. It is flat ink only. A study tried printed, under-glass, lit and edge-catch treatments; each read as emboss, dull grey or glow, or softened the strokes. Body, tabs and meta stay `--ink`/`--ink-2`/`--ink-3`, and higher-contrast modes fall back to `--ink`.
 - **Everything else: Geist** (`--font-sans`, variable 100–900). Reading text, ledes, item
   titles (500), the room's labels and the greeting, navigation, tabs, the scene control, the
   player, metadata, copyright, the Work tablet's file names, the open book's title and Reading
@@ -90,14 +94,31 @@ bold or an italic.
   Tabular numerals for any time or count.
 - **`--font-serif` is the reading voice**, kept as its own token so a page's lead can move
   without touching the rest. It now resolves to Geist, so reading text is in the sans.
-- **Floors:** body text 19px (1.1875rem) on About, 17px (1.0625rem) elsewhere in the panels; panel
-  tabs 15px; metadata at least 14px inside panels. Reading text has line-height 1.6 and is
+- **The panel's scale** (chosen by Susana, option A of a three-way study, Nov 2026). Sized for
+  the panel's desktop column (about 33rem). One clear title, then everything near reading
+  size, told apart by face and weight rather than by size, so nothing in the page shouts:
+
+  | Role | Face | Size | Token |
+  |---|---|---|---|
+  | Page title | Geist Serif 400, cream | 40px desktop, 30px phone | `--text-title` |
+  | A part's heading | Geist Serif 400, cream, line-height 1.3 | 20px | `--text-section` |
+  | Lede | Geist 400, `--ink` | 19px, line-height 1.5, 40ch | `--text-lede` |
+  | Item title (a project, a company, a role, a record, a book) | Geist 500 | 18px, line-height 1.3 | `--text-item` |
+  | Body | Geist 400, `--ink-2` | 17px, line-height 1.6 | `--text-body` |
+  | Meta, captions | Geist 400, `--ink-3` | 14px | `--text-sm` |
+
+  A part's heading is the serif at 20px, not the body's 17px, because the serif's lowercase is
+  shorter: at 20px it reads the same size as the body and is set apart by its face alone. (Neither
+  face has an italic, small capitals or alternate sets, so the serif is the only "other voice"
+  available at body size.) Item titles stay below the part heading over them in voice, not size.
+- **Rhythm in the panel:** 32px from the page title to the page; `--rhythm-group` (2.5rem)
+  between a page's groups (closer than the page's 3rem padding, so a small heading stays with
+  what it heads); a heading sits 4–8px above its own content. Experience's two piles sit
+  `--rhythm-group × 1.25` apart.
+- **Floors:** body 17px; panel tabs 15px; metadata at least 14px inside panels. Reading text is
   capped at 58–62ch.
-- **Hierarchy:** item titles (the sans at 500, about 1.25–1.5rem) always stay a step below
-  section titles (the serif at `--text-section`), so an entry never competes with the heading
-  over it.
-- **Scale:** 0.75 / 0.875 / 1.125 / clamp(1.3→1.55) / clamp(1.9→2.6) / clamp(2.8→4.6) rem, plus
-  the two title tokens above. Ratio ≥ 1.25 between steps.
+- **General scale** (outside the panel too): 0.75 / 0.875 / 1.125 / clamp(1.3→1.55) /
+  clamp(1.9→2.6) / clamp(2.8→4.6) rem.
 - **No italics anywhere** (Geist Serif has none). Sentence case.
 - **Banned:** uppercase tracked labels, condensed or wide display grotesks, monospace as
   decoration, Inter, any third font family. Self-hosted fonts only; no third-party requests.
@@ -174,15 +195,66 @@ bold or an italic.
   and a meta line in Geist ("Playing · 0:12 / 0:28", or "Listening now · Artist" once Spotify
   is connected).
 - **Panel (section reader), one sheet of smoked glass:** a native modal dialog that slides in
-  from the right and floats clamp(8px → 14px) inside the window edges, min(43rem, 56vw) wide
+  from the right (on wide screens with a mouse, pours out of the clicked object: the genie, §6)
+  and floats clamp(8px → 14px) inside the window edges, min(43rem, 56vw) wide
   (min(43rem, 88vw) up to 1024px; on phones it rises from the bottom, nearly full width,
   leaving a strip of the room above). Chosen by Susana after a design review with three prototypes and critics.
-  The glass is **simulated and opaque, not translucent**: a warm gradient with grain (see §2), a
-  1px rim of warm lamp light drawn in the border (brightest at the top left corner),
-  an inset top highlight, and a directional shadow (a tight contact shadow on the room side, then
-  a long fall-off). No `backdrop-filter`, `filter` or `will-change` on it: the room behind
-  animates, and a blur would be redrawn on every frame (see the flicker notes in §6). 20px
-  corners (18px on phones). Behind it the room is dimmed by a 50% backdrop.
+  The glass is **simulated and nearly opaque, not translucent** (route C, "polished smoked
+  slab", chosen by Susana: realism from reflection and light, not see-through). It is lit by
+  the desk lamp: SectionPanel.tsx measures the bulb onto the sheet (`--lamp-x`, `--lamp-y`, and
+  `--lamp-near`, which eases the lamp's light when the bulb is far from the edge on wide
+  windows). All of it is still paint in the Glass part of `SectionPanel.css`:
+  - the smoke (see §2), sitting a touch deeper in the middle of the face (Fresnel: the face seen
+    straight on reflects least), the lamp's bloom on the face, faint room light high up (warm
+    over the lamp's side, the window's cool at the far top corner), soft shade inside the edges
+    turned away from the lamp, a contact shadow and a long fall-off on the room, and the slab's
+    thickness seen side-on: a dark 2px band just inside the edge line all round (lighter on the
+    lamp's side, where the bevel's groove carries it), so the edge reads as "bright line, then
+    dark line" like real glass, not as a border;
+  - **the window's sheen** (`.panel__sheen`): one broad, very faint, slanted band of the
+    window's cool light high on the face (`--g-sheen`: 0.045 at night, 0.065 at midday, 0.05 at
+    dawn), with a defined start on its window side and gone by 40% of the height (25%, and
+    softer, on phones), well above the body text;
+  - **the room reflected in the face** (`::before`): one still of the whole room per time of day
+    (`public/media/panel/reflection-{night,midday,dawn}-{face,edge,top}.webp`, made from the
+    stage itself: only its bright shapes, mirrored, softened so the lamp shade reads as a warm
+    band rather than a cut-out, at about half their colour, in the alpha). `glass.ts`
+    lays it where the room's mirror image really falls on the sheet, from the stage's box at
+    open time (`--refl-x/y/w/h`, re-measured on resize), so the lamp, curtain and window show at
+    the edge at any width. Fresnel: strongest at the lamp-side edge and gone within about a sixth
+    of the width, well before the reading column. The stills are fetched and decoded at idle, so the first open never waits;
+  - **the bevels** (`.panel__glass` and its pseudo-elements): a rounded thickness, not a stroke.
+    Each has a lit curve a couple of px in and a darker line where it meets the face. The
+    lamp-side curve and its corner arc share one fade: lit facing the bulb and nearly gone 15%
+    of the height either side of it, so the edge never reads as a pale rail; the arc keeps a
+    little light, brighter on its lamp-facing end than at its top (`--g-arc-top`), and stays
+    well below the bulb's point. The lamp-side bevel holds a
+    faint, nearly colourless trace of the room squeezed into the curve (`--g-squeeze`; kept
+    inside the curve and dropped when the bulb is far from the edge) and the lamp as a small,
+    soft, warm-white point with a short tail at the bulb's height; the top bevel leaves the corner
+    arc faintly warm and turns to the window's cool light along its far part, meeting the cool
+    glint at the far corner; small glints where the bevels meet (a tiny warm one by the lamp, a
+    cool one at the window's far corner); the far bevel is in shade, caught by the window high
+    up and the room low down;
+  - **the edge** (`::after`, 1px above the contents): light caught inside the slab, brightening
+    briefly facing the bulb and otherwise sitting just above the smoke; on the shaded far side it
+    is caught by the window twice (high, and again about two thirds down), so it comes and goes
+    along its length rather than running even.
+  **Balance (Susana: the first build's lamp edge was "too bright and abrasive"):** realism comes
+  from many quiet cues, not one loud highlight. The hottest point on the glass stays warm white,
+  not yellow, and within about 1.5x the dimmed room's brightest pixel (about 175 sRGB at night);
+  the rest of the edge line stays near the room's own range. The dark line inside the bevel is
+  what sells the thickness. Check any change at 3x and 1x, at 1440 and 1920, in all three lights.
+  On phones the lamp is above the sheet: the top bevel carries its light at `--lamp-x` (a small
+  soft point, no squeezed room in it, the brightest thing on the top edge), its two corners are
+  quieter and differ (a small warm glint by the lamp's side, a fainter cool one on the other),
+  both sides are in shade and their curves are gone 40% of the way down, and the room still hangs from the top edge. Midday turns the lamp down and the
+  window up; dawn tints the window's light. The panel sets `data-light` from the scene's time.
+  No `backdrop-filter`, `filter`, blend mode or `will-change` on it, and nothing on the glass
+  animates once the sheet lands: the room behind animates, and a blur would be redrawn on every
+  frame (see the flicker notes in §6). Body text keeps at least 10:1 against the brightest of the
+  glass behind the reading column. 20px corners (18px on phones). Behind it the room is dimmed by
+  a 50% backdrop.
   Top bar: section names as plain text tabs in Geist at 15px (current one underlined by a single
   Vermilion Ink mark that glides between tabs) and a plain "Close ×" (just the × on phones,
   still named). The bar's only line is the reading-progress hairline, in quiet ink, on pages
@@ -197,12 +269,17 @@ bold or an italic.
 - **Lists inside panels:** never cards and never ruled. Items are set apart by space, with small
   numerals in a narrow left column (in Experience they stay quiet ink until their book is chosen,
   then ink in vermilion with a 2px vermilion line drawn across the top of the entry).
-- **About:** the portrait sits beside the heading, in the shared header (`HeaderArt`), as a small
-  print on light paper turned 1° (8.5rem wide; 5.5rem and 1.5° on phones; under the heading
-  below 360px). Then the lead in the reading face (`--font-serif`, now Geist) and the body at
-  19px.
-- **Contact:** the intro as the page's lede, then one small still life kept together at the
-  left: "Let's chat" in Geist Serif (clamp 2→2.6rem), which is the email link itself (subject
+- **About:** the portrait is a small print on light paper turned 1° (8.5rem wide; 5.5rem and
+  1.5° on phones; under the heading below 360px), rendered in the shared header (`HeaderArt`).
+  From 640px up, the greeting and the lead form one column on the left and the print stands
+  on the right beside both (the page is a two-column grid; header and section take its rows
+  through subgrid). On phones the print sits beside the two-line greeting and the lead runs
+  full width below. The lead is in the reading face (`--font-serif`, now Geist) at the lede's
+  19px, then four paragraphs of body at 17px.
+- **Contact:** a short note centred on the glass, across and down (the page fills the sheet's
+  view and sits in its middle; taller than the view, it starts at the top and scrolls). The
+  greeting and the intro (the lede, centred with balanced lines) on one axis, then one small
+  still life kept together as a group in the middle: "Let's chat" in Geist Serif (clamp 1.5→1.75rem), which is the email link itself (subject
   filled in, the address never printed on the page), with "Or find me on LinkedIn" under it;
   and beside them the room's own painted coffee cup (`coffee-still.webp`, the object that opens this page) with
   the halo the lamp gives it in the room, a pool of lamplight around the coaster and a contact
@@ -303,7 +380,45 @@ bold or an italic.
   drawer curve and is solid within 200ms (140ms on phones). It leaves over `--dur-panel-exit`
   (320ms on phones) on `--ease-exit`, and the dialog is removed when the sheet's own fade ends,
   never on a timer alone. The room dims by opacity under a 50% backdrop, never by repainting a
-  colour: 460ms after 40ms in, 240ms out so it finishes before the sheet.
+  colour: 460ms after 40ms in, 240ms out so it finishes before the sheet. This is the motion on
+  phones and touch, with reduced motion (a short crossfade), for a deep link on load, without
+  WebGL2, and whenever the genie below can't vouch for its picture of the glass.
+- **The genie (wide screens with a mouse, `src/components/SectionPanel/genie/`):** the glass
+  slab pours out of the object that was clicked and back into the object of the page shown. One
+  signature curve, no overshoot, no bounce; three layers (the slab, its shadow, its light).
+  - Open (ms from the click): 0-100 the object's own halo warms a touch (nothing moves, the room
+    never does); 100-650 the slab pours along one calm S-curve, `(0.4, 0, 0.22, 1)` per slice,
+    the far edge leading and the near edge following out of the object (`lag` 0.4). The neck is
+    thin, half see-through and a touch lamp-warm while it travels, never a dark wedge. Objects
+    under the dock (the cup, the laptop, the desk books at 1440) make it rise out of the object
+    and then widen. The contact shadow trails the slab by 50ms; the lamp-side glint lights only
+    as the slab's lamp edge arrives under the bulb, up to its resting level and no further. On
+    landing the lamp's light sweeps once across the slab from its lamp edge (300ms, faint: 4.5%
+    warm white, under the text). The real sheet takes over at about 950ms, pixel for pixel.
+  - The contents rise as it lands (from about 520ms): bar, header, then the page's blocks, 35ms
+    apart (the cascade under 200ms), 8px over 300ms on `--ease-out`; readable by about 800ms.
+    The dim arrives with the pour (560ms after 100ms). The retimed entrance (`data-genie-rise`)
+    stays on until the panel closes: taking it off once the contents had landed handed them back
+    to the page's own entrance, which started again from nothing (the blink at the end of every
+    open). Contents held hidden after a reopen come back by a transition, never by a second
+    animation, for the same reason.
+  - Close (about 72% of the opening): the contents fade over 100ms, then the slab pours back on
+    an accelerating curve, `(0.5, 0, 0.78, 0.42)`, over 370ms while the dim lifts in step; the
+    object's halo glows once as it arrives, and only then does the dialog close (SectionPanel
+    awaits the genie's promise). Tabs keep their quick page turn: no pour.
+  - Escape or Close mid-pour turns it round from where it is; coming back mid-close pours it out
+    again. A first frame that comes late (the page mounting) delays the pour rather than skipping
+    its start.
+  - How: at idle once the room has settled, a stand-in of the panel is dressed as at open and its
+    glass (the sheet, its pseudo-elements and decoration spans, read from the live CSS, its
+    images inlined first, since an SVG image loads nothing itself) is drawn
+    through an SVG foreignObject into three pictures: the slab without the lamp's glint, the
+    glint alone (cropped), and its shadow. A WebGL2 canvas inside the dialog (above the dim,
+    under the sheet) warps them on a 128x128 mesh. It is prepared again after a resize, a new
+    light or weather, or a stylesheet change, and an open is refused (today's slide runs, and it
+    prepares again) if the dialog or the glass no longer match. Textures and the canvas's back
+    buffer exist only during a move. The live room is never transformed or filtered; no
+    backdrop-filter, no will-change.
 - **The room stays still while a page is open.** No transform, scale or filter on `.cover` or
   the room behind the sheet: scaling the whole room made pages flicker as they opened and closed
   on Retina. The deeper backdrop is what sets the page apart.
@@ -335,7 +450,7 @@ bold or an italic.
   `halo-breathe` invitation and the timed section breaths are gone; each `glow.invite` in
   `scene-layout.json` is unused.
 - **Texture:** a 5% light grain on a fixed layer behind the page (never over the painting); a
-  7% grain painted into the panel's smoked glass.
+  7% grain and slow smoke clouds painted into the panel's smoked glass.
 - **Feedback:** pressable things scale to 0.94–0.97 on `:active`. Hover lifts only under
   `(hover: hover) and (pointer: fine)`.
 - **Transform and opacity only.** The player ring updates via `stroke-dashoffset` on a single

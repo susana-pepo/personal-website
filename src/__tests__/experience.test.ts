@@ -16,8 +16,28 @@ describe('Experience as a CV', () => {
     expect(spineTitle('Educational Content Creator')).toBe('Educational Content Creator')
   })
 
+  it('sets out each employer with its own roles, newest first', () => {
+    const { employers } = content.experience
+    expect(employers.length).toBeGreaterThan(0)
+    const starts = employers.map((e) => Number(startYear(e.period)))
+    expect(starts, 'newest first').toEqual([...starts].sort((a, b) => b - a))
+    for (const employer of employers) {
+      expect(employer.name && employer.location && employer.period).toBeTruthy()
+      expect(employer.roles.length).toBeGreaterThan(0)
+      const roleStarts = employer.roles.map((r) => Number(startYear(r.period)))
+      expect(roleStarts, `${employer.name}: latest role first`).toEqual([...roleStarts].sort((a, b) => b - a))
+    }
+  })
+
+  it('keeps every degree in the one Education book, newest first', () => {
+    const { education, educationTitle } = content.experience
+    expect(educationTitle).toBeTruthy()
+    expect(education.map((e) => e.spineNote)).toEqual(['MA', 'BA'])
+    for (const entry of education) expect(entry.qualification && entry.institution && entry.period).toBeTruthy()
+  })
+
   it('lists every role with a chapter, a title, dates and what was done', () => {
-    const { roles } = content.experience
+    const roles = content.experience.employers.flatMap((e) => e.roles)
     expect(roles.length).toBeGreaterThan(0)
     for (const role of roles) {
       expect(role.stage && role.title && role.period).toBeTruthy()
@@ -29,8 +49,9 @@ describe('Experience as a CV', () => {
   })
 
   it('keeps to the house style and leaves the unverified figures out', () => {
-    const { intro, roles, employer, languages, tools } = content.experience
-    const text = [intro, employer?.period ?? '', ...languages, ...tools, ...roles.flatMap((r) => [r.stage, r.period, ...r.points, ...r.skills])].join(' ')
+    const { intro, employers, languages, tools } = content.experience
+    const roles = employers.flatMap((e) => e.roles)
+    const text = [intro, ...employers.map((e) => e.period), ...languages, ...tools, ...roles.flatMap((r) => [r.stage, r.period, ...r.points, ...r.skills])].join(' ')
     expect(text).not.toMatch(/[—–]/)
     expect(text).not.toMatch(/'/)
     // Figures: checked on the CV text only (language levels like "C1+" are not figures).

@@ -80,7 +80,7 @@ export const DROPS = {
   /** below this a running drop has spent itself and stops */
   restAt: 5.2,
   /** seconds for the glass to dry once the rain stops (each bead takes a share of it) */
-  dryS: 9,
+  dryS: 4,
   /** the share of landing drops that sit where the spray keeps feeding them (they fill up and, in time, run) */
   fillChance: 0.009,
 } as const
@@ -177,8 +177,10 @@ export function stepGlass(glass: Glass, map: GlassMap, dt: number, raining: bool
       }
     } else {
       b.life -= dt
-      if (b.life < 2) {
-        b.alpha = Math.max(0, b.life / 2)
+      // each bead holds for a moment, then fades steadily: the glass is clear soon after the rain
+      const fadeFrom = DROPS.dryS * 0.5
+      if (b.life < fadeFrom) {
+        b.alpha = Math.min(b.alpha, Math.max(0, b.life / fadeFrom))
         glass.dirty = true
       }
       if (b.life <= 0) beads.splice(i, 1)
@@ -234,7 +236,7 @@ export function stepGlass(glass: Glass, map: GlassMap, dt: number, raining: bool
       d.sinceSpeck = 0
       if (rand() < 0.75) {
         const r = 1 + rand() * 1.2
-        beads.push({ x: d.x + (rand() - 0.5) * d.r * 0.6, y: d.y - d.r * 1.1, r, alpha: 1, life: DROPS.dryS * (0.4 + rand() * 0.6), gain: 0 })
+        beads.push({ x: d.x + (rand() - 0.5) * d.r * 0.6, y: d.y - d.r * 1.1, r, alpha: 1, life: DROPS.dryS * (0.5 + rand() * 0.5), gain: 0 })
         d.r = Math.sqrt(Math.max(0, d.r * d.r - r * r))
         glass.dirty = true
       }

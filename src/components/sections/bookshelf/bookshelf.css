@@ -28,131 +28,131 @@
 
 /*
  * With room, Reading now and Books for work share a row and Books I love runs the full
- * width beneath. Both upper shelves span the whole width and the same four rows, as
- * subgrids both ways: their headings, boards and names fall into the two columns, and
+ * width beneath. "With room" is BookshelfSection's `data-paired` (layout.ts): the shelves at
+ * least 34rem wide, or any desktop window, whose floating panel can be narrower than that.
+ * Both upper shelves span the whole width and the same four rows, as subgrids both ways: their headings, boards and names fall into the two columns, and
  * the fourth row runs the full width under both. That row holds the note on the current
  * read until a book from either shelf is opened; its drawer then opens in the same cell,
  * cover beside words, as on Books I love.
  */
-@container bookshelf (min-width: 34rem) {
-  .bs-shelves[data-paired] {
-    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
-    column-gap: var(--space-xl);
-    row-gap: 0;
-  }
-
-  /*
-   * Careful: these two sections lie one on top of the other in the same grid area, each a
-   * transparent box the full width of both columns, Books for work (later in the source) on
-   * top. Reading now's books still take clicks because its bays are positioned (.bs-bay,
-   * position: relative), and so are hit-tested above any unpositioned box; its drawer's inside
-   * is a stacking context (contain: paint, below). Its title, name and note are not, so Books
-   * for work lets the pointer through itself (pointer-events, just below) and takes it back
-   * only on its own pieces. A future background, padding, position, z-index, transform or
-   * pointer-events on either section would cover the other shelf and swallow its clicks and
-   * hovers; style the children (titles, bays, captions, drawers) instead.
-   */
-  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) {
-    display: grid;
-    grid-column: 1 / -1;
-    grid-row: 1 / span 4;
-    grid-template-columns: subgrid;
-    grid-template-rows: subgrid;
-    /* `normal` in a subgrid means "use the parent grid's gap", so both sections take the
-       shelves' --space-xl between the columns. Without it Reading now would keep the
-       --space-md it sets for itself when it stands alone, and its column line would no
-       longer match the one Books for work lays out against. */
-    column-gap: normal;
-    align-content: start;
-  }
-
-  .bs-shelves[data-paired] > [data-shelf='work'] .bs-plain {
-    display: contents;
-  }
-
-  /* See the note above: the section on top is see-through to the pointer, its pieces are not,
-     so Reading now's title, name and note can be selected and the work books still answer. */
-  .bs-shelves[data-paired] > [data-shelf='work'] {
-    pointer-events: none;
-  }
-
-  .bs-shelves[data-paired] > [data-shelf='work'] :is(.bs-shelf__title, .bs-bay, .bs-caption, .bs-drawer) {
-    pointer-events: auto;
-  }
-
-  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) > .bs-shelf__title {
-    grid-row: 1;
-  }
-
-  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) .bs-bay {
-    grid-row: 2;
-    align-self: end;
-  }
-
-  .bs-shelves[data-paired] > [data-shelf='reading'] > .bs-shelf__title,
-  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-bay,
-  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name {
-    grid-column: 1;
-  }
-
-  .bs-shelves[data-paired] > [data-shelf='work'] > .bs-shelf__title,
-  .bs-shelves[data-paired] > [data-shelf='work'] .bs-bay,
-  .bs-shelves[data-paired] > [data-shelf='work'] .bs-caption {
-    grid-column: 2;
-  }
-
-  /* The current read's title and author sit under its board, level with the caption under the other. */
-  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name,
-  .bs-shelves[data-paired] > [data-shelf='work'] .bs-caption {
-    grid-row: 3;
-    align-self: start;
-  }
-
-  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name {
-    margin-top: var(--space-2xs);
-  }
-
-  .bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__note,
-  .bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) > .bs-drawer {
-    grid-column: 1 / -1;
-    grid-row: 4;
-  }
-
-  /* A book from either upper shelf opens where the note was; the note steps back meanwhile. */
-  .bs-shelves[data-paired]:has(> [data-shelf='work'] > .bs-drawer[data-open]) .bs-feature__note {
-    opacity: 0;
-    visibility: hidden;
-    transition:
-      opacity var(--dur-quick) ease,
-      visibility 0s linear var(--dur-quick);
-  }
-
-  /* Two drawers share that cell. Going straight from a book on one shelf to a book on the
-     other, the drawer that is closing goes at once, in the same frame the other opens: the
-     incoming book only fades in after a beat (bs-detail-in's delay) and turns two frames later
-     (BookDetail), so two books never show in the cell together. Put back on its own, a drawer
-     still closes with its usual fade. */
-  .bs-shelves[data-paired]:has(> :is([data-shelf='reading'], [data-shelf='work']) > .bs-drawer[data-open])
-    > :is([data-shelf='reading'], [data-shelf='work'])
-    > .bs-drawer:not([data-open])
-    > .bs-drawer__inner {
-    opacity: 0;
-    visibility: hidden;
-  }
-
-  .bs-shelves[data-paired] > [data-shelf='loved'] {
-    grid-column: 1 / -1;
-    margin-top: var(--space-lg);
-  }
+.bs-shelves[data-paired] {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+  column-gap: var(--space-xl);
+  row-gap: 0;
 }
+
+/*
+ * Careful: these two sections lie one on top of the other in the same grid area, each a
+ * transparent box the full width of both columns, Books for work (later in the source) on
+ * top. Reading now's books still take clicks because its bays are positioned (.bs-bay,
+ * position: relative), and so are hit-tested above any unpositioned box; its drawer's inside
+ * is a stacking context (contain: paint, below). Its title, name and note are not, so Books
+ * for work lets the pointer through itself (pointer-events, just below) and takes it back
+ * only on its own pieces. A future background, padding, position, z-index, transform or
+ * pointer-events on either section would cover the other shelf and swallow its clicks and
+ * hovers; style the children (titles, bays, captions, drawers) instead.
+ */
+.bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-row: 1 / span 4;
+  grid-template-columns: subgrid;
+  grid-template-rows: subgrid;
+  /* `normal` in a subgrid means "use the parent grid's gap", so both sections take the
+     shelves' --space-xl between the columns. Without it Reading now would keep the
+     --space-md it sets for itself when it stands alone, and its column line would no
+     longer match the one Books for work lays out against. */
+  column-gap: normal;
+  align-content: start;
+}
+
+.bs-shelves[data-paired] > [data-shelf='work'] .bs-plain {
+  display: contents;
+}
+
+/* See the note above: the section on top is see-through to the pointer, its pieces are not,
+   so Reading now's title, name and note can be selected and the work books still answer. */
+.bs-shelves[data-paired] > [data-shelf='work'] {
+  pointer-events: none;
+}
+
+.bs-shelves[data-paired] > [data-shelf='work'] :is(.bs-shelf__title, .bs-bay, .bs-caption, .bs-drawer) {
+  pointer-events: auto;
+}
+
+.bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) > .bs-shelf__title {
+  grid-row: 1;
+}
+
+.bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) .bs-bay {
+  grid-row: 2;
+  align-self: end;
+}
+
+.bs-shelves[data-paired] > [data-shelf='reading'] > .bs-shelf__title,
+.bs-shelves[data-paired] > [data-shelf='reading'] .bs-bay,
+.bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name {
+  grid-column: 1;
+}
+
+.bs-shelves[data-paired] > [data-shelf='work'] > .bs-shelf__title,
+.bs-shelves[data-paired] > [data-shelf='work'] .bs-bay,
+.bs-shelves[data-paired] > [data-shelf='work'] .bs-caption {
+  grid-column: 2;
+}
+
+/* The current read's title and author sit under its board, level with the caption under the other. */
+.bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name,
+.bs-shelves[data-paired] > [data-shelf='work'] .bs-caption {
+  grid-row: 3;
+  align-self: start;
+}
+
+.bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__name {
+  margin-top: var(--space-2xs);
+}
+
+.bs-shelves[data-paired] > [data-shelf='reading'] .bs-feature__note,
+.bs-shelves[data-paired] > :is([data-shelf='reading'], [data-shelf='work']) > .bs-drawer {
+  grid-column: 1 / -1;
+  grid-row: 4;
+}
+
+/* A book from either upper shelf opens where the note was; the note steps back meanwhile. */
+.bs-shelves[data-paired]:has(> [data-shelf='work'] > .bs-drawer[data-open]) .bs-feature__note {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--dur-quick) ease,
+    visibility 0s linear var(--dur-quick);
+}
+
+/* Two drawers share that cell. Going straight from a book on one shelf to a book on the
+   other, the drawer that is closing goes at once, in the same frame the other opens: the
+   incoming book only fades in after a beat (bs-detail-in's delay) and turns two frames later
+   (BookDetail), so two books never show in the cell together. Put back on its own, a drawer
+   still closes with its usual fade. */
+.bs-shelves[data-paired]:has(> :is([data-shelf='reading'], [data-shelf='work']) > .bs-drawer[data-open])
+  > :is([data-shelf='reading'], [data-shelf='work'])
+  > .bs-drawer:not([data-open])
+  > .bs-drawer__inner {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.bs-shelves[data-paired] > [data-shelf='loved'] {
+  grid-column: 1 / -1;
+  margin-top: var(--space-lg);
+}
+
 
 .bs-shelf__title {
   margin-bottom: var(--space-2xs);
   font-family: var(--font-display);
   font-weight: 400;
   font-size: var(--text-section);
-  line-height: 1.15;
-  letter-spacing: -0.012em;
+  line-height: 1.3;
+  letter-spacing: 0;
   text-wrap: balance;
 }
 
@@ -199,9 +199,9 @@
 .bs-feature__title {
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: clamp(1.25rem, 1.15rem + 0.3vw, 1.375rem);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  font-size: var(--text-item);
+  line-height: 1.3;
+  letter-spacing: -0.005em;
   text-wrap: balance;
 }
 
@@ -213,11 +213,14 @@
 }
 
 .bs-feature__note {
+  /* Her own words: in Geist's true italic (fonts.css), never a slanted copy of the upright face. */
+  font-style: italic;
   /* about 60 to 65 characters a line at its widest (DM Sans runs wide, so not in ch) */
   max-width: 30rem;
   margin-top: var(--space-sm);
   font-family: var(--font-sans);
-  font-size: 1rem;
+  /* the size of the panel's section tabs (.panel__tabs a), a step under the reading text */
+  font-size: 0.9375rem;
   line-height: 1.6;
   color: var(--ink-2);
 }
@@ -806,9 +809,9 @@
 .bs-detail__title {
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: var(--text-lg);
-  line-height: 1.2;
-  letter-spacing: -0.01em;
+  font-size: var(--text-item);
+  line-height: 1.3;
+  letter-spacing: -0.005em;
   text-wrap: balance;
 }
 
@@ -820,10 +823,12 @@
 }
 
 .bs-detail__note {
+  /* as the note on the current read: her words, italic, at the panel tabs' size */
+  font-style: italic;
   max-width: 40ch;
   margin-top: var(--space-sm);
   font-family: var(--font-sans);
-  font-size: 1.0625rem;
+  font-size: 0.9375rem;
   line-height: 1.6;
   color: var(--ink-2);
 }
@@ -873,84 +878,137 @@
   }
 }
 
-@container shelves (max-width: 30rem) {
+/*
+ * A desktop window. The panel floats beside the room, about as tall as it, and scrolls inside;
+ * its column runs from about 28rem (a 1280px window) to 36rem. Reading now and Books for work
+ * always share a row there (layout.ts), each sized to its own column: every book as large as
+ * its column allows, up to the size it has on a wide panel, so the current read, the books for
+ * work, the name and the note make one spread in the first view. Books I love runs the full
+ * width beneath on a single board (never the phone's two).
+ */
+@media (min-width: 1025px) {
+  .bs-shelves[data-paired] {
+    --pair-gap: clamp(var(--space-lg), 8cqi, var(--space-xl));
+    column-gap: var(--pair-gap);
+  }
+
+  /* Books I love is about 480 units long. */
   .bs-bay {
-    --u: min(0.84px, calc(100cqi / 480));
+    --u: min(1.3px, calc(100cqi / 480));
   }
 
-  /* The long shelf keeps its spines readable and slides sideways instead of shrinking. */
-  [data-shelf='loved'] .bs-plain {
-    overflow-x: auto;
-    overscroll-behavior-x: contain;
-    scrollbar-width: none;
-    padding-bottom: var(--space-sm);
+  /* The current read's bay is about 124 units wide, in the 2fr column; Books for work's about 197, in the 3fr. */
+  .bs-shelves[data-paired] .bs-feature .bs-bay {
+    --u: min(1.45px, calc((100cqi - var(--pair-gap)) * 0.4 / 126));
   }
 
-  [data-shelf='loved'] .bs-plain::-webkit-scrollbar {
-    display: none;
-  }
-
-  [data-shelf='loved'] .bs-bay {
-    --u: 1.15px;
-    width: max-content;
-    max-width: none;
-  }
-
-  [data-shelf='loved'] .bs-caption {
-    position: sticky;
-    left: 0;
-  }
-
-  /* Two boards (ShelfRow's shelfRows): the upright books and the bookend on the first, the pile
-     beneath on its own. Each fits the width, so nothing waits off the edge to be found. */
-  [data-shelf='loved'] .bs-plain[data-boards] {
-    display: grid;
-    row-gap: var(--space-sm);
-    overflow-x: visible;
-    padding-bottom: 0;
-  }
-
-  [data-shelf='loved'] .bs-plain[data-boards] .bs-bay {
-    /* about 300 units of books on the first board: as large as fits, at most the long shelf's size */
-    --u: min(1.15px, calc(100cqi / 300));
-    width: 100%;
-    min-width: 100%;
-    max-width: 100%;
-  }
-
-  [data-shelf='loved'] .bs-plain[data-boards] .bs-row {
-    justify-content: safe center;
-    padding-inline: calc(10 * var(--u));
-  }
-
-  /* the pile needs no gap after a bookend it no longer stands beside */
-  [data-shelf='loved'] .bs-plain[data-boards] .bs-slot--stack {
-    margin-left: 0 !important;
-  }
-
-  .bs-feature .bs-bay {
-    --u: 1.1px;
+  .bs-shelves[data-paired] [data-shelf='work'] .bs-bay {
+    --u: min(1.4px, calc((100cqi - var(--pair-gap)) * 0.6 / 200));
   }
 
   .bs-feature__title {
     font-size: var(--text-md);
-    text-wrap: balance;
   }
 
-  [data-shelf='work'] .bs-bay {
-    --u: 1.2px;
+  .bs-feature__author {
+    margin-top: 0.15rem;
+    font-size: var(--text-sm);
   }
 
-  [data-shelf='work'] .bs-row {
-    padding-inline: calc(14 * var(--u));
-  }
+  /* An opened book keeps its cover beside its words in a narrower desktop drawer too: the turned
+     book a little smaller (zoom, so its box shrinks with it) and closer, so the note keeps a
+     comfortable measure. */
+  @container bs-detail (max-width: 34rem) {
+    .bs-detail {
+      column-gap: var(--space-md);
+    }
 
-  /* Two lines kept for the name under a shelf, whatever its length: a long title wraps, and if
-     the caption grew and shrank with each book touched, at the foot of the panel the page would
-     shift under the finger between touching a book and lifting off it, and the tap would miss. */
-  .bs-caption {
-    min-height: 3em;
-    text-wrap: balance;
+    .bs-stage {
+      zoom: 0.84;
+    }
+  }
+}
+
+@media (max-width: 1024px) {
+  @container shelves (max-width: 30rem) {
+    .bs-bay {
+      --u: min(0.84px, calc(100cqi / 480));
+    }
+
+    /* The long shelf keeps its spines readable and slides sideways instead of shrinking. */
+    [data-shelf='loved'] .bs-plain {
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scrollbar-width: none;
+      padding-bottom: var(--space-sm);
+    }
+
+    [data-shelf='loved'] .bs-plain::-webkit-scrollbar {
+      display: none;
+    }
+
+    [data-shelf='loved'] .bs-bay {
+      --u: 1.15px;
+      width: max-content;
+      max-width: none;
+    }
+
+    [data-shelf='loved'] .bs-caption {
+      position: sticky;
+      left: 0;
+    }
+
+    /* Two boards (ShelfRow's shelfRows): the upright books and the bookend on the first, the pile
+       beneath on its own. Each fits the width, so nothing waits off the edge to be found. */
+    [data-shelf='loved'] .bs-plain[data-boards] {
+      display: grid;
+      row-gap: var(--space-sm);
+      overflow-x: visible;
+      padding-bottom: 0;
+    }
+
+    [data-shelf='loved'] .bs-plain[data-boards] .bs-bay {
+      /* about 300 units of books on the first board: as large as fits, at most the long shelf's size */
+      --u: min(1.15px, calc(100cqi / 300));
+      width: 100%;
+      min-width: 100%;
+      max-width: 100%;
+    }
+
+    [data-shelf='loved'] .bs-plain[data-boards] .bs-row {
+      justify-content: safe center;
+      padding-inline: calc(10 * var(--u));
+    }
+
+    /* the pile needs no gap after a bookend it no longer stands beside */
+    [data-shelf='loved'] .bs-plain[data-boards] .bs-slot--stack {
+      margin-left: 0 !important;
+    }
+
+    .bs-feature .bs-bay {
+      --u: 1.1px;
+    }
+
+    .bs-feature__title {
+      font-size: var(--text-md);
+      text-wrap: balance;
+    }
+
+    [data-shelf='work'] .bs-bay {
+      --u: 1.2px;
+    }
+
+    [data-shelf='work'] .bs-row {
+      padding-inline: calc(14 * var(--u));
+    }
+
+    /* Two lines kept for the name under a shelf, whatever its length: a long title wraps, and if
+       the caption grew and shrank with each book touched, at the foot of the panel the page would
+       shift under the finger between touching a book and lifting off it, and the tap would miss. */
+    .bs-caption {
+      min-height: 3em;
+      text-wrap: balance;
+    }
   }
 }
 
@@ -964,54 +1022,58 @@
 
 /* Measured on the drawer itself (the `bs-detail` container), whose width is the shelves' width,
    so the opened book narrows at the same 30rem as the shelves above it, never one without the other. */
-@container bs-detail (max-width: 30rem) {
-  /* The opened book, smaller (zoom, so its box shrinks too), its title and author beside it
-     and the note beneath both at the full width of the column, not in a sliver beside the cover. */
-  .bs-detail {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-areas:
-      'stage head'
-      'note note'
-      'actions actions';
-    column-gap: var(--space-sm);
-    row-gap: 0;
-    align-items: center;
-  }
+@media (max-width: 1024px) {
+  @container bs-detail (max-width: 30rem) {
+    /* The opened book, smaller (zoom, so its box shrinks too), its title and author beside it
+       and the note beneath both at the full width of the column, not in a sliver beside the cover. */
+    .bs-detail {
+      grid-template-columns: auto minmax(0, 1fr);
+      grid-template-areas:
+        'stage head'
+        'note note'
+        'actions actions';
+      column-gap: var(--space-sm);
+      row-gap: 0;
+      align-items: center;
+    }
 
-  .bs-detail__text {
-    display: contents;
-  }
+    .bs-detail__text {
+      display: contents;
+    }
 
-  .bs-stage {
-    grid-area: stage;
-    zoom: 0.72;
-  }
+    .bs-stage {
+      grid-area: stage;
+      zoom: 0.72;
+    }
 
-  .bs-detail__head {
-    grid-area: head;
-  }
+    .bs-detail__head {
+      grid-area: head;
+    }
 
-  .bs-detail__note {
-    grid-area: note;
-    align-self: start;
-    max-width: 32rem;
-    margin-top: var(--space-xs);
-  }
+    .bs-detail__note {
+      grid-area: note;
+      align-self: start;
+      max-width: 32rem;
+      margin-top: var(--space-xs);
+    }
 
-  .bs-detail__actions {
-    grid-area: actions;
-  }
+    .bs-detail__actions {
+      grid-area: actions;
+    }
 
-  /* The title keeps its size beside the smaller cover, balanced so a long one breaks evenly. */
-  .bs-detail__title {
-    text-wrap: balance;
+    /* The title keeps its size beside the smaller cover, balanced so a long one breaks evenly. */
+    .bs-detail__title {
+      text-wrap: balance;
+    }
   }
 }
 
 /* Only in the narrowest drawers (a 320px phone) does the title step down a size. */
-@container bs-detail (max-width: 20rem) {
-  .bs-detail__title {
-    font-size: var(--text-md);
+@media (max-width: 1024px) {
+  @container bs-detail (max-width: 20rem) {
+    .bs-detail__title {
+      font-size: var(--text-md);
+    }
   }
 }
 

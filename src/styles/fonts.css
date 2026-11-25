@@ -5,6 +5,7 @@
  *    titles, the wordmark, and the few invitations set like titles ("Let's chat").
  *  - Geist (sans): a variable face, 100–900. Everything else: reading text, item titles,
  *    the room's labels, navigation and controls, and the lettering on the books.
+ *  - Geist Italic (sans, 400 only): Susana's own notes on her books, in her voice.
  * font-synthesis is off (base.css), so the browser never fakes a bold or an italic.
  */
 @font-face {
@@ -20,5 +21,13 @@
   src: url('../assets/fonts/geist/Geist-Variable.woff2') format('woff2');
   font-weight: 100 900;
   font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Geist';
+  src: url('../assets/fonts/geist/Geist-Italic.woff2') format('woff2');
+  font-weight: 400;
+  font-style: italic;
   font-display: swap;
 }

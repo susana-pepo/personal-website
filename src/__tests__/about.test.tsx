@@ -13,20 +13,24 @@ describe('about', () => {
   })
 
   it('keeps to the house style: curly apostrophes, no dashes, British spelling', () => {
-    const text = [meta.title, about.intro, ...about.paragraphs, about.closing].join(' ')
+    const text = [meta.title, about.intro, ...about.paragraphs, about.closing ?? ''].join(' ')
     expect(text).not.toMatch(/'/)
     expect(text).not.toMatch(/[—–]/)
     expect(text).not.toMatch(/\bcozy\b|\bcolor\b/i)
   })
 
-  it('renders the intro, the prose and the closing in order, without repeating the greeting', () => {
+  it('renders the intro, then the prose, then any closing, without repeating the greeting', () => {
     const html = renderToStaticMarkup(<AboutSection />)
     const intro = html.indexOf(about.intro)
     const firstParagraph = html.indexOf(about.paragraphs[0] ?? 'missing')
-    const closing = html.indexOf('class="about-closing"')
+    const lastParagraph = html.indexOf(about.paragraphs.at(-1) ?? 'missing')
     expect(intro).toBeGreaterThan(-1)
     expect(firstParagraph).toBeGreaterThan(intro)
-    expect(closing).toBeGreaterThan(firstParagraph)
+    if (about.closing) {
+      expect(html.indexOf('class="about-closing"')).toBeGreaterThan(lastParagraph)
+    } else {
+      expect(html).not.toContain('about-closing')
+    }
     expect(html).not.toContain('Hi there')
     expect(html).not.toContain('<dl')
   })

@@ -76,7 +76,7 @@ export const content: SiteContent = {
 
   work: {
     intro:
-      'A little collection of tools and experiments. Some started with a problem I wanted to solve, others simply because I was curious to see if I could make them work.',
+      'A few things I’ve built out of curiosity or to solve a problem.',
     // The map: each area of focus fills one quadrant (see `place` below). The axis
     // words come from the intro above; change them freely.
     map: {
@@ -190,62 +190,76 @@ export const content: SiteContent = {
     portrait: { src: '/media/about/headshot.webp', srcSmall: '/media/about/headshot-280.webp', alt: 'Susana Pérez' },
     intro: 'Music has always been a big part of my life, and somehow it keeps finding its way into everything I do.',
     paragraphs: [
-      'I work on products that bring music, learning and technology together. Most of all, I try to make complicated experiences feel a bit easier and more enjoyable.',
-      'I’m interested in what keeps people going when something gets difficult. Learning music can be wonderful, but also incredibly frustrating. I know the feeling of trying something over and over until it finally clicks. When I build learning experiences, I think most about the person who’s just about ready to give up.',
-      'I ask lots of questions and want to know how things work. I love the behind-the-scenes side too: the little details, the unexpected problems, the conversations that make you reconsider an idea. I like being somewhere between the creative and the technical.',
-      'Outside of work, I enjoy long walks, cooking for friends, slow mornings with coffee, and getting completely absorbed in projects of my own. This website is one of them.',
+      'I work on products that bring music, learning and technology together. I enjoy figuring out how to make things that feel complicated a little easier and more enjoyable.',
+      'I’m particularly curious about what keeps people going when learning gets difficult. I know the feeling of practising something over and over until it finally clicks. When designing learning experiences, I often think about the person who’s just about ready to give up.',
+      'I ask a lot of questions because I like understanding how things work. I enjoy the little details, the unexpected problems and the conversations that make me rethink an idea. I like being somewhere between the creative and the technical.',
+      'Outside of work, I love long walks, cooking for friends, slow mornings with coffee and getting a little too absorbed in my own projects. This little room is one of them.',
     ],
-    closing:
-      'I suppose this little room is a pretty good introduction to me too. Music playing, a notebook nearby, a cosy corner, and probably too many things I want to try.',
   },
 
   experience: {
     // A condensed version of my CV, without the figures (not yet backed up in the evidence bank).
-    intro:
-      'I’ve spent the last few years working on the many pieces that make music-learning products possible, from the learning experience itself to the music behind it.',
-    employer: {
-      name: 'Learnfield GmbH',
-      location: 'Berlin, Germany',
-      period: 'April 2022 to October 2026',
-      // From the three role titles below; licensing was part of the content manager role.
-      focus: 'Product, learning content and licensing',
-    },
-    roles: [
+    intro: 'A very brief snapshot of my journey.',
+    // Newest first. Each employer heads a pile of its roles, the latest on top.
+    employers: [
       {
-        id: 'product-owner',
-        stage: 'Owning the learning experience',
-        title: 'Product Owner, Learning Experience & Content',
-        period: 'August 2023 to October 2026',
-        points: [
-          'Owned learning experience and content strategy across two learning products.',
-          'Validated a step-by-step learning format that raised completion and retention, and was adopted at scale.',
-          'Prototyped practice tools and short video formats with AI and low-code tools before committing engineering time.',
+        name: 'Learnfield GmbH',
+        location: 'Berlin, Germany',
+        period: 'April 2022 to October 2026',
+        roles: [
+          {
+            id: 'product-owner',
+            stage: 'Owning the learning experience',
+            title: 'Product Owner, Learning Experience & Content',
+            period: 'August 2023 to October 2026',
+            points: [
+              'Owned learning experience and content strategy across two learning products.',
+              'Validated a step-by-step learning format that raised completion and retention, and was adopted at scale.',
+              'Prototyped practice tools and short video formats with AI and low-code tools before committing engineering time.',
+            ],
+            skills: ['Learning experience design', 'Learner research', 'Learning analytics', 'AI prototyping', 'Localisation'],
+          },
+          {
+            id: 'content-manager',
+            stage: 'Scaling the content system',
+            title: 'Education Content Manager & License Manager',
+            period: 'October 2022 to July 2023',
+            points: [
+              'Ran learning content end to end, from scope through localisation, QA and release.',
+              'Shipped a large quarterly module release, plus a separate release for Japan and Korea.',
+            ],
+            skills: ['Content operations', 'Localisation', 'Onboarding', 'Quality assurance'],
+          },
+          {
+            id: 'content-creator',
+            stage: 'Making the learning',
+            title: 'Educational Content Creator',
+            period: 'April 2022 to October 2022',
+            points: ['Designed and scripted self-paced courses and interactive lessons with educators and subject experts.'],
+            skills: ['Instructional design', 'Course design', 'Video-based learning'],
+          },
         ],
-        skills: ['Learning experience design', 'Learner research', 'Learning analytics', 'AI prototyping', 'Localisation'],
       },
       {
-        id: 'content-manager',
-        stage: 'Scaling the content system',
-        title: 'Education Content Manager & License Manager',
-        period: 'October 2022 to July 2023',
-        points: [
-          'Ran learning content end to end, from scope through localisation, QA and release.',
-          'Shipped a large quarterly module release, plus a separate release for Japan and Korea.',
+        // From LinkedIn: "Teacher", full-time, with "Editorial Consulting and Curriculum Development".
+        name: 'Johannesstift Diakonie',
+        location: 'Berlin, Germany',
+        period: 'January 2020 to April 2022',
+        roles: [
+          {
+            id: 'music-teacher',
+            stage: 'Teaching music',
+            title: 'Music Teacher',
+            period: 'January 2020 to April 2022',
+            points: ['Taught music, and worked on editorial consulting and curriculum development.'],
+            skills: ['Music education', 'Curriculum development', 'Editorial consulting'],
+          },
         ],
-        skills: ['Content operations', 'Localisation', 'Onboarding', 'Quality assurance'],
-      },
-      {
-        id: 'content-creator',
-        stage: 'Making the learning',
-        title: 'Educational Content Creator',
-        period: 'April 2022 to October 2022',
-        points: ['Designed and scripted self-paced courses and interactive lessons with educators and subject experts.'],
-        skills: ['Instructional design', 'Course design', 'Video-based learning'],
       },
     ],
-    pileHint: 'Choose a book to read about each role.',
     beyondTitle: 'A little more background',
     toolkitTitle: 'Languages and tools',
+    educationTitle: 'Education',
     languages: ['Spanish, native', 'English, C1+', 'German, B2+'],
     tools: ['Claude', 'ChatGPT', 'Lovable', 'Google Stitch', 'Figma', 'Mixpanel', 'Jira', 'Confluence'],
     // Set aside for now: the earlier "books on the desk" threads. Not shown.
@@ -284,13 +298,19 @@ export const content: SiteContent = {
         id: 'ma-srh',
         qualification: 'Master of Arts in Therapy and Educational Sciences',
         institution: 'SRH Heidelberg University',
-        spine: 'Education',
+        period: '2017 to 2020',
         spineNote: 'MA',
+      },
+      {
+        id: 'ba-eafit',
+        qualification: 'Bachelor of Arts in Music',
+        institution: 'Universidad EAFIT',
+        period: '2011 to 2016',
+        spineNote: 'BA',
       },
     ],
     cvLabel: 'Download CV (PDF)',
     cvTitle: 'Curriculum vitae',
-    cvNote: 'One page, as a PDF.',
   },
 
   bookshelf: {
@@ -446,7 +466,7 @@ export const content: SiteContent = {
   contact: {
     heading: 'Say hello',
     intro:
-      'I’d love to chat about music, learning, licensing or product ideas. And if you have a song you think I’d enjoy, I’m always happy to discover something new.',
+      'I’m always curious about what other people are working on. Feel free to reach out and tell me about it.',
     // The invitation, and the email action itself: it opens an email to this address with it as the subject.
     cta: 'Let’s chat',
     email: 'susipp93@gmail.com',

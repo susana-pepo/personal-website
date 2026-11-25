@@ -25,13 +25,13 @@
   gap: var(--space-3xs);
 }
 
-/* A section title, set as the other pages title their parts: the serif at its one weight. */
+/* A section title, set as the other pages title their parts: the serif at reading size. */
 .music-head__title {
   font-family: var(--font-display);
   font-weight: 400;
   font-size: var(--text-section);
-  line-height: 1.15;
-  letter-spacing: -0.012em;
+  line-height: 1.3;
+  letter-spacing: 0;
   text-wrap: balance;
 }
 
@@ -285,9 +285,9 @@
   margin-top: 0.2rem;
   font-family: var(--font-sans);
   font-weight: 500;
-  font-size: 1.25rem;
-  line-height: 1.25;
-  letter-spacing: -0.01em;
+  font-size: var(--text-item);
+  line-height: 1.3;
+  letter-spacing: -0.005em;
   text-wrap: balance;
 }
 
@@ -302,6 +302,7 @@
   display: block;
   margin-top: 0.2rem;
   font-family: var(--font-sans);
+  font-size: var(--text-body);
   color: var(--ink-2);
   line-height: 1.4;
 }
@@ -345,10 +346,12 @@
   user-select: none;
 }
 
-@container (max-width: 30rem) {
-  .crate {
-    --s: 6.5rem;
-  }
+@media (max-width: 1024px) {
+  @container (max-width: 30rem) {
+    .crate {
+      --s: 6.5rem;
+    }
+}
 }
 
 /* The board: 6px of walnut with a soft contact shadow. */
@@ -556,11 +559,13 @@
   height: 11rem;
 }
 
-@container (max-width: 33rem) {
-  .desk__inner {
-    --sleeve-w: 10rem;
-    grid-template-columns: minmax(0, 1fr);
-  }
+@media (max-width: 1024px) {
+  @container (max-width: 33rem) {
+    .desk__inner {
+      --sleeve-w: 10rem;
+      grid-template-columns: minmax(0, 1fr);
+    }
+}
 
   .desk__object {
     width: 14.5rem;
@@ -628,10 +633,12 @@
   height: var(--sleeve-w);
 }
 
-@container (max-width: 33rem) {
-  .crate-section[data-variant='podcasts'] .desk__inner {
-    grid-template-columns: minmax(0, 1fr);
-  }
+@media (max-width: 1024px) {
+  @container (max-width: 33rem) {
+    .crate-section[data-variant='podcasts'] .desk__inner {
+      grid-template-columns: minmax(0, 1fr);
+    }
+}
 }
 
 /* Liner notes settle in one after another once the record lands. */
@@ -680,16 +687,17 @@
   margin-top: 0.3rem;
   font-family: var(--font-sans);
   font-weight: 500;
-  /* an item title: stays a clear step below the serif section title over it */
-  font-size: clamp(1.25rem, 1.1rem + 0.5vw, 1.375rem);
-  line-height: 1.2;
-  letter-spacing: -0.012em;
+  /* an item title, at the item size under the serif section title */
+  font-size: var(--text-item);
+  line-height: 1.3;
+  letter-spacing: -0.005em;
   text-wrap: balance;
 }
 
 .desk__artist {
   margin-top: 0.25rem;
   font-family: var(--font-sans);
+  font-size: var(--text-body);
   color: var(--ink-2);
 }
 
@@ -697,6 +705,7 @@
   max-width: 34ch;
   margin-top: 0.9rem;
   font-family: var(--font-sans);
+  font-size: var(--text-body);
   line-height: 1.5;
 }
 
@@ -885,6 +894,54 @@
     0 24px 40px -18px oklch(0.08 0.01 45 / 0.7);
 }
 
+/* ════════ Desktop ════════ */
+/*
+ * The panel floats beside the room, about as tall as it, and scrolls inside; its column runs
+ * from about 28rem (a 1280px window) to 36rem. What I'm listening to and the shelf of records
+ * make the first view, and the podcast shelf waits just beneath. Each crate keeps only the
+ * headroom its peeking record needs (the record peeks a little less far, and rises into the
+ * gap under the heading, never onto it), and its sleeves follow the column, never the phone's.
+ */
+@media (min-width: 1025px) {
+  /* No gap before the folded desk (it would stand empty under the caption): the heading keeps
+     its 1rem by margin, and the desk brings its own space when it opens. */
+  .crate-section {
+    gap: 0;
+  }
+
+  .crate-section > .music-head {
+    margin-bottom: 1rem;
+  }
+
+  .crate {
+    --s: min(8.25rem, 26cqi);
+    height: calc(var(--s) * 1.12);
+  }
+
+  .crate > li {
+    height: calc(var(--s) * 1.12);
+  }
+
+  /* headroom (0.12) + the 1rem gap above the crate: room for all of it */
+  .crate > li[data-active] .sleeve__disc {
+    transform: translateY(calc(var(--s) * -0.24));
+  }
+
+  /* In a narrower desktop column the record stays beside its notes, a little smaller. */
+  @container (max-width: 33rem) {
+    .desk__inner {
+      --sleeve-w: 8.5rem;
+      grid-template-columns: 12rem minmax(0, 1fr);
+      column-gap: 1.25rem;
+    }
+
+    .desk__object {
+      width: 12rem;
+      height: 8.5rem;
+    }
+  }
+}
+
 /* ════════ Small screens ════════ */
 @media (max-width: 639px) {
   /* The record player above the track, so a long title and its artists get the full
@@ -902,9 +959,6 @@
     margin-bottom: calc(7.25rem * -0.16);
   }
 
-  .deck__title {
-    font-size: 1.25rem;
-  }
 }
 
 /* ════════ Reduced motion: every state stays, nothing travels ════════ */

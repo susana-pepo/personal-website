@@ -362,7 +362,13 @@ export function GlassDrops({ raining, time, moving }: GlassDropsProps) {
       stepGlass(s.glass, map, dt, props.current.raining, s.rand)
       draw(now)
       const settled = !props.current.raining && s.glass.beads.length === 0 && s.glass.runners.length === 0
-      if (!settled) frame = requestAnimationFrame(tick)
+      if (!settled) {
+        frame = requestAnimationFrame(tick)
+      } else {
+        // the beads' layer is redrawn at most every 80 ms: draw the dry glass once more, so no drop is left behind
+        s.lastStill = -Infinity
+        draw(now)
+      }
     }
 
     paint.current = () => draw(performance.now())

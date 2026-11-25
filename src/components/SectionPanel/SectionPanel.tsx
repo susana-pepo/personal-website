@@ -26,10 +26,13 @@ import {
   tabIndexForKey,
   turnDirection,
 } from './folio'
+import { asLight, placeReflection, prepareReflections } from './glass'
+import { panelGeometry } from './panelGeometry'
 import '../sections/sections.css'
 import '../sections/panel-sections.css'
 import './SectionPanel.css'
 import { HeaderArt } from './HeaderArt'
+import { useGenie } from './genie/useGenie'
 
 /**
  * Lights the glass from the room's desk lamp: where its bulb is, as --lamp-x and --lamp-y on
@@ -39,12 +42,40 @@ import { HeaderArt } from './HeaderArt'
 function placeLamp(dialog: HTMLDialogElement) {
   const art = document.querySelector('.scene-object--lamp .scene-object__art') ?? document.querySelector('.scene-object--lamp')
   const box = art?.getBoundingClientRect()
+  // On wide screens the sheet floats beside the room, sized from its frame and kept clear of the
+  // lamp (panelGeometry.ts). Set before the sheet is measured below.
+  placeOnRoom(dialog, box && box.width > 0 ? box : null)
   const [fx, fy] = lampParts.bulb
-  const at = box && box.width > 0 ? lampOnSheet({ x: box.left + box.width * fx!, y: box.top + box.height * fy! }, dialog.getBoundingClientRect()) : null
+  const bulb = box && box.width > 0 ? { x: box.left + box.width * fx!, y: box.top + box.height * fy! } : null
+  const at = bulb ? lampOnSheet(bulb, dialog.getBoundingClientRect()) : null
   for (const [name, value] of [['--lamp-x', at?.x], ['--lamp-y', at?.y]] as const) {
     if (value === undefined) dialog.style.removeProperty(name)
     else dialog.style.setProperty(name, `${value}%`)
   }
+  // ...and the room it reflects: the still for this light, laid where the room's mirror image falls.
+  placeReflection(dialog, bulb)
+}
+
+/** Lays the sheet beside the room's frame on wide screens; elsewhere it keeps its own layout. */
+function placeOnRoom(dialog: HTMLDialogElement, lamp: DOMRect | null) {
+  const room = document.querySelector('.stage')?.getBoundingClientRect()
+  const gap = parseFloat(getComputedStyle(dialog).getPropertyValue('--sheet-gap')) || 12
+  const g = room
+    ? panelGeometry({
+        room,
+        lamp,
+        controls: document.querySelector('.time-control')?.getBoundingClientRect() ?? null,
+        viewport: { width: window.innerWidth, height: window.innerHeight },
+        gap,
+      })
+    : null
+  const vars = [['--panel-top', g?.top], ['--panel-right', g?.right], ['--panel-w', g?.width], ['--panel-h', g?.height]] as const
+  for (const [name, value] of vars) {
+    if (value === undefined) dialog.style.removeProperty(name)
+    else dialog.style.setProperty(name, `${value}px`)
+  }
+  if (g) dialog.dataset.geometry = 'room'
+  else delete dialog.dataset.geometry
 }
 
 /** The outgoing page's slide in SectionPanel.css, for when its animations can't be read. */
@@ -94,6 +125,9 @@ export function SectionPanel({ section }: SectionPanelProps) {
   const [page, setPage] = useState<Page | null>(null)
   const [leaving, setLeaving] = useState<LeavingPage | null>(null)
   const [state, setState] = useState<PanelState>('closed')
+  // Wide screens with a mouse: the glass pours out of its object and back (genie/genie.ts).
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const genieRef = useGenie(dialogRef, canvasRef, placeLamp)
 
   // Open, turn or close in response to the URL.
   useLayoutEffect(() => {
@@ -110,12 +144,15 @@ export function SectionPanel({ section }: SectionPanelProps) {
         setLeaving(null)
         dialog.showModal()
         placeLamp(dialog)
+        genieRef.current?.open(section)
         // Next frame, so the entry transition runs from the closed styles.
         const frame = requestAnimationFrame(() => setState('open'))
         return () => cancelAnimationFrame(frame)
       }
 
       setState('open')
+      // Back while it was closing: the glass pours out again from where it is.
+      genieRef.current?.reopen()
       const previous = pageRef.current
       if (previous?.id === section) return
       const dir = turnDirection(previous?.id ?? null, section)
@@ -140,6 +177,20 @@ export function SectionPanel({ section }: SectionPanelProps) {
 
     if (dialog.open) {
       setState('closing')
+      // Poured open: it pours back into the object of the page shown, and the dialog closes after.
+      const pour = genieRef.current?.close(pageRef.current?.id ?? null)
+      if (pour) {
+        let live = true
+        void pour.then((home) => {
+          if (!live || !home || !dialog.open) return
+          dialog.close()
+          finish()
+        })
+        // Reopening mid-close lands here first: the pour turns round (reopen above).
+        return () => {
+          live = false
+        }
+      }
       // The dialog goes when the sheet's own fade ends, so the exit is never cut
       // short. The fade, not the slide: it always ends last, also when a close
       // reverses an opening that's only part-way (both were shortened, and the fade
@@ -193,6 +244,15 @@ export function SectionPanel({ section }: SectionPanelProps) {
   }, [state])
 
   useEffect(() => () => void delete document.documentElement.dataset.panel, [])
+
+  // The glass's reflection stills are fetched and decoded while the page is idle, so the first
+  // open never waits on them.
+  useEffect(() => {
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 2500))
+    const cancel = window.cancelIdleCallback ?? window.clearTimeout
+    const handle = idle(() => prepareReflections(asLight(document.querySelector('.scene')?.getAttribute('data-time'))), { timeout: 6000 })
+    return () => cancel(handle)
+  }, [])
 
   // The room is laid out again on a resize, and the lamp with it: the glass follows its light.
   // (Measured once more as the sheet arrives, for a deep link that opened before the room.)
@@ -356,7 +416,11 @@ export function SectionPanel({ section }: SectionPanelProps) {
       onPointerDown={onDialogPointerDown}
       onClick={onDialogClick}
     >
+      <canvas ref={canvasRef} className="panel__genie" aria-hidden="true" />
       <div ref={sheetRef} className="panel__sheet">
+        {/* The glass's window sheen, bevels and speculars (SectionPanel.css): paint only. */}
+        <span className="panel__sheen" aria-hidden="true" />
+        <span className="panel__glass" aria-hidden="true" />
         <div className="panel__bar">
           <nav
             ref={navRef}

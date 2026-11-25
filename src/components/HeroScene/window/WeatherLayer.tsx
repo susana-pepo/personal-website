@@ -81,15 +81,22 @@ export function WeatherSky({ weather, time }: WeatherSkyProps) {
   // Rain and snow both need a grey sky by day.
   const on = weather !== 'clear' && time === 'midday'
   const blend = useRef<SVGFECompositeElement>(null)
+  const svgRef = useRef<SVGSVGElement>(null)
   const amount = useRef(on ? 1 : 0)
   // The filter is applied only while any of it shows.
   const [active, setActive] = useState(on)
 
   useEffect(() => {
     const el = blend.current
+    const scene = svgRef.current?.closest<HTMLElement>('.scene')
+    let tick = 0
     const apply = (t: number) => {
       el?.setAttribute('k2', t.toFixed(4))
       el?.setAttribute('k3', (1 - t).toFixed(4))
+      // Browsers keep a filtered video's last result and don't always notice the
+      // filter's own values changing: nudge the filter property by an invisible
+      // amount each frame so the fade is actually drawn (see WeatherLayer.css).
+      scene?.style.setProperty('--sky-nudge', String(1 + (++tick % 2) * 0.0001))
     }
     const target = on ? 1 : 0
     const from = amount.current
@@ -113,7 +120,7 @@ export function WeatherSky({ weather, time }: WeatherSkyProps) {
 
   const t = amount.current
   return (
-    <svg className="weather-sky" aria-hidden="true" focusable="false" width="0" height="0" data-on={active ? '' : undefined}>
+    <svg ref={svgRef} className="weather-sky" aria-hidden="true" focusable="false" width="0" height="0" data-on={active ? '' : undefined}>
       <filter id="rainy-day" colorInterpolationFilters="sRGB" x="0" y="0" width="1" height="1">
         <feColorMatrix in="SourceGraphic" type="matrix" values={DULL} result="dull" />
         <feColorMatrix in="SourceGraphic" type="matrix" values={SKY} result="sky" />

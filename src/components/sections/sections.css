@@ -5,10 +5,10 @@
 }
 
 .lede {
-  max-width: 34ch;
+  max-width: 40ch;
   font-family: var(--font-serif);
-  font-size: var(--text-lg);
-  line-height: 1.45;
+  font-size: var(--text-lede);
+  line-height: 1.5;
   color: var(--ink);
 }
 
@@ -23,7 +23,7 @@
   gap: var(--space-sm);
   max-width: 62ch;
   font-family: var(--font-serif);
-  font-size: 1.1875rem;
+  font-size: var(--text-body);
   line-height: 1.6;
   color: var(--ink-2);
 }

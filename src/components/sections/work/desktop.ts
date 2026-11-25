@@ -93,3 +93,16 @@ export const MOVE = {
   /** Reduced motion: a short crossfade and nothing travels. */
   fade: 160,
 } as const
+
+/**
+ * On a wide screen (the panel floating beside the room) the tablet's screen is as tall as the
+ * panel's first view allows: the view's height, less what sits above the tablet, the tablet's
+ * own edge and bezel, and a breath under it as wide as the one above it. Never below `least`,
+ * so a very short window lets the panel scroll rather than squeeze the rows.
+ */
+export function fitScreenHeight(
+  { view, above, frame, breath }: { view: number; above: number; frame: number; breath: number },
+  least = 200,
+): number {
+  return Math.max(least, Math.floor(view - above - frame - breath))
+}

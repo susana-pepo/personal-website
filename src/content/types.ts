@@ -122,8 +122,8 @@ export interface Employer {
   name: string
   location: string
   period: string
-  /** One line on what the work there spanned, e.g. "Product, learning content and licensing". */
-  focus?: string
+  /** Newest first: the books of this employer's pile, the latest on top. */
+  roles: ExperienceRole[]
 }
 
 export interface EducationEntry {
@@ -133,7 +133,7 @@ export interface EducationEntry {
   period?: string
   /** Short form for a book's spine, e.g. "Therapy and Educational Sciences". */
   spine?: string
-  /** Second line on the spine, e.g. "MA". */
+  /** The degree's letters, printed on the Education book's spine, e.g. "MA". */
   spineNote?: string
 }
 
@@ -244,32 +244,30 @@ export interface SiteContent {
     /** The sentence the page hangs on, set a size up under the panel heading (the greeting). */
     intro: string
     paragraphs: string[]
-    /** A quieter last word, below a hairline. */
-    closing: string
+    /** A quieter last word under the prose, in the faintest ink. Omit for none. */
+    closing?: string
     /** My photo, set as a small warm-toned print beside the intro. Omit to show none. */
     portrait?: { src: string; srcSmall: string; alt: string }
   }
   experience: {
     /** One line from my CV's profile, set as the lede. */
     intro: string
-    employer: Employer | null
-    /** Newest first. */
-    roles: ExperienceRole[]
-    /** The cue beside the role books, e.g. "Choose a book to read about each role." */
-    pileHint: string
+    /** Newest first. Each heads its own pile of role books. */
+    employers: Employer[]
     /** Heading of the smaller pile at the end, the things outside any one job. */
     beyondTitle: string
     /** The notebook on top of that pile: its spine title, e.g. "Languages and tools". */
     toolkitTitle: string
+    /** The one book that holds every degree, e.g. "Education". */
+    educationTitle: string
     languages: string[]
     tools: string[]
     /** The earlier "books on the desk" threads. Set aside for now and not shown. */
     entries: ExperienceEntry[]
     education: EducationEntry[]
     cvLabel: string
-    /** The CV's folder on the background pile, and the line under its title when opened. */
+    /** The CV's folder on the background pile, and its title when opened. */
     cvTitle: string
-    cvNote: string
   }
   bookshelf: { intro: string; shelves: Shelf[]; books: Book[]; emptyNote: string }
   music: {

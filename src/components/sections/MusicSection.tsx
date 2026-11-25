@@ -22,12 +22,12 @@ function Deck({ state, headingId }: { state: DeckState; headingId: string }) {
       aria-labelledby={headingId}
       data-state={state.status === 'loading' ? 'loading' : featured ? 'featured' : live ? 'live' : 'recent'}
     >
-      <div className="music-head">
-        <h3 id={headingId} className="music-head__title">
-          {listening.heading}
-        </h3>
-        {listening.description && <p className="music-head__description">{listening.description}</p>}
-      </div>
+      {/* The record player says it on its own, so the heading is kept for screen readers only:
+          the page opens straight on the deck, and fits its first view. */}
+      <h3 id={headingId} className="visually-hidden">
+        {listening.heading}
+      </h3>
+      {listening.description && <p className="music-head__description">{listening.description}</p>}
       {state.status === 'loading' ? (
         <div className="deck__loading" role="status">
           <span className="visually-hidden">Loading</span>

@@ -126,32 +126,7 @@ html:has(.panel[open]) {
   height: 100%;
   overflow: hidden;
   border-radius: var(--sheet-radius);
-  /* Smoked glass, all of it opaque paint: a bloom of lamp light at the top, a little more
-     shade toward the bottom, grain, the smoke itself, and a warm rim drawn in the border.
-     No backdrop-filter, filter or will-change: the room behind animates, and a blur
-     would be redrawn every frame (DESIGN.md, the flicker notes). */
-  border: 1px solid transparent;
-  background:
-    radial-gradient(120% 40% at 18% -8%, oklch(0.92 0.04 70 / 0.08), transparent 60%) padding-box,
-    linear-gradient(180deg, transparent 60%, oklch(0.1 0.01 45 / 0.14)) padding-box,
-    var(--fibre) padding-box,
-    linear-gradient(150deg, oklch(0.29 0.02 50), oklch(0.2 0.012 45)) padding-box,
-    linear-gradient(
-        140deg,
-        oklch(0.88 0.05 70 / 0.42),
-        oklch(0.88 0.05 70 / 0.06) 38%,
-        oklch(0.88 0.05 70 / 0.03) 62%,
-        oklch(0.88 0.05 70 / 0.2)
-      )
-      border-box;
-  /* Lamp light along the top edge, then the contact shadow (tight, on the room side) and
-     the long fall-off. */
-  box-shadow:
-    inset 0 1px 0.5px oklch(1 0 0 / 0.16),
-    inset 0 -1px 0.5px oklch(1 0 0 / 0.04),
-    -1px 0 2px oklch(0.06 0.01 45 / 0.28),
-    -14px 6px 32px -12px oklch(0.06 0.01 45 / 0.45),
-    0 36px 80px -32px oklch(0.06 0.01 45 / 0.7);
+  /* The glass itself (its smoke, bevels, light and shadow) is painted in the Glass part below. */
   /* Blend modes inside the sections (music.css) stay inside the sheet. */
   isolation: isolate;
   opacity: 0;
@@ -181,6 +156,412 @@ html:has(.panel[open]) {
     transform: none;
   }
 }
+
+/* @glass-start */
+/* ── Glass ──
+   One slab of polished smoked glass, nearly opaque, lit by the room's desk lamp beside it (its
+   bulb's place on the sheet is --lamp-x/--lamp-y, set by SectionPanel.tsx; --lamp-near says how
+   close it is). Everything is still paint: no backdrop-filter, filter, blend or will-change, and
+   nothing animates once the sheet has landed. From the bottom up:
+   - the sheet: the smoke (a deep tint, slow density clouds, grain), the lamp's bloom on the face,
+     the room's faint light high up, and the shadows: shade inside the edges turned away from the
+     lamp, the contact shadow and the long fall-off on the room;
+   - ::before: the room reflected in the face, a still of it mirrored and blurred ahead of time
+     (glass.ts places it where the room's mirror image really falls), strongest at the lamp-side
+     edge and gone within a sixth of the width, well before the reading column (Fresnel);
+   - .panel__glass: the rounded bevels. Each has a lit curve a couple of px in and a darker line
+     where it meets the face; the corner arcs carry the same cross-section round the corners,
+     and the room shows squeezed into the lamp-side bevel, the lamp in it as a hot streak;
+   - ::after: the edge itself, a 1px line of light caught inside the slab, bright facing the
+     bulb, fading along the edges, a cool glint where the window catches the far corner.
+   Phones: the lamp is above the sheet, so the top bevel carries its light. */
+.panel {
+  --lamp-x: 50%;
+  --lamp-y: 46%;
+  --lamp-near: 1;
+  /* Fallback until glass.ts has measured the room (or if it can't): off to the left. */
+  --refl-x: -100vw;
+  --refl-y: 0px;
+  --refl-w: 100vw;
+  --refl-h: 50vw;
+  /* how much the rounded bevel squeezes what it reflects */
+  --g-squeeze: 0.055;
+  --glass-face: url('/media/panel/reflection-night-face.webp');
+  --glass-edge: url('/media/panel/reflection-night-edge.webp');
+  --glass-top: url('/media/panel/reflection-night-top.webp');
+
+  /* the smoke */
+  --g-top: oklch(0.245 0.011 60);
+  --g-bottom: oklch(0.178 0.009 55);
+  /* the window, reflected broad and faint high on the face */
+  --g-sheen: 0.045;
+  /* the lamp: specular on the bevel, its bloom on the face */
+  --g-spec: 0.3;
+  --g-streak: 0.09;
+  --g-bloom: 0.06;
+  --g-glow: 0.035;
+  /* the bevels' lit curves and the line inside them */
+  --g-bevel-side: 0.075;
+  --g-bevel-top: 0.065;
+  --g-bevel-corner: 0.06;
+  /* how much of the lamp side's light reaches the top of its corner arc */
+  --g-arc-top: 0.4;
+  --g-groove: 0.32;
+  --g-glint: 0.22;
+  --g-glint-cool: 0.16;
+  --g-far: 0.1;
+  /* the slab's thickness seen side-on: a dark band just inside the edge line */
+  --g-thick: oklch(0.09 0.01 45 / 0.12);
+  --g-thick-far: oklch(0.09 0.01 45 / 0.11);
+  /* the edge line */
+  --g-rim-hot: 0.27;
+  --g-rim-warm: 0.09;
+  --g-rim-wide: 0.03;
+  --g-rim-corner: 0.07;
+  --g-rim-base: 0.012;
+  --g-rim-far: 0.12;
+  --g-rim-cool: 0.32;
+  --g-cool: 0.78 0.03 240;
+  /* the room in the face, and the room's light high up */
+  --g-refl: 0.22;
+  --g-face-warm: 0.035;
+  --g-face-cool: 0.02;
+  /* shade on the sides turned away from the lamp */
+  --g-shade: oklch(0.07 0.012 250 / 0.4);
+  --g-shade-foot: oklch(0.07 0.01 45 / 0.32);
+}
+
+.panel[data-light='midday'] {
+  --glass-face: url('/media/panel/reflection-midday-face.webp');
+  --glass-edge: url('/media/panel/reflection-midday-edge.webp');
+  --glass-top: url('/media/panel/reflection-midday-top.webp');
+  /* Daylight: the lamp matters less, the window more. */
+  --g-spec: 0.2;
+  --g-streak: 0.06;
+  --g-bloom: 0.045;
+  --g-glow: 0.022;
+  --g-sheen: 0.065;
+  --g-bevel-side: 0.07;
+  --g-bevel-top: 0.075;
+  --g-bevel-corner: 0.055;
+  --g-glint: 0.18;
+  --g-glint-cool: 0.26;
+  --g-far: 0.16;
+  --g-rim-hot: 0.2;
+  --g-rim-warm: 0.075;
+  --g-rim-cool: 0.45;
+  --g-rim-far: 0.16;
+  --g-cool: 0.84 0.035 235;
+  --g-refl: 0.2;
+  --g-face-cool: 0.04;
+}
+
+.panel[data-light='dawn'] {
+  --glass-face: url('/media/panel/reflection-dawn-face.webp');
+  --glass-edge: url('/media/panel/reflection-dawn-edge.webp');
+  --glass-top: url('/media/panel/reflection-dawn-top.webp');
+  --g-sheen: 0.05;
+  --g-glint-cool: 0.2;
+  --g-rim-cool: 0.36;
+  --g-cool: 0.8 0.04 320;
+  --g-face-cool: 0.028;
+}
+
+.panel__sheet {
+  border: 0;
+  background:
+    var(--fibre),
+    /* the lamp's bloom on the face: close by the edge, a breath of it under the reading column */
+    radial-gradient(22% 28% at 0 var(--lamp-y), oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 1)) 0%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.904)) 16.7%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.668)) 33.3%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.399)) 50%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.187)) 66.7%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.06)) 83.3%, transparent),
+    radial-gradient(80% 70% at 0 var(--lamp-y), oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 1)) 0%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.916)) 16.7%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.702)) 33.3%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.445)) 50%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.225)) 66.7%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.079)) 83.3%, transparent),
+    /* the room's light, faint and high: warm over the lamp's side, the window's cool far up */
+    radial-gradient(85% 30% at 12% 0, oklch(0.8 0.05 68 / calc(var(--g-face-warm) * 1)) 0%, oklch(0.8 0.05 68 / calc(var(--g-face-warm) * 0.916)) 16.7%, oklch(0.8 0.05 68 / calc(var(--g-face-warm) * 0.702)) 33.3%, oklch(0.8 0.05 68 / calc(var(--g-face-warm) * 0.445)) 50%, oklch(0.8 0.05 68 / calc(var(--g-face-warm) * 0.225)) 66.7%, oklch(0.8 0.05 68 / calc(var(--g-face-warm) * 0.079)) 83.3%, transparent),
+    radial-gradient(40% 26% at 100% 0, oklch(var(--g-cool) / calc(var(--g-face-cool) * 1)) 0%, oklch(var(--g-cool) / calc(var(--g-face-cool) * 0.916)) 16.7%, oklch(var(--g-cool) / calc(var(--g-face-cool) * 0.702)) 33.3%, oklch(var(--g-cool) / calc(var(--g-face-cool) * 0.445)) 50%, oklch(var(--g-cool) / calc(var(--g-face-cool) * 0.225)) 66.7%, oklch(var(--g-cool) / calc(var(--g-face-cool) * 0.079)) 83.3%, transparent),
+    /* Fresnel: the face, seen straight on, reflects least, so its middle sits a touch deeper */
+    radial-gradient(70% 60% at 58% 55%, oklch(0.1 0.01 50 / 0.08), transparent 75%),
+    /* the smoke: deeper toward the foot, slow clouds in it, and its tint */
+    linear-gradient(180deg, transparent 45%, oklch(0.08 0.01 45 / 0.18)),
+    url('/media/panel/smoke.webp') 0 0 / 900px 900px,
+    linear-gradient(165deg, var(--g-top), var(--g-bottom));
+  box-shadow:
+    /* the slab's thickness: a dark band just inside the edge line, lighter on the lamp's side,
+       where the groove in its bevel already carries it */
+    inset 0 0 0 2px var(--g-thick),
+    inset -2px 0 0 0 var(--g-thick-far),
+    inset 0 -2px 0 0 var(--g-thick-far),
+    inset 0 2px 0 0 var(--g-thick-far),
+    /* shade inside the edges turned away from the lamp, soft and wide (not a line) */
+    inset -30px 0 44px -26px var(--g-shade),
+    inset 0 -26px 40px -22px var(--g-shade-foot),
+    /* on the room: the slab's contact, then its shadow falling away from the lamp, and the long fall-off */
+    -1px 1px 2px oklch(0.05 0.01 45 / 0.4),
+    -6px 4px 12px -4px oklch(0.05 0.01 45 / 0.3),
+    -22px 10px 48px -14px oklch(0.05 0.01 45 / 0.5),
+    0 40px 90px -30px oklch(0.05 0.01 45 / 0.7);
+}
+
+/* The room in the face. */
+.panel__sheet::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background: var(--glass-face) var(--refl-x) var(--refl-y) / var(--refl-w) var(--refl-h) no-repeat;
+  opacity: var(--g-refl);
+  /* Fresnel: the face reflects most at its edge, and less and less toward the reading column. */
+  -webkit-mask: linear-gradient(90deg, rgb(0 0 0 / 1) 0%, rgb(0 0 0 / 0.6) 2%, rgb(0 0 0 / 0.32) 4%, rgb(0 0 0 / 0.12) 7%, rgb(0 0 0 / 0.04) 11%, rgb(0 0 0 / 0) 16%);
+  mask: linear-gradient(90deg, rgb(0 0 0 / 1) 0%, rgb(0 0 0 / 0.6) 2%, rgb(0 0 0 / 0.32) 4%, rgb(0 0 0 / 0.12) 7%, rgb(0 0 0 / 0.04) 11%, rgb(0 0 0 / 0) 16%);
+}
+
+/* The face's window sheen: one broad, faint, slanted reflection of the window's light, high up,
+   with a defined start on the window's side and gone well above the reading column. */
+.panel__sheen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40%;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(112deg, transparent 0 56%, oklch(var(--g-cool) / var(--g-sheen)) 57%, oklch(var(--g-cool) / calc(var(--g-sheen) * 0.55)) 68%, transparent 84%);
+  -webkit-mask: linear-gradient(180deg, #000, rgb(0 0 0 / 0.75) 30%, rgb(0 0 0 / 0.35) 60%, rgb(0 0 0 / 0.1) 82%, transparent);
+  mask: linear-gradient(180deg, #000, rgb(0 0 0 / 0.75) 30%, rgb(0 0 0 / 0.35) 60%, rgb(0 0 0 / 0.1) 82%, transparent);
+}
+
+/* The bevels: the glints where they meet, the far bevel, and the lines inside the lamp side's
+   curve (its lit curve and the corner arc are in ::before, where they share its fade). */
+.panel__glass {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    /* small glints where the bevels meet, warm by the lamp, cool at the window's far corner */
+    radial-gradient(3.5px 3.5px at 7px 7px, oklch(0.97 0.025 82 / calc(var(--g-glint) * var(--lamp-near) * 1)) 0%, oklch(0.97 0.025 82 / calc(var(--g-glint) * var(--lamp-near) * 0.904)) 16.7%, oklch(0.97 0.025 82 / calc(var(--g-glint) * var(--lamp-near) * 0.668)) 33.3%, oklch(0.97 0.025 82 / calc(var(--g-glint) * var(--lamp-near) * 0.399)) 50%, oklch(0.97 0.025 82 / calc(var(--g-glint) * var(--lamp-near) * 0.187)) 66.7%, oklch(0.97 0.025 82 / calc(var(--g-glint) * var(--lamp-near) * 0.06)) 83.3%, transparent),
+    radial-gradient(12px 12px at 7.5px 7.5px, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.25 * 1)) 0%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.25 * 0.916)) 16.7%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.25 * 0.702)) 33.3%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.25 * 0.445)) 50%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.25 * 0.225)) 66.7%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.25 * 0.079)) 83.3%, transparent),
+    radial-gradient(9px 9px at calc(100% - 8.5px) 8.5px, oklch(var(--g-cool) / calc(var(--g-glint-cool) * 1)) 0%, oklch(var(--g-cool) / calc(var(--g-glint-cool) * 0.916)) 16.7%, oklch(var(--g-cool) / calc(var(--g-glint-cool) * 0.702)) 33.3%, oklch(var(--g-cool) / calc(var(--g-glint-cool) * 0.445)) 50%, oklch(var(--g-cool) / calc(var(--g-glint-cool) * 0.225)) 66.7%, oklch(var(--g-cool) / calc(var(--g-glint-cool) * 0.079)) 83.3%, transparent),
+    radial-gradient(6px 6px at 8.5px calc(100% - 8.5px), oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.22 * 1)) 0%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.22 * 0.916)) 16.7%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.22 * 0.702)) 33.3%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.22 * 0.445)) 50%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.22 * 0.225)) 66.7%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.22 * 0.079)) 83.3%, transparent),
+    /* the far bevel, in shade: the window catches it high up, the room a little low down */
+    radial-gradient(5px 20% at calc(100% - 3px) 16%, oklch(var(--g-cool) / calc(var(--g-far) * 1)) 0%, oklch(var(--g-cool) / calc(var(--g-far) * 0.916)) 16.7%, oklch(var(--g-cool) / calc(var(--g-far) * 0.702)) 33.3%, oklch(var(--g-cool) / calc(var(--g-far) * 0.445)) 50%, oklch(var(--g-cool) / calc(var(--g-far) * 0.225)) 66.7%, oklch(var(--g-cool) / calc(var(--g-far) * 0.079)) 83.3%, transparent),
+    radial-gradient(4px 12% at calc(100% - 3px) 78%, oklch(0.9 0.08 72 / calc(var(--g-far) * 0.4 * 1)) 0%, oklch(0.9 0.08 72 / calc(var(--g-far) * 0.4 * 0.916)) 16.7%, oklch(0.9 0.08 72 / calc(var(--g-far) * 0.4 * 0.702)) 33.3%, oklch(0.9 0.08 72 / calc(var(--g-far) * 0.4 * 0.445)) 50%, oklch(0.9 0.08 72 / calc(var(--g-far) * 0.4 * 0.225)) 66.7%, oklch(0.9 0.08 72 / calc(var(--g-far) * 0.4 * 0.079)) 83.3%, transparent),
+    /* the darker line inside the lamp side's curve (the thickness), round the corner and down */
+    radial-gradient(circle at 100% 100%, transparent calc(var(--sheet-radius) - 11px), oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.55)) calc(var(--sheet-radius) - 9px), transparent calc(var(--sheet-radius) - 7.5px)) 0 0 / var(--sheet-radius) var(--sheet-radius) no-repeat,
+    linear-gradient(180deg, oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.16)) 0, oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.16)) 82%, transparent) 8.25px var(--sheet-radius) / 1.5px calc(100% - 2 * var(--sheet-radius)) no-repeat,
+    linear-gradient(180deg, oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.14)) 0, oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.14)) 82%, transparent) 7.5px var(--sheet-radius) / 3.5px calc(100% - 2 * var(--sheet-radius)) no-repeat;
+}
+
+/* The lamp-side bevel: its lit curve and the corner arc, the room squeezed into the curve, the
+   lamp in it as a small warm-white point with a short tail. */
+.panel__glass::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: var(--sheet-radius);
+  box-sizing: border-box;
+  /* the room in the bevel stays inside the curve (content-box: the outer 7.5px) */
+  padding-right: calc(var(--sheet-radius) - 7.5px);
+  background:
+    radial-gradient(2px 1.4% at 1.5px var(--lamp-y), oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 1)) 0%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.893)) 16.7%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.634)) 33.3%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.356)) 50%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.154)) 66.7%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.045)) 83.3%, transparent),
+    radial-gradient(5px 8% at 3px var(--lamp-y), oklch(0.9 0.025 74 / calc(var(--g-streak) * var(--lamp-near) * 1)) 0%, oklch(0.9 0.025 74 / calc(var(--g-streak) * var(--lamp-near) * 0.904)) 16.7%, oklch(0.9 0.025 74 / calc(var(--g-streak) * var(--lamp-near) * 0.668)) 33.3%, oklch(0.9 0.025 74 / calc(var(--g-streak) * var(--lamp-near) * 0.399)) 50%, oklch(0.9 0.025 74 / calc(var(--g-streak) * var(--lamp-near) * 0.187)) 66.7%, oklch(0.9 0.025 74 / calc(var(--g-streak) * var(--lamp-near) * 0.06)) 83.3%, transparent),
+    var(--glass-edge) calc(var(--refl-x) * var(--g-squeeze)) var(--refl-y) /
+      calc(var(--refl-w) * var(--g-squeeze) * clamp(0, (var(--lamp-near) - 0.6) * 1000, 1)) var(--refl-h) no-repeat content-box,
+    radial-gradient(circle at 100% 100%, transparent calc(var(--sheet-radius) - 7.5px), oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.09)) calc(var(--sheet-radius) - 6px), oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.32)) calc(var(--sheet-radius) - 4.5px), oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.72)) calc(var(--sheet-radius) - 3px), oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 1)) calc(var(--sheet-radius) - 1.8px), oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.85)) calc(var(--sheet-radius) - 0.8px), oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.45)) calc(var(--sheet-radius) - 0px)) 0 0 / var(--sheet-radius) var(--sheet-radius) no-repeat,
+    linear-gradient(90deg, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.45)) 0px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.85)) 0.8px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 1)) 1.8px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.72)) 3px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.32)) 4.5px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.09)) 6px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0)) 7.5px, oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.6)) 9px, transparent 11px) 0 var(--sheet-radius) / 12px calc(100% - 2 * var(--sheet-radius)) no-repeat;
+  /* brightest facing the bulb and soon gone either side of it: a little light round the corner,
+     next to none toward the foot */
+  -webkit-mask: linear-gradient(180deg,
+    rgb(0 0 0 / var(--g-arc-top)) 0px,
+    rgb(0 0 0 / 0.6) var(--sheet-radius),
+    rgb(0 0 0 / 0.3) calc(var(--sheet-radius) + 4%),
+    rgb(0 0 0 / 0.24) calc(var(--lamp-y) - 14%),
+    #000 var(--lamp-y),
+    rgb(0 0 0 / 0.28) calc(var(--lamp-y) + 12%),
+    rgb(0 0 0 / 0.1) calc(var(--lamp-y) + 30%),
+    rgb(0 0 0 / 0.04) 85%,
+    transparent);
+  mask: linear-gradient(180deg,
+    rgb(0 0 0 / var(--g-arc-top)) 0px,
+    rgb(0 0 0 / 0.6) var(--sheet-radius),
+    rgb(0 0 0 / 0.3) calc(var(--sheet-radius) + 4%),
+    rgb(0 0 0 / 0.24) calc(var(--lamp-y) - 14%),
+    #000 var(--lamp-y),
+    rgb(0 0 0 / 0.28) calc(var(--lamp-y) + 12%),
+    rgb(0 0 0 / 0.1) calc(var(--lamp-y) + 30%),
+    rgb(0 0 0 / 0.04) 85%,
+    transparent);
+}
+
+/* The top bevel: the lamp's warmth only where it leaves the corner arc, then the window's cool
+   light along the far part. The mask is the bevel's cross-section (its lit curve, then the
+   darker line), the backgrounds how it changes along the edge. */
+.panel__glass::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: var(--sheet-radius);
+  right: var(--sheet-radius);
+  height: 12px;
+  background:
+    linear-gradient(90deg,
+      oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * var(--g-arc-top))) 0%,
+      oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 0.36)) 18%,
+      oklch(0.84 0.02 160 / calc(var(--g-bevel-top) * 0.3)) 38%,
+      oklch(var(--g-cool) / calc(var(--g-bevel-top) * 0.42)) 60%,
+      oklch(var(--g-cool) / calc(var(--g-bevel-top) * 0.55)) 82%,
+      oklch(var(--g-cool) / calc(var(--g-bevel-top) * 0.2)) 100%) 0 0 / 100% 7.5px no-repeat,
+    linear-gradient(90deg,
+      oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.55)) 0%,
+      oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.4)) 40%,
+      oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.32)) 100%) 0 7.5px / 100% 3.5px no-repeat;
+  -webkit-mask:
+    linear-gradient(180deg, rgb(0 0 0 / 0.45) 0px, rgb(0 0 0 / 0.85) 0.8px, #000 1.8px, rgb(0 0 0 / 0.72) 3px, rgb(0 0 0 / 0.32) 4.5px, rgb(0 0 0 / 0.09) 6px, transparent 7.5px),
+    linear-gradient(180deg, transparent 7.5px, #000 9px, transparent 11px);
+  mask:
+    linear-gradient(180deg, rgb(0 0 0 / 0.45) 0px, rgb(0 0 0 / 0.85) 0.8px, #000 1.8px, rgb(0 0 0 / 0.72) 3px, rgb(0 0 0 / 0.32) 4.5px, rgb(0 0 0 / 0.09) 6px, transparent 7.5px),
+    linear-gradient(180deg, transparent 7.5px, #000 9px, transparent 11px);
+}
+
+/* The edge: light caught inside the slab. A 1px ring above the contents. */
+.panel__sheet::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  padding: 1px;
+  border-radius: inherit;
+  pointer-events: none;
+  background:
+    radial-gradient(2.5% 5% at 0 var(--lamp-y), oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 1)) 0%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.904)) 16.7%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.668)) 33.3%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.399)) 50%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.187)) 66.7%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.06)) 83.3%, transparent),
+    radial-gradient(6% 14% at 0 var(--lamp-y), oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 1)) 0%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.916)) 16.7%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.702)) 33.3%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.445)) 50%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.225)) 66.7%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.079)) 83.3%, transparent),
+    radial-gradient(60% 85% at 0 var(--lamp-y), oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 1)) 0%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.927)) 16.7%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.736)) 33.3%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.494)) 50%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.269)) 66.7%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.103)) 83.3%, transparent),
+    radial-gradient(50% 16% at 0 0, oklch(0.9 0.08 72 / calc(var(--g-rim-corner) * 1)) 0%, oklch(0.9 0.08 72 / calc(var(--g-rim-corner) * 0.916)) 16.7%, oklch(0.9 0.08 72 / calc(var(--g-rim-corner) * 0.702)) 33.3%, oklch(0.9 0.08 72 / calc(var(--g-rim-corner) * 0.445)) 50%, oklch(0.9 0.08 72 / calc(var(--g-rim-corner) * 0.225)) 66.7%, oklch(0.9 0.08 72 / calc(var(--g-rim-corner) * 0.079)) 83.3%, transparent),
+    radial-gradient(18% 24% at 100% 0, oklch(var(--g-cool) / calc(var(--g-rim-cool) * 1)) 0%, oklch(var(--g-cool) / calc(var(--g-rim-cool) * 0.916)) 16.7%, oklch(var(--g-cool) / calc(var(--g-rim-cool) * 0.702)) 33.3%, oklch(var(--g-cool) / calc(var(--g-rim-cool) * 0.445)) 50%, oklch(var(--g-cool) / calc(var(--g-rim-cool) * 0.225)) 66.7%, oklch(var(--g-cool) / calc(var(--g-rim-cool) * 0.079)) 83.3%, transparent),
+    /* the far edge: the window's light caught in it again lower down, so the line comes and goes */
+    radial-gradient(6% 20% at 100% 64%, oklch(var(--g-cool) / calc(var(--g-rim-far) * 1)) 0%, oklch(var(--g-cool) / calc(var(--g-rim-far) * 0.916)) 16.7%, oklch(var(--g-cool) / calc(var(--g-rim-far) * 0.702)) 33.3%, oklch(var(--g-cool) / calc(var(--g-rim-far) * 0.445)) 50%, oklch(var(--g-cool) / calc(var(--g-rim-far) * 0.225)) 66.7%, oklch(var(--g-cool) / calc(var(--g-rim-far) * 0.079)) 83.3%, transparent),
+    linear-gradient(oklch(0.9 0.02 70 / var(--g-rim-base)) 0 0);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+}
+
+/* Phones: the lamp is above the sheet, so its light comes down onto the top edge at the bulb's x,
+   both sides are in shade, and the room shows in the top of the face. */
+@media (max-width: 639px) {
+  .panel {
+    --g-bevel-side: 0.07;
+    --g-bevel-top: 0.11;
+    --g-bevel-corner: 0.06;
+    --g-refl: 0.24;
+    --g-rim-wide: 0.02;
+    --g-spec: 0.28;
+    --g-streak: 0.08;
+  }
+
+  .panel__sheet {
+    background:
+      var(--fibre),
+      radial-gradient(45% 12% at var(--lamp-x) 0, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 1)) 0%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.904)) 16.7%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.668)) 33.3%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.399)) 50%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.187)) 66.7%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.06)) 83.3%, transparent),
+      radial-gradient(100% 38% at var(--lamp-x) 0, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 1)) 0%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.916)) 16.7%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.702)) 33.3%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.445)) 50%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.225)) 66.7%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.079)) 83.3%, transparent),
+      linear-gradient(180deg, transparent 40%, oklch(0.08 0.01 45 / 0.18)),
+      url('/media/panel/smoke.webp') 0 0 / 700px 700px,
+      linear-gradient(175deg, var(--g-top), var(--g-bottom));
+    box-shadow:
+      inset 14px 0 26px -18px var(--g-shade),
+      inset -14px 0 26px -18px var(--g-shade),
+      inset 0 -26px 40px -22px var(--g-shade-foot),
+      inset 0 0 0 2px var(--g-thick),
+      inset 2px 0 0 0 var(--g-thick-far),
+      inset -2px 0 0 0 var(--g-thick-far),
+      0 -1px 2px oklch(0.05 0.01 45 / 0.35),
+      0 -16px 40px -18px oklch(0.05 0.01 45 / 0.55);
+  }
+
+  .panel__sheen {
+    height: 25%;
+    opacity: 0.7;
+  }
+
+  .panel__sheet::before {
+    background: var(--glass-top) var(--refl-x) var(--refl-y) / var(--refl-w) calc(var(--refl-h) * 0.6) no-repeat;
+    -webkit-mask: linear-gradient(180deg, rgb(0 0 0 / 1) 0%, rgb(0 0 0 / 0.74) 1.5%, rgb(0 0 0 / 0.46) 3%, rgb(0 0 0 / 0.22) 5%, rgb(0 0 0 / 0.08) 7.5%, rgb(0 0 0 / 0.02) 10.5%, rgb(0 0 0 / 0) 14%);
+    mask: linear-gradient(180deg, rgb(0 0 0 / 1) 0%, rgb(0 0 0 / 0.74) 1.5%, rgb(0 0 0 / 0.46) 3%, rgb(0 0 0 / 0.22) 5%, rgb(0 0 0 / 0.08) 7.5%, rgb(0 0 0 / 0.02) 10.5%, rgb(0 0 0 / 0) 14%);
+  }
+
+  .panel__glass {
+    background:
+      radial-gradient(7px 7px at 8px 8px, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.2 * 1)) 0%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.2 * 0.916)) 16.7%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.2 * 0.702)) 33.3%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.2 * 0.445)) 50%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.2 * 0.225)) 66.7%, oklch(0.9 0.05 72 / calc(var(--g-glint) * 0.2 * 0.079)) 83.3%, transparent),
+      radial-gradient(7px 7px at calc(100% - 8px) 8px, oklch(var(--g-cool) / calc(var(--g-glint) * 0.1 * 1)) 0%, oklch(var(--g-cool) / calc(var(--g-glint) * 0.1 * 0.916)) 16.7%, oklch(var(--g-cool) / calc(var(--g-glint) * 0.1 * 0.702)) 33.3%, oklch(var(--g-cool) / calc(var(--g-glint) * 0.1 * 0.445)) 50%, oklch(var(--g-cool) / calc(var(--g-glint) * 0.1 * 0.225)) 66.7%, oklch(var(--g-cool) / calc(var(--g-glint) * 0.1 * 0.079)) 83.3%, transparent),
+      radial-gradient(circle at 100% 100%, transparent calc(var(--sheet-radius) - 11px), oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.55)) calc(var(--sheet-radius) - 9px), transparent calc(var(--sheet-radius) - 7.5px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.09)) calc(var(--sheet-radius) - 6px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.32)) calc(var(--sheet-radius) - 4.5px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.72)) calc(var(--sheet-radius) - 3px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 1)) calc(var(--sheet-radius) - 1.8px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.85)) calc(var(--sheet-radius) - 0.8px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.45)) calc(var(--sheet-radius) - 0px)) 0 0 / var(--sheet-radius) var(--sheet-radius) no-repeat,
+      radial-gradient(circle at 0 100%, transparent calc(var(--sheet-radius) - 11px), oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.55)) calc(var(--sheet-radius) - 9px), transparent calc(var(--sheet-radius) - 7.5px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.09)) calc(var(--sheet-radius) - 6px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.32)) calc(var(--sheet-radius) - 4.5px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.72)) calc(var(--sheet-radius) - 3px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 1)) calc(var(--sheet-radius) - 1.8px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.85)) calc(var(--sheet-radius) - 0.8px), oklch(0.9 0.045 74 / calc(var(--g-bevel-corner) * 0.45)) calc(var(--sheet-radius) - 0px)) 100% 0 / var(--sheet-radius) var(--sheet-radius) no-repeat;
+  }
+
+  /* the top bevel carries the lamp */
+  .panel__glass::before {
+    top: 0;
+    bottom: auto;
+    left: var(--sheet-radius);
+    right: var(--sheet-radius);
+    width: auto;
+    height: 12px;
+    padding: 0;
+    background:
+      radial-gradient(3.5% 2.5px at var(--lamp-x) 2.5px, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 1)) 0%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.893)) 16.7%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.634)) 33.3%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.356)) 50%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.154)) 66.7%, oklch(0.92 0.015 78 / calc(var(--g-spec) * var(--lamp-near) * 0.045)) 83.3%, transparent),
+      radial-gradient(14% 5px at var(--lamp-x) 3px, oklch(0.9 0.035 74 / calc(var(--g-streak) * var(--lamp-near) * 1)) 0%, oklch(0.9 0.035 74 / calc(var(--g-streak) * var(--lamp-near) * 0.904)) 16.7%, oklch(0.9 0.035 74 / calc(var(--g-streak) * var(--lamp-near) * 0.668)) 33.3%, oklch(0.9 0.035 74 / calc(var(--g-streak) * var(--lamp-near) * 0.399)) 50%, oklch(0.9 0.035 74 / calc(var(--g-streak) * var(--lamp-near) * 0.187)) 66.7%, oklch(0.9 0.035 74 / calc(var(--g-streak) * var(--lamp-near) * 0.06)) 83.3%, transparent),
+      linear-gradient(180deg, oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 0.45)) 0px, oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 0.85)) 0.8px, oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 1)) 1.8px, oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 0.72)) 3px, oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 0.32)) 4.5px, oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 0.09)) 6px, oklch(0.9 0.045 74 / calc(var(--g-bevel-top) * 0)) 7.5px, oklch(0.1 0.012 45 / var(--g-groove)) 9px, transparent 11px);
+    -webkit-mask: linear-gradient(90deg,
+      rgb(0 0 0 / calc(var(--g-bevel-corner) / var(--g-bevel-top))),
+      rgb(0 0 0 / 0.7) calc(var(--lamp-x) - 30%),
+      #000 var(--lamp-x),
+      rgb(0 0 0 / 0.7) calc(var(--lamp-x) + 30%),
+      rgb(0 0 0 / calc(var(--g-bevel-corner) / var(--g-bevel-top))));
+    mask: linear-gradient(90deg,
+      rgb(0 0 0 / calc(var(--g-bevel-corner) / var(--g-bevel-top))),
+      rgb(0 0 0 / 0.7) calc(var(--lamp-x) - 30%),
+      #000 var(--lamp-x),
+      rgb(0 0 0 / 0.7) calc(var(--lamp-x) + 30%),
+      rgb(0 0 0 / calc(var(--g-bevel-corner) / var(--g-bevel-top))));
+  }
+
+  /* the sides, in shade: their curves fade out a little way down */
+  .panel__glass::after {
+    top: var(--sheet-radius);
+    bottom: var(--sheet-radius);
+    left: 0;
+    right: 0;
+    height: auto;
+    background:
+      linear-gradient(90deg, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.45)) 0px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.85)) 0.8px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 1)) 1.8px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.72)) 3px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.32)) 4.5px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.09)) 6px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0)) 7.5px, oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.6)) 9px, transparent 11px) 0 0 / 12px 100% no-repeat,
+      linear-gradient(270deg, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.45)) 0px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.85)) 0.8px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 1)) 1.8px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.72)) 3px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.32)) 4.5px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0.09)) 6px, oklch(0.9 0.045 74 / calc(var(--g-bevel-side) * 0)) 7.5px, oklch(0.1 0.012 45 / calc(var(--g-groove) * 0.6)) 9px, transparent 11px) 100% 0 / 12px 100% no-repeat;
+    -webkit-mask: linear-gradient(180deg,
+      rgb(0 0 0 / calc(var(--g-bevel-corner) / var(--g-bevel-side))), rgb(0 0 0 / 0.3) 6%, transparent 40%);
+    mask: linear-gradient(180deg,
+      rgb(0 0 0 / calc(var(--g-bevel-corner) / var(--g-bevel-side))), rgb(0 0 0 / 0.3) 6%, transparent 40%);
+  }
+
+  .panel__sheet::after {
+    background:
+      radial-gradient(6% 2.5% at var(--lamp-x) 0, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 1)) 0%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.904)) 16.7%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.668)) 33.3%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.399)) 50%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.187)) 66.7%, oklch(0.92 0.015 75 / calc(var(--g-rim-hot) * var(--lamp-near) * 0.06)) 83.3%, transparent),
+      radial-gradient(21% 5.4% at var(--lamp-x) 0, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 1)) 0%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.916)) 16.7%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.702)) 33.3%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.445)) 50%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.225)) 66.7%, oklch(0.9 0.04 72 / calc(var(--g-rim-warm) * var(--lamp-near) * 0.079)) 83.3%, transparent),
+      radial-gradient(110% 30% at var(--lamp-x) 0, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 1)) 0%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.927)) 16.7%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.736)) 33.3%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.494)) 50%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.269)) 66.7%, oklch(0.9 0.08 72 / calc(var(--g-rim-wide) * 0.103)) 83.3%, transparent),
+      linear-gradient(oklch(0.9 0.02 70 / var(--g-rim-base)) 0 0);
+  }
+}
+
+/* Forced colours: no painted light, just the system's plain surface. */
+@media (forced-colors: active) {
+  .panel__sheet::before,
+  .panel__sheet::after,
+  .panel__sheen,
+  .panel__glass {
+    display: none;
+  }
+}
+/* @glass-end */
 
 .panel :focus-visible {
   outline-color: var(--spot-ink);
@@ -510,13 +891,9 @@ html:has(.panel[open]) {
     height: calc(100dvh - 3.5rem - var(--sheet-gap));
   }
 
-  /* A sheet that rises from below: the same smoke, its rim lit along the top, shadow cast upward. */
+  /* A sheet that rises from below (its glass, lit from the top edge, is in the Glass part). */
   .panel__sheet {
     transform: translateY(105%);
-    box-shadow:
-      inset 0 1px 0.5px oklch(1 0 0 / 0.16),
-      0 -1px 2px oklch(0.06 0.01 45 / 0.24),
-      0 -16px 40px -18px oklch(0.06 0.01 45 / 0.5);
   }
 
   .panel__bar {

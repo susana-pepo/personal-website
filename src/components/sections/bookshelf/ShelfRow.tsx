@@ -2,11 +2,13 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { clamp, layoutShelf, shelfRows, type PlacedBook, type Slot } from '../../../content/bookGeometry'
 import type { Book, Shelf } from '../../../content/types'
 import { transitionMs } from '../../../lib/motion'
+import { useMediaQuery } from '../../../hooks/useMediaQuery'
 import { BookCover } from '../books/BookCover'
 import { BookDetail } from './BookDetail'
 import { BookSpine } from '../books/BookSpine'
 import { ShelfObjectArt } from './ShelfObjects'
 import { ShelfBoard } from '../books/ShelfBoard'
+import { DESKTOP_QUERY, remPx, shelfLayout } from './layout'
 
 /** Stable identity for a book, used for the open state and to return focus. */
 export const bookKey = (book: Book) => `${book.shelf}:${book.title}|${book.author}`
@@ -18,11 +20,6 @@ const OPEN_FALLBACK_MS = 460
 /** A frame to spare after the drawer stops. */
 const SPARE_MS = 20
 
-/** At or below this width (bookshelf.css's `shelves` and `bs-detail` containers, max-width 30rem,
-    which is inclusive) a pile lies on a board of its own. In rem, as the CSS is, so the two still
-    agree when the reader has set a larger or smaller default text size. */
-const NARROW_REM = 30
-const remPx = () => parseFloat(getComputedStyle(document.documentElement).fontSize) || 16
 
 const vars = (v: Record<string, string | number>) => v as CSSProperties
 const units = (n: number) => `calc(${n} * var(--u))`
@@ -55,19 +52,22 @@ export function ShelfRow({ shelf, books, openKey, onToggle, onPutBack, idBase, r
 
   const drawerRef = useRef<HTMLDivElement>(null)
 
-  // Narrow or not, measured before the first paint so the shelf never jumps between layouts.
+  // Narrow or not (at or below 30rem, matching bookshelf.css's `shelves` and `bs-detail` containers,
+  // which are inclusive; never on a desktop window, whose panel column can be that narrow too),
+  // measured before the first paint so the shelf never jumps between layouts.
   const sectionRef = useRef<HTMLElement>(null)
+  const desktop = useMediaQuery(DESKTOP_QUERY)
   const [narrow, setNarrow] = useState(false)
   useLayoutEffect(() => {
     const el = sectionRef.current
     if (!el) return
-    const update = () => setNarrow(el.clientWidth > 0 && el.clientWidth <= NARROW_REM * remPx())
+    const update = () => setNarrow(shelfLayout(el.clientWidth, remPx(), desktop).narrow)
     update()
     if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(update)
     observer.observe(el)
     return () => observer.disconnect()
-  }, [])
+  }, [desktop])
   const rows = useMemo(() => shelfRows(slots, narrow), [slots, narrow])
 
   // Keep the last book in the drawer while it closes.

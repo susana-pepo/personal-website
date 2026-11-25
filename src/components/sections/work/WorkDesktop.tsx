@@ -9,7 +9,8 @@ import {
 } from 'react'
 import type { WorkProject } from '../../../content/types'
 import { cssToken, prefersReducedMotion } from '../../../lib/motion'
-import { MOVE, WHEEL_GESTURE_GAP, placeOver, rowIndexForKey, wheelGoesToPage, type Box } from './desktop'
+import { ROOM_ANCHORED_FROM } from '../../SectionPanel/panelGeometry'
+import { MOVE, WHEEL_GESTURE_GAP, fitScreenHeight, placeOver, rowIndexForKey, wheelGoesToPage, type Box } from './desktop'
 import { ProjectPage, projectRowId } from './ProjectPage'
 import { TabletFrame } from './TabletFrame'
 import { WorkThumb } from './thumbs/WorkThumb'
@@ -30,6 +31,22 @@ function scrollParent(el: Element): HTMLElement | null {
     if ((overflowY === 'auto' || overflowY === 'scroll') && node.scrollHeight > node.clientHeight) return node
   }
   return document.scrollingElement as HTMLElement | null
+}
+
+/** The nearest box around `el` that is set to scroll up and down, whether or not it overflows yet. */
+function scrollBox(el: Element): HTMLElement | null {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node)
+    if (overflowY === 'auto' || overflowY === 'scroll') return node
+  }
+  return null
+}
+
+/** An element's top in the layout, unmoved by transforms or scrolling (the panel may be mid-entrance). */
+function layoutTop(el: HTMLElement): number {
+  let top = 0
+  for (let node: HTMLElement | null = el; node; node = node.offsetParent as HTMLElement | null) top += node.offsetTop
+  return top
 }
 
 const boxOf = (el: Element | null | undefined): Box | null => {
@@ -245,6 +262,41 @@ export function WorkDesktop({ label, projects }: WorkDesktopProps) {
     // Only a change of phase starts a move.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
+
+  // On a desktop the screen is as tall as the panel's first view allows (see fitScreenHeight); the
+  // rows then take half of it each. Below that width the screen keeps its own proportions.
+  useLayoutEffect(() => {
+    const root = rootRef.current
+    const pad = root?.closest<HTMLElement>('.pad')
+    const screen = root?.parentElement
+    const section = pad?.parentElement
+    const view = root && scrollBox(root)
+    if (!root || !pad || !screen || !section || !view) return
+    const wide = window.matchMedia(`(min-width: ${ROOM_ANCHORED_FROM}px)`)
+    const fit = () => {
+      if (!wide.matches) {
+        root.style.removeProperty('--fit-h')
+        return
+      }
+      const height = fitScreenHeight({
+        view: view.clientHeight,
+        above: layoutTop(pad) - layoutTop(view),
+        frame: pad.offsetHeight - screen.offsetHeight,
+        breath: parseFloat(getComputedStyle(section).rowGap) || 0,
+      })
+      root.style.setProperty('--fit-h', `${height}px`)
+    }
+    fit()
+    // The view changes with the window; what sits above the tablet changes as its text wraps.
+    const watch = new ResizeObserver(fit)
+    watch.observe(view)
+    for (const el of Array.from(section.children)) if (el !== pad) watch.observe(el)
+    wide.addEventListener('change', fit)
+    return () => {
+      watch.disconnect()
+      wide.removeEventListener('change', fit)
+    }
+  }, [])
 
   // A move still running when the tablet leaves is let go.
   useEffect(() => stop, [])

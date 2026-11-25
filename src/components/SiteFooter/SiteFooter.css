@@ -1,27 +1,41 @@
 /*
- * Beneath the room: the player centred on the room's centre line (three
- * columns, the outer two equal), the copyright small and faint at the right.
+ * Beneath the room: the player at the room's left corner, the copyright small and faint at the
+ * right.
  * The player shares its glass surface with the masthead's scene control (the
  * same --glass-* tokens; also used by the first-visit cue).
  */
 .credits {
-  --glass-fill: linear-gradient(150deg, oklch(1 0 0 / 0.11), oklch(1 0 0 / 0.035) 55%, oklch(1 0 0 / 0.06));
+  --glass-fill: linear-gradient(
+    150deg,
+    oklch(1 0 0 / 0.11),
+    oklch(1 0 0 / 0.035) 55%,
+    oklch(1 0 0 / 0.06)
+  );
   --glass-blur: blur(22px) saturate(170%);
   --glass-shadow:
     inset 0 1px 0.5px oklch(1 0 0 / 0.32),
     inset 0 -1px 0.5px oklch(1 0 0 / 0.07),
     0 14px 34px -14px oklch(0.05 0.01 45 / 0.85),
     0 2px 6px -2px oklch(0.05 0.01 45 / 0.5);
-  --glass-rim: linear-gradient(140deg, oklch(1 0 0 / 0.55), oklch(1 0 0 / 0.08) 38%, oklch(1 0 0 / 0.04) 62%, oklch(1 0 0 / 0.28));
+  --glass-rim: linear-gradient(
+    140deg,
+    oklch(1 0 0 / 0.55),
+    oklch(1 0 0 / 0.08) 38%,
+    oklch(1 0 0 / 0.04) 62%,
+    oklch(1 0 0 / 0.28)
+  );
   position: relative;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
-  grid-template-areas: '. player copy';
+  /* The player sits under the room's left corner, so the space under its right side is free
+     for the section panel, which floats beside the room and reaches past it. */
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: "player . copy";
   align-items: center;
   column-gap: var(--space-lg);
   min-height: var(--footer-h, 5.75rem);
   /* above it, the breathing space after the room (--hero-gap, App.css) */
-  padding: var(--hero-gap, 1.25rem) 0 calc(var(--space-sm) + env(safe-area-inset-bottom));
+  padding: var(--hero-gap, 1.25rem) 0
+    calc(var(--space-sm) + env(safe-area-inset-bottom));
 }
 
 /* secondary: small and faint */
@@ -38,13 +52,24 @@
 /* ── Player: a low, wide control bar in liquid glass ── */
 /* A lighter pane than the shared glass: less tint, a softer rim and shadow, so it sits with the room. */
 .player {
-  --glass-fill: linear-gradient(150deg, oklch(1 0 0 / 0.085), oklch(1 0 0 / 0.025) 55%, oklch(1 0 0 / 0.045));
+  --glass-fill: linear-gradient(
+    150deg,
+    oklch(1 0 0 / 0.085),
+    oklch(1 0 0 / 0.025) 55%,
+    oklch(1 0 0 / 0.045)
+  );
   --glass-shadow:
     inset 0 1px 0.5px oklch(1 0 0 / 0.24),
     inset 0 -1px 0.5px oklch(1 0 0 / 0.05),
     0 12px 30px -16px oklch(0.05 0.01 45 / 0.6),
     0 2px 6px -3px oklch(0.05 0.01 45 / 0.32);
-  --glass-rim: linear-gradient(140deg, oklch(1 0 0 / 0.4), oklch(1 0 0 / 0.06) 38%, oklch(1 0 0 / 0.03) 62%, oklch(1 0 0 / 0.2));
+  --glass-rim: linear-gradient(
+    140deg,
+    oklch(1 0 0 / 0.4),
+    oklch(1 0 0 / 0.06) 38%,
+    oklch(1 0 0 / 0.03) 62%,
+    oklch(1 0 0 / 0.2)
+  );
   --widget-h: 3.875rem;
   --widget-pad: 0.5rem;
   --widget-radius: 1.125rem;
@@ -54,9 +79,9 @@
   grid-template-columns: auto minmax(0, 1fr) auto;
   grid-template-rows: auto auto auto;
   grid-template-areas:
-    'art title buttons'
-    'art meta buttons'
-    'art bar buttons';
+    "art title buttons"
+    "art meta buttons"
+    "art bar buttons";
   align-content: center;
   align-items: center;
   column-gap: 0.75rem;
@@ -96,7 +121,7 @@
 
 /* A liquid rim: brighter where the light catches the top-left edge, fading round the curve. */
 .player::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -113,7 +138,7 @@
 
 /* …and a soft specular bloom across the upper half. */
 .player::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   z-index: -1;
@@ -374,13 +399,13 @@ a.player__title:hover {
   transform: scale(0.94);
 }
 
-.player__tool[aria-pressed='true'],
-.player__tool[aria-expanded='true'] {
+.player__tool[aria-pressed="true"],
+.player__tool[aria-expanded="true"] {
   color: var(--on-sleeve);
   background: oklch(1 0 0 / 0.1);
 }
 
-.player__tool[aria-pressed='false'] {
+.player__tool[aria-pressed="false"] {
   color: var(--on-sleeve-3);
 }
 
@@ -475,7 +500,7 @@ a.player__title:hover {
 }
 
 .sound::before {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   z-index: 2;
@@ -582,7 +607,7 @@ a.player__title:hover {
 
 /* The chosen station: a small dot in the site's one spot colour. */
 .sound__station[data-chosen] .sound__icon::after {
-  content: '';
+  content: "";
   position: absolute;
   top: 3px;
   right: 3px;
@@ -731,13 +756,21 @@ a.player__title:hover {
 .sound__level input::-webkit-slider-runnable-track {
   height: 3px;
   border-radius: 2px;
-  background: linear-gradient(to right, var(--on-sleeve) calc(var(--level, 0) * 100%), oklch(1 0 0 / 0.16) 0);
+  background: linear-gradient(
+    to right,
+    var(--on-sleeve) calc(var(--level, 0) * 100%),
+    oklch(1 0 0 / 0.16) 0
+  );
 }
 
 .sound__level input::-moz-range-track {
   height: 3px;
   border-radius: 2px;
-  background: linear-gradient(to right, var(--on-sleeve) calc(var(--level, 0) * 100%), oklch(1 0 0 / 0.16) 0);
+  background: linear-gradient(
+    to right,
+    var(--on-sleeve) calc(var(--level, 0) * 100%),
+    oklch(1 0 0 / 0.16) 0
+  );
 }
 
 .sound__level input::-webkit-slider-thumb {
@@ -792,7 +825,9 @@ a.player__title:hover {
 }
 
 /* Without backdrop blur, a slightly denser pane keeps the text readable. */
-@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+@supports not (
+  (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
   .player {
     background: oklch(0.24 0.012 50 / 0.92);
   }
@@ -906,7 +941,7 @@ a.player__title:hover {
 
   .player__tool::after,
   .player__button::after {
-    content: '';
+    content: "";
     position: absolute;
     inset: -8px;
     border-radius: 50%;
@@ -922,12 +957,13 @@ a.player__title:hover {
   .credits {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
-      'player'
-      'copy';
+      "player"
+      "copy";
     row-gap: var(--space-md);
     /* the copyright line stays clear of the home indicator */
     /* the same side margin as the room (App.css), so the player lines up under it */
-    padding: var(--space-md) 0.75rem calc(var(--space-lg) + env(safe-area-inset-bottom));
+    padding: var(--space-md) 0.75rem
+      calc(var(--space-lg) + env(safe-area-inset-bottom));
   }
 
   /* as wide as the room above it, edge to edge */

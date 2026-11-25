@@ -55,5 +55,6 @@
 }
 
 .scene:has(.weather-sky[data-on]) .window-view {
-  filter: url('#rainy-day');
+  /* brightness(--sky-nudge) is ~1: WeatherSky nudges it while fading, so the filter is redrawn */
+  filter: url('#rainy-day') brightness(var(--sky-nudge, 1));
 }
