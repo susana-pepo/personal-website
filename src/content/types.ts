@@ -346,7 +346,7 @@ export interface SiteContent {
     /** The orange light: the loop's play/pause. */
     playLoop: string
     pauseLoop: string
-    /** The loop's credit, under the piano: "Loop “Title” by Kevin MacLeod (incompetech.com), CC BY 4.0". */
+    /** The loop's credit, under the piano: "Loop “Title” by Musician (Mixkit, Mixkit License)". */
     loopCredit: string
     by: string
   }

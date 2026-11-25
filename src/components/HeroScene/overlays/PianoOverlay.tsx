@@ -974,16 +974,17 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
           <p id="piano-how-to" className="piano-close__how">
             {content.piano.howTo}
           </p>
-          {/* the loop's credit, as its licence asks: the song, its composer, where it's from, the licence */}
+          {/* the loop's credit (its licence doesn't ask for one, but its musician deserves it): the track, who made it, where it's from */}
           <p className="piano-close__credit">
-            {content.piano.loopCredit} “{LOOPS[knobs.loop]?.name}” {content.piano.by} {LOOP_SOURCE.name} (
+            {content.piano.loopCredit} “{LOOPS[knobs.loop]?.name}” {content.piano.by} {LOOPS[knobs.loop]?.artist} (
             <a href={LOOP_SOURCE.url} target="_blank" rel="noreferrer">
-              incompetech.com
+              {LOOP_SOURCE.name}
             </a>
-            ),{' '}
+            ,{' '}
             <a href={LOOP_SOURCE.licenceUrl} target="_blank" rel="noreferrer">
               {LOOP_SOURCE.licence}
             </a>
+            )
           </p>
         </div>
       )}

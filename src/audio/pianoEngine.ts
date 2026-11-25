@@ -22,7 +22,7 @@ import type { Piano } from '../scene/piano'
 import { purrStop } from './purr'
 import { roomRadio } from './radio'
 import {
-  FIGURES, INSTRUMENTS, LANDSCAPES, LOOPS, LOOP_STEPS, TONES, loopInterval, loopStep, midiOf, stepSeconds,
+  FIGURES, INSTRUMENTS, LANDSCAPES, LOOPS, TONES, loopInterval, loopStep, loopSteps, midiOf, stepSeconds,
   type Ambience, type BackingLoop, type Instrument, type LoopStep,
 } from '../scene/pianoMusic'
 
@@ -66,10 +66,12 @@ let fx: { bus: ToneLib.Gain; dry: ToneLib.Gain; wet: ToneLib.Gain; echoSend: Ton
 const samplers: Partial<Record<Instrument, { sampler: ToneLib.Sampler; panner: ToneLib.Panner }>> = {}
 let samplesReady = false
 let keysGain: ToneLib.Gain | null = null // the recorded instruments of the keys go here (the pads: padBus)
-// The two brass knobs: how loud the loop is, and how loud the keys are (0-1).
-let loopVolume = 0.7
+// The two brass knobs: how loud the loop is, and how loud the keys are (0-1). The loops are
+// mastered quieter than the keys sound (about -18 dBFS), so the loop's knob reaches higher: at its
+// default it sits just under the keys, a band you play with rather than a radio in another room.
+let loopVolume = 0.85
 let keysVolume = 0.8
-const loopLevel = () => loopVolume ** 2 * 2
+const loopLevel = () => loopVolume ** 2 * 3
 const keysLevel = () => keysVolume ** 2 * 1.5
 
 const allVoices: Voice[] = []
@@ -118,7 +120,14 @@ function withTone(lib: typeof ToneLib) {
   if (T || !ctx || !padBus || !out) return
   T = lib
   T.setContext(ctx)
-  const limiter = new T.Limiter(-8).toDestination()
+  // The end of the chain: a limiter for the loudest moments of the loop and the keys together, then a
+  // soft clipper for the note attacks that are too quick for it (straight up to 0.7, then rounding
+  // off towards 1, so nothing ever clips).
+  const safety = new T.WaveShaper((x) => {
+    const m = Math.abs(x)
+    return m <= 0.7 ? x : Math.sign(x) * (0.7 + 0.3 * Math.tanh((m - 0.7) / 0.3))
+  }, 4096).toDestination()
+  const limiter = new T.Limiter(-6).connect(safety)
   const post = new T.Gain(VOLUME).connect(limiter)
   const bus = new T.Gain(1)
   const dry = new T.Gain(0.85).connect(post)
@@ -313,7 +322,8 @@ function step(time: number) {
   if (backing.on && backing.deck && stepN >= backing.from) {
     const L = backing.deck.loop
     const k = stepN - backing.from
-    const chordAt = (step: number) => L.chords[Math.floor((((step % LOOP_STEPS) + LOOP_STEPS) % LOOP_STEPS) / 16)] ?? null
+    const n = loopSteps(L)
+    const chordAt = (step: number) => L.chords[Math.floor((((step % n) + n) % n) / 16)] ?? null
     // (and the chord coming up an eighth from now: players anticipate a change)
     tick = { at, k, sec: stepSeconds(L), chord: chordAt(k), soon: chordAt(k + 2), scale: ((L.transpose % 12) + 12) % 12 }
   } else tick = null

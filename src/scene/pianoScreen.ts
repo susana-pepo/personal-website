@@ -123,6 +123,17 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
       put(x, y - r, c, k)
     }
   }
+  /** Light falling on the picture: it adds, and catches what is already lit more than the dark (so it reads as light, not paint). */
+  function light(x: number, y: number, c: Rgb, k: number) {
+    const xi = Math.round(x)
+    const yi = Math.round(y)
+    if (!(k > 0.002) || xi < 0 || yi < 0 || xi >= W || yi >= H) return
+    const i = (yi * W + xi) * 3
+    const q = k * (0.45 + 0.9 * (0.3 * get(i) + 0.59 * get(i + 1) + 0.11 * get(i + 2)))
+    px[i] = Math.min(1, get(i) + c[0] * q)
+    px[i + 1] = Math.min(1, get(i + 1) + c[1] * q)
+    px[i + 2] = Math.min(1, get(i + 2) + c[2] * q)
+  }
   function line(x0: number, y0: number, x1: number, y1: number, c: Rgb, a: number) {
     const n = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0)) | 0
     for (let i = 0; i <= n; i += 2) put(x0 + ((x1 - x0) * i) / n, y0 + ((y1 - y0) * i) / n, c, a)
@@ -139,8 +150,9 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
   }
   const centred = (str: string, scale = 1) => Math.round((W - textWidth(str) * scale) / 2)
   const starField = (n: number, maxY: number) => Array.from({ length: n }, () => ({ x: Math.round(rnd(0, W)), y: Math.round(rnd(1, maxY)), tw: rnd(0, 6.3), s: rnd(0.15, 0.45) }))
-  function starDust(field: ReturnType<typeof starField>, _t: number, k: number) {
-    for (const d of field) put(d.x, d.y, MOON, d.s * k * (reduce ? 1 : 0.6 + 0.4 * Math.sin(amb * 1.7 + d.tw)) * (1 - Math.max(dawn, daybreak) * 0.8))
+  function starDust(field: ReturnType<typeof starField>, t: number, k: number) {
+    const sn = reduce ? 0 : Math.exp(-Math.max(0, t - snareAt) / 0.18) // (the snare makes them flicker)
+    for (const d of field) put(d.x, d.y, MOON, d.s * k * (reduce ? 1 : 0.6 + 0.4 * Math.sin(amb * 1.7 + d.tw)) * (1 + sn * (0.5 + 0.5 * Math.sin(d.tw * 7))) * (1 - Math.max(dawn, daybreak) * 0.8))
   }
 
   // ── the painted layers, decoded once ──
@@ -291,7 +303,9 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
       for (let y = Math.max(0, HZ - 12); y < HZ; y++) for (let x = 0; x < W; x++) put(x, y, chord ?? tint, kk * 0.13 * k * (1 - (HZ - y) / 12))
   }
   const amp = (vc: Voice, t: number) => {
-    const att = ease((t - vc.start) / 0.4)
+    // a note's things arrive with it: in at once (70 ms), brightest at the strike, then settling
+    const since = Math.max(0, t - vc.start)
+    const att = ease(since / 0.07) * (1 + (reduce ? 0 : 0.5 * Math.exp(-since / 0.3)))
     return vc.released !== null && t > vc.released ? att * Math.exp(-(t - vc.released) / vc.tau) : att
   }
   const heldFor = (vc: Voice, t: number) => Math.min(t, vc.released ?? t) - vc.start
@@ -388,7 +402,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
           lanterns.set(vc, { x, y: HZ + 2, dy: HZ + 2, col, top: rnd(32, 48) })
           ripples.push({ x, t0: screenClock(), col })
         } else if (band === 'mid') {
-          clouds.set(vc, { x: x + rnd(-6, 6), y: rnd(22, 36), col, puffs: puffs(), scale: 0.6, drift: rnd(0.4, 1.1) * (Math.random() < 0.5 ? -1 : 1), leaving: 0 })
+          clouds.set(vc, { x: x + rnd(-6, 6), y: rnd(22, 36), col, puffs: puffs(), scale: reduce ? 0.75 : 1.1, drift: rnd(0.4, 1.1) * (Math.random() < 0.5 ? -1 : 1), leaving: 0 })
         } else stars.set(vc, { x: x + rnd(-4, 4), y: rnd(4, 20), col, tw: rnd(0, 6.3) })
       },
       special: (vc) => meteor(noteRgb(vc.key)),
@@ -468,8 +482,8 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
             continue
           }
           if (!reduce) c.x += c.drift * dt * (1 + leaving * 2)
-          c.scale += ((c.leaving ? 1 : 0.75 + 0.35 * ease(heldFor(vc, t) / 3)) - c.scale) * Math.min(1, dt * 1.5)
-          const a = Math.min(1, 1 - leaving / 9) * (c.leaving ? 1 : ease((t - vc.start) / 0.8))
+          c.scale += ((c.leaving ? 1 : 0.75 + 0.35 * ease(heldFor(vc, t) / 3)) - c.scale) * Math.min(1, dt * 3)
+          const a = Math.min(1, 1 - leaving / 9) * (c.leaving ? 1 : ease((t - vc.start) / 0.12))
           const light = [Math.sign(moon.x - c.x) || 1, Math.sign(moon.y - c.y) || -1] as const
           for (const p of c.puffs) {
             const cx = c.x + p.dx * c.scale
@@ -1305,7 +1319,7 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
   // strike: low, middle and high notes each something of their own). A phrase stirs the air: the
   // more you play, the more it gathers, in your notes' colours (a chord note's own colour, another
   // note of the key leaning to the chord, a blue note cooler, an outside note dimmer); when it ends
-  // (two beats of quiet, nothing held) the air moves (scene.settle), and on the next downbeat the
+  // (a beat and a half of quiet, nothing held) the air moves (scene.settle), and on the next beat the
   // landscape answers a phrase of three notes or more with its animal (a heron, a fox, a flock, a
   // whale). When an outside note steps onto a chord note, the tension resolves: the chord's colour
   // sweeps down the sky. The busier the playing, the more life rises from the landscape. ──
@@ -1317,7 +1331,8 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
   let lastTier: Tier = 'chord'
   let lastResolve = -9
   let answerDue: { x: number; y: number; col: Rgb } | null = null
-  let lastAnswerBar = -9
+  let lastAnswerBeat = -9
+  let lastBeatNo = -1
   let lastBar = -1
   let barChord: number | null = null
   const stepOf = (key: string) => Math.max(0, KEYS_BY_PITCH.indexOf(key))
@@ -1336,6 +1351,8 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
   }
   function onNote(vc: Voice, t: number) {
     recent.push(t)
+    strikes.push({ t0: t, x: colOf(vc.key), col: noteRgb(vc.key) })
+    if (strikes.length > 16) strikes.shift()
     lastNoteAt = t
     E.build = Math.min(1, E.build + 0.012)
     const col = noteRgb(vc.key)
@@ -1355,18 +1372,126 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     lastMidi = vc.midi
     lastTier = tier
   }
-  /** A phrase is over (two beats of quiet, nothing held): it settles into the landscape, which answers it. */
+  /** A phrase is over (a beat and a half of quiet, nothing held): it settles into the landscape, which answers it. */
   function endPhrase(t: number) {
     const pts = phrase
     phrase = []
     lastMidi = null
     if (!pts.length) return
     scene.settle(pts, t)
-    // a phrase of three or more that doesn't end outside the key: the landscape answers, on the next downbeat
+    // a phrase of three or more that doesn't end outside the key: the landscape answers, on the next beat
     const last = pts[pts.length - 1]!
     const cx = pts.reduce((a, p) => a + 8 + (p.step / 12) * (W - 16), 0) / pts.length // (low notes on the left, high on the right)
     const cy = pts.reduce((a, p) => a + p.y, 0) / pts.length
     if (pts.length >= 3 && last.tier !== 'outside') answerDue = { x: cx, y: cy, col: last.col }
+  }
+  // ── The moment of a note, the same in every landscape and drawn over it, so the screen moves with
+  // your hands: as a note sounds, the landscape's own light (the moon, the sun, the aurora) flares in
+  // its colour, the sky takes a breath of it, and a ring of light opens on the water, the snow, the
+  // sand or the sea, above the key you played. All of it in at once, and gone in about half a second.
+  // While a loop plays the whole picture breathes a little on its kick. ──
+  const SOURCE: Record<string, { x: number; y: number; r: number; wide?: number }> = {
+    lake: anchor('lake').moon!,
+    peaks: { x: 64, y: 24, r: 0, wide: 46 }, // (no moon there: the aurora's part of the sky)
+    dunes: anchor('dunes').sun ?? { x: 54, y: 56, r: 14 },
+    sea: anchor('sea').moon!,
+  }
+  /** Where a note's ring opens in each landscape, under its key: on the water, the snowfield, the near dune's crest, the sea. */
+  function groundAt(id: string, x: number) {
+    const A = anchor(id)
+    if (id === 'lake') return (A.lake_top ?? A.horizon) + 4
+    if (id === 'dunes') return (A.middle_dune_tops?.[Math.max(0, Math.min(W - 1, Math.round(x)))] ?? A.horizon + 10) + 1
+    if (id === 'sea') return A.horizon + 5
+    return A.horizon + 8
+  }
+  const strikes: { t0: number; x: number; col: Rgb }[] = []
+  function drawStrikes(t: number, id: string) {
+    const src = SOURCE[id]!
+    const HZ = anchor(id).horizon
+    // the light and the sky, from all the notes sounding now together (a chord flares once, warmer)
+    let e = 0
+    let cr = 0
+    let cg = 0
+    let cb = 0
+    for (let i = strikes.length - 1; i >= 0; i--) {
+      const s = strikes[i]!
+      const age = t - s.t0
+      if (age > 1.2) {
+        strikes.splice(i, 1)
+        continue
+      }
+      const k = ease(age / 0.04) * Math.exp(-age / (reduce ? 0.3 : 0.42))
+      e += k
+      cr += s.col[0] * k
+      cg += s.col[1] * k
+      cb += s.col[2] * k
+    }
+    if (e < 0.01) return
+    const col: Rgb = [cr / e, cg / e, cb / e]
+    const hot = mix(col, WHITE, 0.55)
+    e = Math.min(1.4, e)
+    if (src.wide) {
+      const ry = 13
+      for (let y = Math.max(0, Math.floor(src.y - ry)); y <= src.y + ry; y++)
+        for (let x = Math.max(0, Math.floor(src.x - src.wide)); x <= Math.min(W - 1, src.x + src.wide); x++) {
+          const q = 1 - Math.hypot((x - src.x) / src.wide, (y - src.y) / ry)
+          if (q > 0) light(x, y, col, 0.85 * e * q * q)
+        }
+    } else {
+      const R = src.r + 6 + 12 * Math.min(1, e)
+      for (let y = Math.floor(src.y - R); y <= src.y + R; y++)
+        for (let x = Math.floor(src.x - R); x <= src.x + R; x++) {
+          const d = Math.hypot(x - src.x, y - src.y)
+          if (d <= src.r) light(x, y, hot, 0.25 * e)
+          else if (d < R) light(x, y, col, 0.9 * e * (1 - (d - src.r) / (R - src.r)) ** 1.8)
+        }
+    }
+    for (let y = 0; y < HZ; y++) {
+      const k = 0.09 * e * (0.35 + 0.65 * (y / HZ))
+      for (let x = 0; x < W; x++) light(x, y, col, k)
+    }
+    if (reduce) return
+    // each note's own ring of light, opening on the ground above its key: a soft band lying on the
+    // surface (following it, on the dunes), its near side brighter, a faint glow inside it, and a
+    // spark where it lands
+    for (const s of strikes) {
+      const age = t - s.t0
+      const k = age / 0.85
+      if (k >= 1) continue
+      const open = 1 - (1 - k) ** 3
+      const rx = 3 + 28 * open
+      const ry = Math.max(1.5, rx * 0.21)
+      const a = (1 - k) ** 1.5
+      const ring = mix(s.col, WHITE, 0.25)
+      const band = 1.3 + 1.2 * open // (its width, in pixels, widening as it spreads)
+      for (let x = Math.floor(s.x - rx - 3); x <= s.x + rx + 3; x++) {
+        const gy = groundAt(id, x)
+        for (let y = Math.floor(gy - ry - 3); y <= gy + ry + 3; y++) {
+          const dx = (x - s.x) / rx
+          const dy = (y - gy) / ry
+          const rho = Math.hypot(dx, dy)
+          const edge = (rho - 1) * Math.min(rx, ry * 2.2)
+          const lit = Math.exp(-(edge * edge) / (band * band)) + (rho < 1 ? 0.22 * (1 - rho) : 0)
+          if (lit > 0.02) light(x, y, ring, 0.75 * a * lit * (dy > 0 ? 1 : 0.55))
+        }
+      }
+      const sp = 1 - age / 0.32
+      if (sp > 0) {
+        const y = groundAt(id, s.x)
+        light(s.x, y, WHITE, sp)
+        for (let r = 1; r <= 4; r++) {
+          light(s.x + r, y, s.col, sp * (1 - r / 5))
+          light(s.x - r, y, s.col, sp * (1 - r / 5))
+          light(s.x, y - r, s.col, sp * 0.7 * (1 - r / 5))
+        }
+      }
+    }
+  }
+  /** The loop's kick: the whole picture breathes a little brighter, in time. */
+  function breathe(t: number) {
+    const k = kickK(t) * 0.07 * life
+    if (k < 0.004) return
+    for (let i = 0; i < px.length; i++) px[i] = Math.min(1, get(i) * (1 + k))
   }
   function drawPlaying(t: number, dt: number) {
     // life rising from the landscape, as busy as the playing
@@ -1505,31 +1630,35 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     if (now) {
       const pos = Math.max(0, now.k + (t - now.at) / now.sec) // (the step is scheduled a moment ahead)
       const bar = Math.floor(pos / 16)
-      if (bar !== lastBar) {
-        // a downbeat: the landscape answers a finished phrase here (at most every two bars); on bars
-        // 1 and 5 of the loop it moves with the music, unless the chord changes (that sweeps the sky)
-        if (lastBar >= 0 && !reduce) {
-          if (answerDue && bar - lastAnswerBar >= 1) {
-            scene.answer(answerDue, t)
-            lastAnswerBar = bar
-          } else if (bar % 4 === 0 && now.chord === barChord) scene.bar(t)
+      const beatNo = Math.floor(pos / 4)
+      if (beatNo !== lastBeatNo) {
+        // a beat: the landscape answers a finished phrase on the next one (at most once a bar)
+        if (lastBeatNo >= 0 && answerDue && !reduce && beatNo - lastAnswerBeat >= 4) {
+          scene.answer(answerDue, t)
+          lastAnswerBeat = beatNo
+          answerDue = null
         }
-        answerDue = null
+        lastBeatNo = beatNo
+      }
+      if (bar !== lastBar) {
+        // on bars 1 and 5 of the loop it moves with the music, unless the chord changes (that sweeps the sky)
+        if (lastBar >= 0 && !reduce && bar % 4 === 0 && now.chord === barChord && beatNo !== lastAnswerBeat) scene.bar(t)
         barChord = now.chord
         lastBar = bar
       }
     } else {
       lastBar = -1
+      lastBeatNo = -1
       if (answerDue && !reduce) scene.answer(answerDue, t) // (no loop: it answers at once)
       answerDue = null
     }
     // how busy the playing is (it keeps rising up to about five notes a second), how much the jam has
-    // built up, and the end of a phrase: two beats of quiet (at least 1.2 s), nothing held
+    // built up, and the end of a phrase: a beat and a half of quiet (at least 0.9 s), nothing held
     while (recent.length && t - recent[0]! > 4) recent.shift()
     E.density = Math.min(1, Math.sqrt(recent.length / 20))
     if (t - lastNoteAt > 8) E.build = Math.max(0, E.build - dt / 90)
     if (held.length) quietSince = t
-    const gap = Math.max(1.2, now ? now.sec * 8 : 1.2)
+    const gap = Math.max(0.9, now ? now.sec * 6 : 0.9) // (a beat and a half)
     if (phrase.length && !held.length && t - Math.max(quietSince, lastNoteAt) > gap) endPhrase(t)
     const looping = jamming() ? chord : null
     // a long jam brings first light; it goes back to night slowly when the music stops
@@ -1553,6 +1682,8 @@ export function createPianoScreen(canvas: HTMLCanvasElement, reduce: boolean): P
     if (layers[id]) {
       scene.draw(t, dt, held)
       drawPlaying(t, dt)
+      drawStrikes(t, id)
+      breathe(t)
     }
     const k = (t - switchedAt) / 0.45
     if (k >= 0 && k < 1) {

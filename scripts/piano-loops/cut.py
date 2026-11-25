@@ -27,7 +27,7 @@ for name in sys.argv[5:]:
     if peak > 0.97:
         seg *= 0.97 / peak
     sf.write(out_dir / f'{name}.wav', seg, sr, subtype='PCM_16')
-    # drum hits on the loop's 128 sixteenths, from the mono mix: the strongest few per bar
+    # drum hits on the loop's sixteenths (16 a bar), from the mono mix: the strongest few per bar
     mono = librosa.resample(seg.mean(axis=1), orig_sr=sr, target_sr=22050)
     S = np.abs(librosa.stft(mono, n_fft=1024, hop_length=256))
     f = librosa.fft_frequencies(sr=22050, n_fft=1024)

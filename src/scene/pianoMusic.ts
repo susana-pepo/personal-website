@@ -110,22 +110,26 @@ export const LANDSCAPES: readonly Landscape[] = [
 
 // ── Backing loops (chosen on the Loop dial) ──
 //
-// Six recorded loops to jam over (three in major, three in minor, in simple keys): eight bars each,
-// cut seamlessly from Kevin MacLeod's tracks (incompetech.com, CC BY 4.0: the close-up credits each
-// one as it plays) by scripts/piano-loops, which also measured each one's
-// tempo, key, tuning, chords and drum hits (piano-loops.json). The keyboard follows the loop's key
-// (its white keys play the loop's scale, so whatever you play fits) and its tuning (a few cents
-// off concert pitch, as recordings can be, so the two never beat against each other).
+// Recorded backing tracks to jam over, from Mixkit (mixkit.co, free under the Mixkit License; the
+// close-up credits each one's musician as it plays), all at concert pitch and mostly groove and chords,
+// so there's room to play over them. Each is an organic loop: one stretch of the track played straight
+// through, 16 or 24 bars in its own form (a vamp, two phrases taking turns, a progression with a
+// contrasting middle...), cut where its end leads back into its start like any other bar line, by
+// scripts/piano-loops/form.py, which also measured each one's tempo, key, chords and drum hits
+// (piano-loops.json). The keyboard follows the loop's key (its white keys play the loop's scale, so
+// whatever you play fits) and its tuning (within a few cents of A = 440 Hz).
 
 
 export interface BackingLoop {
   id: string
-  /** The song it was cut from. */
+  /** The track it was cut from, and who made it (for its credit). */
   name: string
+  artist: string
   /** Its recording, in public/media/piano/loops. */
   file: string
-  /** Its tempo, exactly: eight bars of 4/4 in `seconds`. */
+  /** Its tempo, exactly: `bars` bars of 4/4 in `seconds`. */
   bpm: number
+  bars: number
   seconds: number
   key: string
   /** Semitones that bring the keyboard's C major to the loop's key (its relative major). */
@@ -136,20 +140,24 @@ export interface BackingLoop {
   tone: number
   /** Each bar's chord root (pitch class), for the screen's colour. */
   chords: number[]
-  /** Its drum hits, on its 128 sixteenths, for the screen. */
+  /** Its form, phrase by phrase (four bars each): 'A A A A', 'A B A B'... */
+  form: string
+  /** Its drum hits, on its sixteenths (16 a bar), for the screen. */
   kick: number[]
   snare: number[]
   hat: number[]
 }
 export const LOOPS: readonly BackingLoop[] = loopData.loops
-export const LOOP_STEPS = loopData.steps
 export const LOOP_SOURCE = loopData.source
 
+/** How many sixteenths a loop lasts before it comes round again. */
+export const loopSteps = (loop: BackingLoop) => loop.bars * 16
 /** One sixteenth of a loop, in seconds. */
-export const stepSeconds = (loop: BackingLoop) => loop.seconds / LOOP_STEPS
-/** What a loop does on one of its sixteenths (0-127): its drum hits, and its chord at a bar line. */
+export const stepSeconds = (loop: BackingLoop) => loop.seconds / loopSteps(loop)
+/** What a loop does on one of its sixteenths (counted from its start, round and round): its drum hits, and its chord at a bar line. */
 export function loopStep(loop: BackingLoop, step: number) {
-  const s = ((step % LOOP_STEPS) + LOOP_STEPS) % LOOP_STEPS
+  const n = loopSteps(loop)
+  const s = ((step % n) + n) % n
   return {
     kick: loop.kick.includes(s),
     snare: loop.snare.includes(s),

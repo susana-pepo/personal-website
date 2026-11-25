@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest'
 import art from '../scene/piano-landscapes.json'
 import { PIANO_KNOBS, PIANO_SIZE } from '../scene/piano'
 import {
-  FIGURES, INSTRUMENTS, KEYS_BY_PITCH, LANDSCAPES, LAYER_EVERY, LOOPS, LOOP_AFTER, LOOP_SOURCE, LOOP_STEPS, NOTE_COLOURS, TONES,
-  bandOf, colourOfPitchClass, layersAfter, loopInterval, loopStep, placeOf, stepSeconds,
+  FIGURES, INSTRUMENTS, KEYS_BY_PITCH, LANDSCAPES, LAYER_EVERY, LOOPS, LOOP_AFTER, LOOP_SOURCE, NOTE_COLOURS, TONES,
+  bandOf, colourOfPitchClass, layersAfter, loopInterval, loopStep, loopSteps, placeOf, stepSeconds,
 } from '../scene/pianoMusic'
 import { textPixels, textWidth } from '../scene/pixelFont'
 
@@ -45,23 +45,26 @@ describe('the piano computer’s music', () => {
     }
   })
 
-  it('has recorded loops to jam over, credited as their licence asks, each eight bars at its own exact tempo', () => {
-    expect(LOOP_SOURCE.licence).toBe('CC BY 4.0')
-    expect(LOOP_SOURCE.licenceUrl).toMatch(/^https:\/\/creativecommons\.org\/licenses\/by\/4\.0/)
-    expect(LOOPS.length).toBeGreaterThanOrEqual(6)
-    // three in major and three in minor, in simple keys (none more than one sharp or flat)
-    expect(LOOPS.filter((l) => l.key.endsWith('major'))).toHaveLength(3)
-    expect(LOOPS.filter((l) => l.key.endsWith('minor'))).toHaveLength(3)
+  it('has organic loops to jam over, each crediting its musician, each its own length at its own exact tempo', () => {
+    expect(LOOP_SOURCE.name).toBe('Mixkit')
+    expect(LOOP_SOURCE.licenceUrl).toMatch(/^https:\/\/mixkit\.co\/license/)
+    expect(LOOPS.length).toBeGreaterThanOrEqual(5)
+    // both moods, in simple keys (none more than one sharp or flat)
+    expect(LOOPS.some((l) => l.key.endsWith('major'))).toBe(true)
+    expect(LOOPS.some((l) => l.key.endsWith('minor'))).toBe(true)
     for (const l of LOOPS) expect(['C major', 'G major', 'F major', 'A minor', 'E minor', 'D minor']).toContain(l.key)
     for (const l of LOOPS) {
       expect(publicFile(`media/piano/loops/${l.file}`)).toBe(true)
+      expect(l.artist).toBeTruthy()
       expect(l.bpm).toBeGreaterThan(55)
-      expect(l.bpm).toBeLessThan(100)
-      expect((32 * 60) / l.bpm).toBeCloseTo(l.seconds, 2) // eight bars of 4/4, exactly
-      expect(stepSeconds(l) * LOOP_STEPS).toBeCloseTo(l.seconds)
+      expect(l.bpm).toBeLessThan(120)
+      expect([16, 24, 32]).toContain(l.bars) // whole 8-bar phrases, or 24
+      expect((l.bars * 4 * 60) / l.bpm).toBeCloseTo(l.seconds, 2) // its bars of 4/4, exactly
+      expect(stepSeconds(l) * loopSteps(l)).toBeCloseTo(l.seconds)
+      expect(l.form.split(' ')).toHaveLength(l.bars / 4)
       expect(TONES[l.tone]).toBeTruthy()
-      expect(l.chords).toHaveLength(8)
-      for (const s of [...l.kick, ...l.snare, ...l.hat]) expect(s >= 0 && s < LOOP_STEPS).toBe(true)
+      expect(l.chords).toHaveLength(l.bars)
+      for (const s of [...l.kick, ...l.snare, ...l.hat]) expect(s >= 0 && s < loopSteps(l)).toBe(true)
     }
   })
 
@@ -80,7 +83,7 @@ describe('the piano computer’s music', () => {
     const l = LOOPS[0]!
     const first = l.kick[0]!
     expect(loopStep(l, first).kick).toBe(true)
-    expect(loopStep(l, first + LOOP_STEPS).kick).toBe(true)
+    expect(loopStep(l, first + loopSteps(l)).kick).toBe(true)
     expect(loopStep(l, 0).chord).toBe(l.chords[0])
     expect(loopStep(l, 16).chord).toBe(l.chords[1])
     expect(loopStep(l, 1).chord).toBeNull()
