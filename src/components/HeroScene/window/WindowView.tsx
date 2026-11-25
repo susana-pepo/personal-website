@@ -180,7 +180,7 @@ export function WindowView({ time, motionAllowed, onReady }: WindowViewProps) {
             data-time={t}
             data-on={t === time ? '' : undefined}
           >
-            <img src={media.still} alt="" decoding="async" draggable={false} />
+            <img src={media.still} alt="" draggable={false} />
             {loop && (
               <LoopClip
                 src={media.animated}

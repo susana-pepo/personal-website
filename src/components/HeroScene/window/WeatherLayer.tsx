@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { onRoomCovered, roomCovered } from '../../../hooks/useRoomCovered'
 import { easeInOut } from '../../../lib/motion'
 import { WINDOW_GLASS_STYLE, type TimeOfDay } from '../../../scene/windowViews'
 import {
@@ -186,6 +187,44 @@ export function WeatherLayer({ weather, time, motionAllowed }: WeatherLayerProps
   const frame = useRef(0)
   const kick = useRef<() => void>(() => {})
 
+  // In clear weather the four canvases are usually blank, yet the browser still composites them
+  // under the glass mask every frame. So once none has anything left on it, the whole layer is
+  // hidden (data-empty). Each canvas says after each draw whether it holds anything, and only an
+  // empty canvas can make the layer hide: rain easing off, drops drying and frost melting all
+  // finish first. The snow also counts as empty once its fade to opacity 0 has ended.
+  const layerRef = useRef<HTMLSpanElement>(null)
+  const clear = weather === 'clear'
+  const clearRef = useRef(clear)
+  clearRef.current = clear
+  const [held] = useState(() => {
+    const drawn = { rain: false, snow: false, frost: false, drops: false, snowFaded: false }
+    const settle = () => {
+      const empty = !drawn.rain && !(drawn.snow && !drawn.snowFaded) && !drawn.frost && !drawn.drops
+      layerRef.current?.toggleAttribute('data-empty', clearRef.current && empty)
+    }
+    const report = (key: 'rain' | 'snow' | 'frost' | 'drops' | 'snowFaded') => (value: boolean) => {
+      if (drawn[key] === value) return
+      drawn[key] = value
+      settle()
+    }
+    return {
+      settle,
+      rain: report('rain'),
+      snow: report('snow'),
+      frost: report('frost'),
+      drops: report('drops'),
+      snowFaded: report('snowFaded'),
+    }
+  })
+  // Before the first frame in the new weather is painted, so rain or snow never starts unseen.
+  useLayoutEffect(() => held.settle(), [clear, held])
+  const snowOpaque = moving || snowing
+  const snowOpaqueRef = useRef(snowOpaque)
+  snowOpaqueRef.current = snowOpaque
+  useLayoutEffect(() => {
+    if (snowOpaque) held.snowFaded(false)
+  }, [snowOpaque, held])
+
   // Size the canvas to its box on screen (sharp on high-density screens, capped).
   useLayoutEffect(() => {
     const canvas = canvasRef.current
@@ -233,15 +272,18 @@ export function WeatherLayer({ weather, time, motionAllowed }: WeatherLayerProps
       ctx.clearRect(0, 0, canvas.width, canvas.height)
       ctx.setTransform(s.scale, 0, 0, s.scale, 0, 0)
       const strength = s.light.alpha
+      let drawn = false
       for (const f of s.flakes) {
         const a = flakeAlpha(f) * strength
         if (a <= 0.004) continue
+        drawn = true
         const softFlake = f.z >= SOFT_FROM
         const size = f.r * (softFlake ? 3.8 : 2.6) * s.light.size
         ctx.globalAlpha = Math.min(1, a)
         ctx.drawImage(softFlake ? s.soft : s.sharp, f.x - size / 2, f.y - size / 2, size, size)
       }
       ctx.globalAlpha = 1
+      held.snow(drawn)
     }
 
     const settleLight = (s: NonNullable<typeof sim.current>, k: number) => {
@@ -273,6 +315,11 @@ export function WeatherLayer({ weather, time, motionAllowed }: WeatherLayerProps
       frame.current = 0
       const s = sim.current
       if (!s || !target.current.moving) return
+      if (roomCovered()) {
+        // Under the phone's page: it rests exactly as it is, and carries on from there once uncovered.
+        last = 0
+        return
+      }
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60
       last = now
       s.t += dt
@@ -305,23 +352,29 @@ export function WeatherLayer({ weather, time, motionAllowed }: WeatherLayerProps
       frame.current = requestAnimationFrame(tick)
     }
     kick.current()
+    const offCovered = onRoomCovered((covered) => !covered && kick.current())
     return () => {
       cancelAnimationFrame(frame.current)
       frame.current = 0
       kick.current = () => {}
+      offCovered()
     }
-  }, [snowing, time, moving])
+  }, [snowing, time, moving, held])
 
   return (
-    <span className="weather-layer" aria-hidden="true" data-weather={weather} style={WINDOW_GLASS_STYLE}>
-      <RainLayer raining={weather === 'rain'} time={time} moving={moving} />
+    <span ref={layerRef} className="weather-layer" aria-hidden="true" data-weather={weather} style={WINDOW_GLASS_STYLE}>
+      <RainLayer raining={weather === 'rain'} time={time} moving={moving} onDrawn={held.rain} />
       <canvas
         ref={canvasRef}
         className="weather-snow"
-        style={{ opacity: moving || snowing ? 1 : 0 }}
+        style={{ opacity: snowOpaque ? 1 : 0 }}
+        // A still room's snow is left drawn as it fades out: only once the fade has ended is it gone.
+        onTransitionEnd={(event) => {
+          if (event.propertyName === 'opacity' && !snowOpaqueRef.current) held.snowFaded(true)
+        }}
       />
-      <FrostLayer snowing={snowing} time={time} moving={moving} />
-      <GlassDrops raining={weather === 'rain'} time={time} moving={moving} />
+      <FrostLayer snowing={snowing} time={time} moving={moving} onDrawn={held.frost} />
+      <GlassDrops raining={weather === 'rain'} time={time} moving={moving} onDrawn={held.drops} />
     </span>
   )
 }

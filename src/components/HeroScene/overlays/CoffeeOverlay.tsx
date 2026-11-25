@@ -33,6 +33,8 @@ export function CoffeeOverlay({ motionAllowed, highlighted, discoveryIndex }: Co
   useEffect(() => {
     if (!looping) setArrived(false)
   }, [looping])
+  // The still is decoded with the paint that un-hides it (not after it): it comes back in the
+  // same frame the loop leaves, so the mug is never missing for a frame.
   return (
     <SceneObject overlay={COFFEE} highlighted={highlighted} discoveryIndex={discoveryIndex} className="coffee">
       <img
@@ -40,7 +42,7 @@ export function CoffeeOverlay({ motionAllowed, highlighted, discoveryIndex }: Co
         alt=""
         width={Math.round(COFFEE.width)}
         height={Math.round(COFFEE.height)}
-        decoding="async"
+        decoding="sync"
         draggable={false}
         style={looping && arrived ? { visibility: 'hidden' } : undefined}
       />

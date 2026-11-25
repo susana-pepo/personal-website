@@ -439,7 +439,7 @@ export function PianoArt({ away = false, highlighted = false }: PianoArtProps) {
   }, [lit])
   return (
     <SceneObject overlay={PIANO} highlighted={lit} discoveryIndex={-1} className="piano" dataAttributes={{ 'data-away': away ? '' : undefined }}>
-      <img src={PIANO.src} alt="" width={Math.round(PIANO.width)} height={Math.round(PIANO.height)} decoding="async" draggable={false} />
+      <img src={PIANO.src} alt="" width={Math.round(PIANO.width)} height={Math.round(PIANO.height)} draggable={false} />
       {splash && (
         <span key={splash.id} className="piano__splash" style={HINT_FROM} aria-hidden="true">
           {splash.notes.map((note, i) => (

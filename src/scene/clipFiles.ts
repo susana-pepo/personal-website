@@ -155,7 +155,10 @@ function prepareVideo(blob: Blob, name: string): Promise<PreparedClip | null> {
   video.setAttribute('playsinline', '')
   video.setAttribute('aria-hidden', 'true')
   video.dataset.clip = name
+  // Set once the clip is taken off screen: a play() its own release interrupts is not a refusal.
+  let released = false
   const release = () => {
+    released = true
     video.pause()
     video.remove()
     video.removeAttribute('src')
@@ -182,8 +185,13 @@ function prepareVideo(blob: Blob, name: string): Promise<PreparedClip | null> {
           })
           try {
             await video.play()
-          } catch {
-            noVideo() // e.g. iOS Low Power Mode won't start video by itself: the stills stay
+          } catch (e) {
+            // Only a real refusal turns video off for the visit (iOS Low Power Mode won't start
+            // video by itself: NotAllowedError), and the stills stay. A play() cut short by the
+            // room's own teardown (pause() or load() during release, when the tab is hidden, the
+            // phone locked or the room scrolled away) or by the browser pausing a background tab
+            // fails with AbortError: only this turn is lost, and the next one tries again.
+            if (!released && e instanceof DOMException && (e.name === 'NotAllowedError' || e.name === 'NotSupportedError')) noVideo()
             throw new Error('video would not play')
           }
           await shown

@@ -11,6 +11,11 @@
   --weather-ease: cubic-bezier(0.45, 0, 0.55, 1);
 }
 
+/* Clear weather with nothing left on any canvas (set by WeatherLayer): nothing to composite. */
+.weather-layer[data-empty] {
+  visibility: hidden;
+}
+
 /* The rain outside (RainLayer), and on the glass itself, over everything outside:
    frost on the lower panes in the snow (see FrostLayer; drawn small and stretched,
    it's soft anyway) and drops in the rain (GlassDrops). */

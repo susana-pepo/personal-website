@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useImperativeHandle, useRef, useState, type CSSProperties, type Ref } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { onRoomCovered, roomCovered } from '../../../hooks/useRoomCovered'
 import {
   DISSOLVE_MS,
   DREAM_MS,
@@ -223,7 +224,10 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
         await next.start() // resolves once its first frame is on screen
       } catch {
         next.release()
-        current = previous
+        // Stopped while it was starting: the room's cleanup has already taken the last clip off
+        // screen, so free it too, rather than leave its decoder waiting for the garbage collector.
+        if (stopped) previous?.release()
+        else current = previous
         return false
       }
       // The still (or the last clip, in the same pose) stays underneath until this one has surely
@@ -249,12 +253,19 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       if (stopped || reacting) return
       if (!ok && !clipsCanPlay()) return // clips can't play here: it rests on its still picture
       idleTimer = window.setTimeout(() => {
-        if (document.hidden) waitingForVisible = true
-        else void sleepOn('cut')
+        if (document.hidden) {
+          waitingForVisible = true
+          resumeWith = 'fade' // the last turn may have paused mid-way while hidden
+        } else if (roomCovered()) {
+          // Under the phone's page: it rests on the shared pose until it can be seen. The turn
+          // played to its end as usual, so the next one simply cuts in.
+          waitingForVisible = true
+        } else void sleepOn('cut')
       }, ok ? clip.ms + 30 : 2000)
     }
     let reacting = false
     let waitingForVisible = false
+    let resumeWith: 'cut' | 'fade' = 'cut'
     // once the page's entrance has settled (the still, its first frame, holds its place till then)
     void whenSettled().then(() => {
       if (!stopped) void sleepOn('cut')
@@ -303,12 +314,15 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
     const onVisibility = () => {
       if (document.hidden) {
         hiddenDuringReaction = true
-      } else if (waitingForVisible) {
+      } else if (waitingForVisible && !roomCovered()) {
         waitingForVisible = false
-        if (!reacting) void sleepOn('fade') // the last turn may have paused mid-way while hidden
+        const entrance = resumeWith
+        resumeWith = 'cut'
+        if (!reacting) void sleepOn(entrance)
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
+    const offCovered = onRoomCovered(onVisibility)
 
     return () => {
       stopped = true
@@ -317,6 +331,7 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       window.clearTimeout(backTimer)
       window.clearTimeout(idleTimer)
       document.removeEventListener('visibilitychange', onVisibility)
+      offCovered()
       current?.release()
       for (const el of [...host.children]) el.remove()
       setPlaying(false)
@@ -374,6 +389,7 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
       dataAttributes={{ 'data-phase': phase }}
     >
       <span ref={clipsBox} className="cat__clips" />
+      {/* Decoded with the paint that brings it back (not after it), so when the clips stop it is never missing for a frame. */}
       {!(moving && playing) && (
         <img
           className="cat__art"
@@ -381,7 +397,7 @@ export function CatOverlay({ ref, motionAllowed, highlighted, discoveryIndex, on
           alt=""
           width={Math.round(CAT.width)}
           height={Math.round(CAT.height)}
-          decoding="async"
+          decoding="sync"
           draggable={false}
         />
       )}

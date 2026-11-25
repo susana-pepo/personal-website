@@ -40,8 +40,12 @@ html:has(.panel[open]) {
   --rule-card-strong: oklch(0.93 0.012 80 / 0.24);
   --spot-ink: oklch(0.78 0.12 45);
 
-  /* Grain, so the gradient reads as a material and never bands */
-  --fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* Grain, so the gradient reads as a material and never bands. Baked from its feTurbulence SVG by
+     scripts/build-grain.mjs: Safari re-runs an SVG background's filter at every paint of the sheet,
+     and a picture costs nothing to paint again. Drawn as a 180px tile, the SVG's own size. Spelt
+     -webkit-image-set, which every browser reads (the plain one is Chrome 113+): through a var()
+     the build adds no fallback, and an unknown value would drop the sheet's whole background. */
+  --fibre: -webkit-image-set(url('/media/grain/fibre@1x.png') 1x, url('/media/grain/fibre@2x.png') 2x, url('/media/grain/fibre@3x.png') 3x);
 
   /* One 4pt scale, three named rhythms */
   --rhythm-inline: 0.5rem; /* lines inside a group: meta to title */
@@ -67,6 +71,22 @@ html:has(.panel[open]) {
   background: transparent;
   color: var(--ink);
   overflow: visible;
+}
+
+/*
+ * The grain tiles the page uses later are fetched as soon as it opens, at the screen's own
+ * resolution: the turn light's dither (turn-fx.css) and the sleeves' tooth (music.css, the same
+ * image-set). A mask whose picture hasn't loaded hides everything under it, so a first turn would
+ * otherwise pass with no lamp light at all, and a first look at the sleeves would show their tooth
+ * late. Drawn at no size, so the dialog itself still paints nothing. -webkit-image-set, as --fibre:
+ * with a var() in the value the build adds no fallback for the plain one.
+ */
+.panel[open] {
+  background-image:
+    var(--turn-grain),
+    -webkit-image-set(url('/media/grain/sleeve-grain@1x.png') 1x, url('/media/grain/sleeve-grain@2x.png') 2x, url('/media/grain/sleeve-grain@3x.png') 3x);
+  background-size: 0 0;
+  background-repeat: no-repeat;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -269,7 +289,7 @@ html:has(.panel[open]) {
 .panel__sheet {
   border: 0;
   background:
-    var(--fibre),
+    var(--fibre) 0 0 / 180px 180px,
     /* the lamp's bloom on the face: close by the edge, a breath of it under the reading column */
     radial-gradient(22% 28% at 0 var(--lamp-y), oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 1)) 0%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.904)) 16.7%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.668)) 33.3%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.399)) 50%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.187)) 66.7%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.06)) 83.3%, transparent),
     radial-gradient(80% 70% at 0 var(--lamp-y), oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 1)) 0%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.916)) 16.7%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.702)) 33.3%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.445)) 50%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.225)) 66.7%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.079)) 83.3%, transparent),
@@ -463,7 +483,7 @@ html:has(.panel[open]) {
 
   .panel__sheet {
     background:
-      var(--fibre),
+      var(--fibre) 0 0 / 180px 180px,
       radial-gradient(45% 12% at var(--lamp-x) 0, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 1)) 0%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.904)) 16.7%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.668)) 33.3%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.399)) 50%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.187)) 66.7%, oklch(0.8 0.1 62 / calc(var(--g-bloom) * var(--lamp-near) * 0.06)) 83.3%, transparent),
       radial-gradient(100% 38% at var(--lamp-x) 0, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 1)) 0%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.916)) 16.7%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.702)) 33.3%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.445)) 50%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.225)) 66.7%, oklch(0.8 0.1 62 / calc(var(--g-glow) * var(--lamp-near) * 0.079)) 83.3%, transparent),
       linear-gradient(180deg, transparent 40%, oklch(0.08 0.01 45 / 0.18)),

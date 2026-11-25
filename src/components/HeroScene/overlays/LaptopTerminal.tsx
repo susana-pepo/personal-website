@@ -95,6 +95,11 @@ export function LaptopTerminal({ open, motionAllowed }: LaptopTerminalProps) {
   // Each direction has its own easing, and a change of mind mid-way starts from
   // wherever the window is, so it never jumps.
   const progress = useRef(0)
+  // Shown from the moment it opens until it has fully minimised again. Closed, the window is
+  // fully transparent, but its will-change keeps it painted and its layer kept, so the plane is
+  // hidden then. Opening shows it in the same render, at progress 0 (opacity 0), so the genie's
+  // first frame is as before.
+  const [shown, setShown] = useState(open)
   useEffect(() => {
     const el = windowRef.current
     if (!el || typeof el.animate !== 'function') return
@@ -110,10 +115,17 @@ export function LaptopTerminal({ open, motionAllowed }: LaptopTerminalProps) {
 
   useEffect(() => {
     const anim = animation.current
-    if (!anim) return
+    if (!anim) {
+      setShown(open)
+      return
+    }
     const from = progress.current
     const to = open ? 1 : 0
-    if (from === to) return
+    if (open) setShown(true)
+    if (from === to) {
+      if (!open) setShown(false)
+      return
+    }
     const full = reducedMotion ? 180 : open ? OPEN_MS : CLOSE_MS
     const duration = full * Math.abs(to - from)
     // the reduced-motion fade keeps its even sine either way
@@ -125,6 +137,7 @@ export function LaptopTerminal({ open, motionAllowed }: LaptopTerminalProps) {
       progress.current = from + (to - from) * ease(t)
       anim.currentTime = progress.current * 1000
       if (t < 1) frame = requestAnimationFrame(step)
+      else if (to === 0) setShown(false)
     }
     frame = requestAnimationFrame(step)
     return () => cancelAnimationFrame(frame)
@@ -156,7 +169,7 @@ export function LaptopTerminal({ open, motionAllowed }: LaptopTerminalProps) {
       data-typed={typed ? '' : undefined}
       data-still={motionAllowed ? undefined : ''}
     >
-      <div className="laptop-terminal__plane" style={{ width: PLANE.w, height: PLANE.h, transform, visibility: transform ? undefined : 'hidden' }}>
+      <div className="laptop-terminal__plane" style={{ width: PLANE.w, height: PLANE.h, transform, visibility: transform && (open || shown) ? undefined : 'hidden' }}>
         <div ref={windowRef} className="laptop-terminal__window">
           <div className="laptop-terminal__bar">
             <i />

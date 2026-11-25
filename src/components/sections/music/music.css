@@ -440,7 +440,9 @@
   background:
     radial-gradient(circle at 50% 50%, transparent 0 44%, oklch(1 0 0 / 0.07) 45.5%, transparent 47.5%),
     linear-gradient(180deg, oklch(1 0 0 / 0.12), transparent 22%),
-    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 .95 0 0 0 0 .9 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    /* the tooth: a 120px tile baked from its feTurbulence SVG by scripts/build-grain.mjs, so
+       sliding a sleeve doesn't re-run the filter at each paint */
+    image-set(url('/media/grain/sleeve-grain@1x.png') 1x, url('/media/grain/sleeve-grain@2x.png') 2x, url('/media/grain/sleeve-grain@3x.png') 3x) 0 0 / 120px 120px;
   mix-blend-mode: soft-light;
 }
 

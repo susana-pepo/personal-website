@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { onRoomCovered, roomCovered } from '../../../hooks/useRoomCovered'
 import { easeInOut } from '../../../lib/motion'
 import { RAIN_LIGHT, leanAt, makeRain, mixRainLight, stepStreak, streakAlpha, type RainLight, type Streak } from '../../../scene/rain'
 import { seeded } from '../../../scene/weather'
@@ -46,6 +47,8 @@ interface RainLayerProps {
   time: TimeOfDay
   /** The room may move: rain falls only then (otherwise it holds still). */
   moving: boolean
+  /** Told after every draw whether any streak is left on the canvas (WeatherLayer hides the empty glass). */
+  onDrawn?: (drawn: boolean) => void
 }
 
 /**
@@ -56,7 +59,7 @@ interface RainLayerProps {
  * with the view when the time changes. Still with reduced motion or a paused
  * room. Decorative only.
  */
-export function RainLayer({ raining, time, moving }: RainLayerProps) {
+export function RainLayer({ raining, time, moving, onDrawn }: RainLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const reducedMotion = usePrefersReducedMotion()
   const state = useRef<{
@@ -91,6 +94,8 @@ export function RainLayer({ raining, time, moving }: RainLayerProps) {
   }
   const props = useRef({ raining, moving, reducedMotion })
   props.current = { raining, moving, reducedMotion }
+  const drawnRef = useRef(onDrawn)
+  drawnRef.current = onDrawn
   const kick = useRef<() => void>(() => {})
 
   // Size the canvas to the window on screen.
@@ -137,9 +142,11 @@ export function RainLayer({ raining, time, moving }: RainLayerProps) {
       const k = s.scale
       const cos = Math.cos(lean) * k
       const sin = Math.sin(lean) * k
+      let drawn = false
       for (const st of s.streaks) {
         const a = streakAlpha(st) * s.light.alpha
         if (a <= 0.01) continue
+        drawn = true
         ctx.globalAlpha = a
         // along the fall: the sprite's head at the drop, its tail trailing up the lean
         ctx.setTransform(cos, sin, -sin, cos, st.x * k, st.y * k)
@@ -147,6 +154,7 @@ export function RainLayer({ raining, time, moving }: RainLayerProps) {
       }
       ctx.setTransform(1, 0, 0, 1, 0, 0)
       ctx.globalAlpha = 1
+      drawnRef.current?.(drawn)
     }
 
     const settleLight = (now: number) => {
@@ -167,6 +175,11 @@ export function RainLayer({ raining, time, moving }: RainLayerProps) {
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60
       last = now
       const goal = p.raining ? 1 : 0
+      if (p.moving && roomCovered()) {
+        // Under the phone's page: it rests exactly as it is, and carries on from there once uncovered.
+        last = 0
+        return
+      }
       if (!p.moving) {
         // held still: the rain as it is, or none
         s.intensity = goal
@@ -197,9 +210,11 @@ export function RainLayer({ raining, time, moving }: RainLayerProps) {
       if (!frame) frame = requestAnimationFrame(tick)
     }
     kick.current()
+    const offCovered = onRoomCovered((covered) => !covered && kick.current())
     return () => {
       cancelAnimationFrame(frame)
       kick.current = () => {}
+      offCovered()
     }
   }, [raining, moving])
 

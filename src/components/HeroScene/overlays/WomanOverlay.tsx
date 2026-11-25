@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { onRoomCovered, roomCovered } from '../../../hooks/useRoomCovered'
 import { WOMAN_MEDIA, overlay } from '../../../scene/layout'
 import { HOME_CLIP, WOMAN_BREATH, WOMAN_CLIPS, nextClip, restAfter, stillRest, type WomanClip } from '../../../scene/womanClips'
 import { afterPainted, arrivedClipFile, clipsCanPlay, fetchClipFile, fetchLater, prepareClip, type PreparedClip } from '../../../scene/clipFiles'
@@ -64,6 +65,11 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
     let hiddenDuringClip = false
     let waitingForVisible = false
     const recent: string[] = []
+    // Nobody can see her: the tab is hidden, or the phone's page covers the whole room. She waits
+    // at her home pose, between clips, until she can be seen. Only a hidden tab may have paused a
+    // clip mid-way (hiddenDuringClip): under the page, a clip plays to its end as usual, so the
+    // next one simply cuts in.
+    const unseen = () => document.hidden || roomCovered()
 
     /** Puts a fresh copy of a clip on screen, over the last one (same pose); false if it couldn't. */
     const mount = async (clip: WomanClip, fade: boolean) => {
@@ -82,7 +88,10 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
         await next.start() // resolves once its first frame is on screen
       } catch {
         next.release()
-        current = previous
+        // Stopped while it was starting: the room's cleanup has already taken the last clip off
+        // screen, so free it too, rather than leave its decoder waiting for the garbage collector.
+        if (stopped) previous?.release()
+        else current = previous
         return false
       }
       // The still (or the last clip, in the same pose) stays underneath until this one has surely
@@ -109,7 +118,7 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
     /** At her home pose after a clip: a moment's stillness, one or two breaths, then the next clip. */
     const rest = (after: string) => {
       if (stopped) return
-      if (document.hidden) {
+      if (unseen()) {
         waitingForVisible = true
         return
       }
@@ -123,7 +132,7 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
 
     const breathe = async (left: number, afterMs: number) => {
       if (stopped) return
-      if (document.hidden) {
+      if (unseen()) {
         waitingForVisible = true
         return
       }
@@ -137,7 +146,7 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
 
     const next = () => {
       if (stopped) return
-      if (document.hidden) {
+      if (unseen()) {
         waitingForVisible = true // carry on when she can be seen
         return
       }
@@ -148,12 +157,13 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
     const onVisibility = () => {
       if (document.hidden) {
         hiddenDuringClip = true
-      } else if (waitingForVisible) {
+      } else if (waitingForVisible && !roomCovered()) {
         waitingForVisible = false
         next()
       }
     }
     document.addEventListener('visibilitychange', onVisibility)
+    const offCovered = onRoomCovered(onVisibility)
 
     // once the page's entrance has settled (the still, her first frame, holds her place till then)
     void whenSettled().then(() => {
@@ -176,6 +186,7 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
       window.clearTimeout(moreTimer)
       window.clearTimeout(breathTimer)
       document.removeEventListener('visibilitychange', onVisibility)
+      offCovered()
       current?.release()
       for (const el of [...host.children]) el.remove()
       setPlaying(false)
@@ -185,8 +196,9 @@ export function WomanOverlay({ motionAllowed, highlighted, discoveryIndex }: Wom
   return (
     <SceneObject overlay={WOMAN} highlighted={highlighted} discoveryIndex={discoveryIndex}>
       <span ref={clipsBox} className="woman__clips" />
-      {moving && <img src={WOMAN_MEDIA.chair} alt="" {...size} decoding="async" draggable={false} />}
-      {!(moving && playing) && <img src={WOMAN_MEDIA.still} alt="" {...size} decoding="async" draggable={false} />}
+      {moving && <img src={WOMAN_MEDIA.chair} alt="" {...size} draggable={false} />}
+      {/* Decoded with the paint that brings it back (not after it), so when the clips stop she is never missing for a frame. */}
+      {!(moving && playing) && <img src={WOMAN_MEDIA.still} alt="" {...size} decoding="sync" draggable={false} />}
     </SceneObject>
   )
 }

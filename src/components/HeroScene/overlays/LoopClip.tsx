@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import { clipFileUrl, clipFormat, videoAlphaWorks } from '../../../scene/clipFiles'
+import { onRoomCovered, roomCovered } from '../../../hooks/useRoomCovered'
 
 interface LoopClipProps {
   /** The clip's name: its old animated WebP path (no longer served); its videos sit beside it (scripts/clip_video.py). */
@@ -62,13 +63,17 @@ export function LoopClip({ src, still, alpha, size, onArrived, style }: LoopClip
     first.addEventListener('playing', onPlaying)
     if (typeof (first as { requestVideoFrameCallback?: unknown }).requestVideoFrameCallback !== 'function') {
       first.loop = true
-      // nobody sees it while the tab is hidden: it rests (saves battery), and carries on after
-      const onHidden = () => (document.hidden ? first.pause() : void first.play().catch(() => {}))
+      // nobody sees it while the tab is hidden or the phone's page covers the room: it rests
+      // (saves battery), and carries on after
+      const onHidden = () => (document.hidden || roomCovered() ? first.pause() : void first.play().catch(() => {}))
       document.addEventListener('visibilitychange', onHidden)
+      const offCovered = onRoomCovered(onHidden)
+      if (roomCovered()) onHidden() // put on while covered (a new view): its still stands in until it is uncovered
       return () => {
         stopped = true
         first.removeEventListener('playing', onPlaying)
         document.removeEventListener('visibilitychange', onHidden)
+        offCovered()
       }
     }
     let active = first
@@ -114,10 +119,11 @@ export function LoopClip({ src, still, alpha, size, onArrived, style }: LoopClip
     }
     first.addEventListener('ended', onEnded)
     second.addEventListener('ended', onEnded)
-    // Nobody sees it while the tab is hidden: both copies rest (saves battery), and it carries on
-    // where it was after (mid-handover, the other copy too, so the handover completes).
+    // Nobody sees it while the tab is hidden, or while the phone's page covers the whole room: both
+    // copies rest (saves battery), and it carries on where it was after (mid-handover, the other
+    // copy too, so the handover completes).
     const onHidden = () => {
-      if (document.hidden) {
+      if (document.hidden || roomCovered()) {
         first.pause()
         second.pause()
         return
@@ -126,6 +132,8 @@ export function LoopClip({ src, still, alpha, size, onArrived, style }: LoopClip
       if (handing) void waiting.play().catch(() => {})
     }
     document.addEventListener('visibilitychange', onHidden)
+    const offCovered = onRoomCovered(onHidden)
+    if (roomCovered()) onHidden() // put on while covered (a new view): its still stands in until it is uncovered
     watch()
     return () => {
       stopped = true
@@ -133,11 +141,12 @@ export function LoopClip({ src, still, alpha, size, onArrived, style }: LoopClip
       first.removeEventListener('ended', onEnded)
       second.removeEventListener('ended', onEnded)
       document.removeEventListener('visibilitychange', onHidden)
+      offCovered()
     }
   }, [url])
 
   if (failed || format === 'none') {
-    return still ? <img src={still} alt="" decoding="async" draggable={false} style={style} /> : null
+    return still ? <img src={still} alt="" draggable={false} style={style} /> : null
   }
   const [w, h] = size
   const [W, H] = [w + (w % 2), h + (h % 2)]

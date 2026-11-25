@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { LAMP_TONES, type LampTone } from '../../../scene/lampTones'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { useRoomCovered } from '../../../hooks/useRoomCovered'
 import { BULB, CONE_FOOT, POOL, RIM } from '../../../scene/lampGeometry'
 import { LampLight } from './LampLight'
 
@@ -123,6 +124,14 @@ const FLICK: readonly (readonly [number, number])[] = [
   [1220, 1],
 ]
 const easeInOutSine = (t: number) => -(Math.cos(Math.PI * t) - 1) / 2
+/** The flow is drawn every FRAME_STEP seconds (30 fps), with FRAME_SLACK for frame-time jitter. */
+const FRAME_STEP = 1 / 30
+const FRAME_SLACK = 0.004
+/**
+ * How long, once the page is in view, a lost GPU context gets to come back before the light
+ * falls back to the still version.
+ */
+const RESTORE_WAIT_MS = 2000
 
 interface LampLiquidProps {
   /** Which light colour is on (index into LAMP_TONES). */
@@ -141,12 +150,18 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false, flick = 0
   const [failed, setFailed] = useState(false)
   // Hidden until its first frame is drawn: a blank (black) canvas would darken the room.
   const [ready, setReady] = useState(false)
+  // The GPU has dropped the context and the canvas is out of view until it comes back: the still
+  // version stands in meanwhile, so the light stays on through the loss and the restore.
+  const [contextLost, setContextLost] = useState(false)
   // The light is off and has finished fading out: the canvas would only draw its neutral grey
   // (no light at all), so it is out of view and draws nothing. That takes a room-sized,
   // blended and masked layer off the GPU and a 30 fps loop off the page while the lamp is off
   // (as the room opens). It comes back the moment the light is turned on, for its whole glide.
   const [dark, setDark] = useState(() => !LAMP_TONES[tone])
-  const running = motionAllowed && !reducedMotion && !dark
+  // Under the phone's page the flow rests on the frame it is at, and flows on from there once
+  // uncovered (a term of its own: `dark` also drives the glide and data-ready).
+  const covered = useRoomCovered()
+  const running = motionAllowed && !reducedMotion && !dark && !covered
   const draw = useRef<((time: number) => void) | null>(null)
   const timeRef = useRef(12.0) // start mid-flow, not at a symmetric moment
   // The light as drawn right now; the click choreography and hover move it. It starts as the
@@ -175,77 +190,135 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false, flick = 0
       if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader) ?? 'shader')
       return shader
     }
-    try {
-      const program = gl.createProgram()!
-      gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX))
-      gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAGMENT))
-      gl.linkProgram(program)
-      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? 'link')
-      gl.useProgram(program)
-      const buffer = gl.createBuffer()
-      gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
-      gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
-      const loc = gl.getAttribLocation(program, 'a')
-      gl.enableVertexAttribArray(loc)
-      gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
-      const uRes = gl.getUniformLocation(program, 'u_res')
-      const uTime = gl.getUniformLocation(program, 'u_time')
-      const uCore = gl.getUniformLocation(program, 'u_core')
-      const uGlow = gl.getUniformLocation(program, 'u_glow')
-      const uGain = gl.getUniformLocation(program, 'u_gain')
-      draw.current = (time: number) => {
-        const l = light.current
-        gl.uniform3f(uCore, l.core[0], l.core[1], l.core[2])
-        gl.uniform3f(uGlow, l.glow[0], l.glow[1], l.glow[2])
-        gl.uniform1f(uGain, l.gain * l.flicker * l.hover * l.catch)
-        gl.viewport(0, 0, canvas.width, canvas.height)
-        gl.uniform2f(uRes, canvas.width, canvas.height)
-        gl.uniform1f(uTime, time)
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+    // Builds everything the light needs on this context and draws one frame of it. It runs
+    // again after a lost context comes back, because a restored context starts empty: every
+    // shader, buffer and uniform has to be made anew.
+    const setup = () => {
+      try {
+        const program = gl.createProgram()!
+        gl.attachShader(program, compile(gl.VERTEX_SHADER, VERTEX))
+        gl.attachShader(program, compile(gl.FRAGMENT_SHADER, FRAGMENT))
+        gl.linkProgram(program)
+        if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program) ?? 'link')
+        gl.useProgram(program)
+        const buffer = gl.createBuffer()
+        gl.bindBuffer(gl.ARRAY_BUFFER, buffer)
+        gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]), gl.STATIC_DRAW)
+        const loc = gl.getAttribLocation(program, 'a')
+        gl.enableVertexAttribArray(loc)
+        gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0)
+        const uRes = gl.getUniformLocation(program, 'u_res')
+        const uTime = gl.getUniformLocation(program, 'u_time')
+        const uCore = gl.getUniformLocation(program, 'u_core')
+        const uGlow = gl.getUniformLocation(program, 'u_glow')
+        const uGain = gl.getUniformLocation(program, 'u_gain')
+        draw.current = (time: number) => {
+          const l = light.current
+          gl.uniform3f(uCore, l.core[0], l.core[1], l.core[2])
+          gl.uniform3f(uGlow, l.glow[0], l.glow[1], l.glow[2])
+          gl.uniform1f(uGain, l.gain * l.flicker * l.hover * l.catch)
+          gl.viewport(0, 0, canvas.width, canvas.height)
+          gl.uniform2f(uRes, canvas.width, canvas.height)
+          gl.uniform1f(uTime, time)
+          gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4)
+        }
+        // The light as it is right now (its tone, hover and flicker live in `light`), so a
+        // restored canvas comes back exactly where it left off.
+        draw.current(timeRef.current)
+        return true
+      } catch (error) {
+        if (import.meta.env.DEV) console.warn('Lamp light: shader failed, using the still version.', error)
+        draw.current = null
+        return false
       }
-      draw.current(timeRef.current)
-      setReady(true)
-    } catch (error) {
-      if (import.meta.env.DEV) console.warn('Lamp light: shader failed, using the still version.', error)
+    }
+    if (setup()) setReady(true)
+    else setFailed(true)
+
+    // The GPU can drop the context, which is common on phones after a while in the background.
+    // Cancelling the loss event asks the browser to give it back, so the flowing light returns
+    // instead of being swapped for the still version for the rest of the visit. Until it does,
+    // the canvas is out of view (not ready), so it never shows black or a frozen frame, and the
+    // still version stands in for it (contextLost), so the room never loses the light meanwhile.
+    // The still version takes over for good only if the context cannot be rebuilt, or does not
+    // come back within RESTORE_WAIT_MS of the page being in view (a hidden tab is not expected
+    // to get it back).
+    let lost = false
+    // Set once the still version has taken over: a context that comes back after that is
+    // ignored, so nothing draws (or loops) for a canvas that is no longer on the page.
+    let gaveUp = false
+    let giveUp = 0
+    const fail = () => {
+      gaveUp = true
       setFailed(true)
     }
-    // If the GPU drops the context (common on phones after a while in the
-    // background), the canvas would freeze on its last frame: use the still version.
-    const onLost = () => {
+    const waitForRestore = () => {
+      window.clearTimeout(giveUp)
+      if (lost && !gaveUp && !document.hidden) giveUp = window.setTimeout(fail, RESTORE_WAIT_MS)
+    }
+    const onLost = (event: Event) => {
+      if (gaveUp) return
+      event.preventDefault()
+      lost = true
       draw.current = null
-      setFailed(true)
+      setReady(false)
+      setContextLost(true)
+      waitForRestore()
+    }
+    const onRestored = () => {
+      lost = false
+      window.clearTimeout(giveUp)
+      if (gaveUp) return
+      // The still version leaves in the same render that brings the canvas back, with its
+      // restored frame already drawn by setup(), so the light never blinks.
+      if (setup()) setReady(true)
+      else fail()
+      setContextLost(false)
     }
     canvas.addEventListener('webglcontextlost', onLost)
+    canvas.addEventListener('webglcontextrestored', onRestored)
+    document.addEventListener('visibilitychange', waitForRestore)
     // The context is freed with the canvas; releasing it here would break React's
     // development double-run of effects, which reuses the same canvas.
     return () => {
       canvas.removeEventListener('webglcontextlost', onLost)
+      canvas.removeEventListener('webglcontextrestored', onRestored)
+      document.removeEventListener('visibilitychange', waitForRestore)
+      window.clearTimeout(giveUp)
       draw.current = null
     }
   }, [])
 
+  // The flow, ~30 frames a second. It waits for a drawable context (`ready`), so it stops while
+  // a lost context is away and picks up again, from the same moment of the flow, once it is back.
   useEffect(() => {
-    if (!running || !draw.current) {
+    if (!running || !ready) {
       draw.current?.(timeRef.current) // one still frame
       return
     }
     let frame = 0
-    let last = performance.now()
+    // 0 until the first frame: that frame's own timestamp starts the clock, so the first step
+    // is never negative (performance.now() here can be later than the first frame's time).
+    let last = 0
     let acc = 0
     const tick = (now: number) => {
-      const dt = Math.min(0.1, (now - last) / 1000)
+      const dt = last ? Math.min(0.1, Math.max(0, (now - last) / 1000)) : 0
       last = now
       timeRef.current += dt
       acc += dt
-      if (acc >= 1 / 30) {
-        acc = 0
+      // Frame times jitter around the display's refresh, so two 60 Hz frames can add up to just
+      // under 1/30 s. A little slack catches those, and keeping the remainder (instead of
+      // zeroing it) keeps the draws on an even every-other frame rather than a mix of 30 and
+      // 20 fps. The remainder is capped at one step, so a long gap never brings a burst of draws.
+      if (acc >= FRAME_STEP - FRAME_SLACK) {
+        acc = Math.min(Math.max(acc - FRAME_STEP, 0), FRAME_STEP)
         draw.current?.(timeRef.current)
       }
       frame = requestAnimationFrame(tick)
     }
     frame = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(frame)
-  }, [running])
+  }, [running, ready])
 
   // A new colour: the flicker and the glide, drawn every frame until it settles
   // (the room's own loop may be paused, so this keeps its own frames).
@@ -337,5 +410,11 @@ export function LampLiquid({ motionAllowed, tone = 0, hovered = false, flick = 0
   }, [flick])
 
   if (failed) return LAMP_TONES[tone] ? <LampLight motionAllowed={motionAllowed} /> : null // the still version, unless the light is off
-  return <canvas ref={canvasRef} className="lamp-liquid" width={640} height={360} aria-hidden="true" data-ready={ready && !dark ? '' : undefined} />
+  // The canvas stays mounted while its context is away, so the restore can draw on it again.
+  return (
+    <>
+      {contextLost && LAMP_TONES[tone] ? <LampLight motionAllowed={motionAllowed} /> : null}
+      <canvas ref={canvasRef} className="lamp-liquid" width={640} height={360} aria-hidden="true" data-ready={ready && !dark ? '' : undefined} />
+    </>
+  )
 }

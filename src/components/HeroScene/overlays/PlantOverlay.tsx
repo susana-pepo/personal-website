@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { roomCovered } from '../../../hooks/useRoomCovered'
 import { afterPainted, arrivedClipFile, clipsCanPlay, fetchClipFile, prepareClip, type PreparedClip } from '../../../scene/clipFiles'
 import { whenEntered, whenSettled } from '../../../scene/entrance'
 import { PLANT_MEDIA, overlay } from '../../../scene/layout'
@@ -133,10 +134,19 @@ export function PlantOverlay({ motionAllowed, stir }: PlantOverlayProps) {
     let endTimer: number | undefined
     let frameLoop = 0
 
-    // The still and the sway trade places in one step (one painted frame), never with a gap.
+    // The sway takes over from the still in one step (one painted frame), never with a gap. Going
+    // back, the still is shown first and the canvas above it is cleared only once the still has
+    // been painted: a still whose picture has to be decoded again then never leaves the shelf bare.
+    // Until then the canvas holds the sway's last frame, which is the still's own pose (or, when the
+    // room stops mid-sway, the frame it stopped on, for those two frames longer). A sway that takes
+    // over again in the meantime hides the still, and keeps its canvas.
     const showStill = (on: boolean) => {
       still.style.visibility = on ? '' : 'hidden'
-      if (on && ctx) ctx.clearRect(0, 0, CLIP_W, CLIP_H)
+      if (on && ctx) {
+        void afterPainted(0).then(() => {
+          if (still.style.visibility !== 'hidden') ctx.clearRect(0, 0, CLIP_W, CLIP_H)
+        })
+      }
     }
 
     const prepareNext = async () => {
@@ -236,9 +246,11 @@ export function PlantOverlay({ motionAllowed, stir }: PlantOverlayProps) {
 
     // Its own sways, on the beat: every SWAY_EVERY_MS from the moment the room settled. A beat
     // that finds it mid-sway, or its clip not ready yet, passes: it never sways late, off the beat.
+    // So does a beat while the phone's page covers the whole room (a sway already under way ends
+    // on its own, on the still's pose).
     const onBeat = () => {
       if (stopped || settledAt === null) return
-      if (!document.hidden && swaysOnItsOwn(state) && ready && clipsCanPlay()) {
+      if (!document.hidden && !roomCovered() && swaysOnItsOwn(state) && ready && clipsCanPlay()) {
         state = 'swaying'
         void play()
       } else {
@@ -289,7 +301,8 @@ export function PlantOverlay({ motionAllowed, stir }: PlantOverlayProps) {
   const [W, H] = [CLIP_W + (CLIP_W % 2), CLIP_H + (CLIP_H % 2)]
   return (
     <SceneObject overlay={PLANT} highlighted={false} discoveryIndex={0} className="plant">
-      <img ref={stillRef} src={PLANT_MEDIA.still} alt="" width={Math.round(PLANT.width)} height={Math.round(PLANT.height)} decoding="async" draggable={false} />
+      {/* Decoded with the paint that brings it back (not after it), so it takes over from each sway without a missing frame. */}
+      <img ref={stillRef} src={PLANT_MEDIA.still} alt="" width={Math.round(PLANT.width)} height={Math.round(PLANT.height)} decoding="sync" draggable={false} />
       {/* The sway, painted with the room (see `mode`). */}
       <canvas ref={canvasRef} className="plant__frames" width={CLIP_W} height={CLIP_H} aria-hidden="true" />
       {/* The video: only the source of the frames, unless it has to be shown itself. Padded to an

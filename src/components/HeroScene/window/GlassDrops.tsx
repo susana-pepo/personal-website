@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { onRoomCovered, roomCovered } from '../../../hooks/useRoomCovered'
 import { easeInOut } from '../../../lib/motion'
 import { VIEW_FADE_MS } from './WindowView'
 import { copyOf, loadImage, mix } from './canvasUtil'
@@ -160,6 +161,8 @@ interface GlassDropsProps {
   time: TimeOfDay
   /** The room may move: drops land and run only then (otherwise the glass holds still). */
   moving: boolean
+  /** Told after every draw whether any drop is left on the canvas (WeatherLayer hides the empty glass). */
+  onDrawn?: (drawn: boolean) => void
 }
 
 /**
@@ -172,7 +175,7 @@ interface GlassDropsProps {
  * frame. A page that opens in the rain starts with the glass already wet.
  * Decorative only.
  */
-export function GlassDrops({ raining, time, moving }: GlassDropsProps) {
+export function GlassDrops({ raining, time, moving, onDrawn }: GlassDropsProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const state = useRef<{
     glass: Glass
@@ -203,6 +206,8 @@ export function GlassDrops({ raining, time, moving }: GlassDropsProps) {
   }
   const props = useRef({ raining, time, moving })
   props.current = { raining, time, moving }
+  const drawnRef = useRef(onDrawn)
+  drawnRef.current = onDrawn
   const redraw = useRef<() => void>(() => {})
   /** Draws one frame now (used while the light fades, whether or not the drops are moving). */
   const paint = useRef<() => void>(() => {})
@@ -349,6 +354,9 @@ export function GlassDrops({ raining, time, moving }: GlassDropsProps) {
         drop(ctx, r, r.r * (1 - 0.1 * run), r.r * (1 + 0.22 * run), 1)
       }
       ctx.globalAlpha = 1
+      // The beads' layer can lag behind the beads (it is redrawn at most every 80 ms): until it
+      // has caught up, it may still hold drops.
+      drawnRef.current?.(s.glass.dirty || s.glass.beads.length > 0 || s.glass.runners.length > 0)
     }
 
     let frame = 0
@@ -357,6 +365,11 @@ export function GlassDrops({ raining, time, moving }: GlassDropsProps) {
       frame = 0
       const map = s.map
       if (!map || !props.current.moving) return
+      if (roomCovered()) {
+        // Under the phone's page: the glass rests exactly as it is, and carries on from there once uncovered.
+        last = 0
+        return
+      }
       const dt = last ? Math.min(0.05, (now - last) / 1000) : 1 / 60
       last = now
       stepGlass(s.glass, map, dt, props.current.raining, s.rand)
@@ -391,11 +404,13 @@ export function GlassDrops({ raining, time, moving }: GlassDropsProps) {
       }
     }
     redraw.current()
+    const offCovered = onRoomCovered((covered) => !covered && props.current.moving && redraw.current())
     return () => {
       cancelAnimationFrame(frame)
       frame = 0
       redraw.current = () => {}
       paint.current = () => {}
+      offCovered()
     }
   }, [raining, moving])
 

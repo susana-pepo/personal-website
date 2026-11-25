@@ -51,7 +51,9 @@ export function SceneObject({ overlay: base, highlighted, discoveryIndex, childr
     zIndex: overlay.z,
     '--glow-rest': overlay.glow?.rest ?? 0,
     '--glow-hover': overlay.glow?.hover ?? 0,
-    '--lift': overlay.glow?.lift ?? 1,
+    // No filter at all where there is no lift: even brightness(1) makes the browser draw the
+    // picture through a filter pass (in Safari an offscreen buffer) at every repaint, for nothing.
+    '--lift-filter': (overlay.glow?.lift ?? 1) !== 1 ? `brightness(${overlay.glow!.lift})` : 'none',
     '--discover-order': discoveryIndex,
   } as CSSProperties
 
@@ -82,7 +84,6 @@ export function SceneObject({ overlay: base, highlighted, discoveryIndex, childr
           className="scene-object__halo"
           src={overlay.halo}
           alt=""
-          decoding="async"
           draggable={false}
           style={halo}
         />
@@ -94,7 +95,6 @@ export function SceneObject({ overlay: base, highlighted, discoveryIndex, childr
             alt=""
             width={Math.round(overlay.width)}
             height={Math.round(overlay.height)}
-            decoding="async"
             draggable={false}
             ref={(img) => {
               // Cached images can finish before React attaches onLoad.
@@ -104,7 +104,7 @@ export function SceneObject({ overlay: base, highlighted, discoveryIndex, childr
           />
         )}
       </div>
-      {overlay.sheen && <img className="scene-object__sheen" src={overlay.sheen} alt="" decoding="async" draggable={false} />}
+      {overlay.sheen && <img className="scene-object__sheen" src={overlay.sheen} alt="" draggable={false} />}
       {extra}
     </div>
   )

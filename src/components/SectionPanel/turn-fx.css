@@ -25,8 +25,10 @@
   --turn-light-edge: 0.2;
   --turn-light-k: 1;
   /* A still grain in the band's mask (about ±15%): at these levels a smooth gradient would show
-     as 1/255 contour steps; the grain dithers them away. Never seen as grain itself. */
-  --turn-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.2 0 0 0 .3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+     as 1/255 contour steps; the grain dithers them away. Never seen as grain itself. Baked from its
+     feTurbulence SVG by scripts/build-grain.mjs, so a turn doesn't re-run the filter at each paint;
+     masked as a 160px tile, the SVG's own size. -webkit-image-set, as --fibre (SectionPanel.css). */
+  --turn-grain: -webkit-image-set(url('/media/grain/turn-grain@1x.png') 1x, url('/media/grain/turn-grain@2x.png') 2x, url('/media/grain/turn-grain@3x.png') 3x);
 }
 
 /* With the melt (turn-melt.css) the light is the melt's own: it passes while the old page sinks
@@ -73,9 +75,9 @@
   pointer-events: none;
   opacity: calc(var(--turn-light-face) * var(--turn-light-k));
   /* Strongest near the lamp, still a breath of it across the reading column; dithered. */
-  -webkit-mask: radial-gradient(farthest-corner at var(--lamp-x) var(--lamp-y), #000, rgb(0 0 0 / 0.55) 30%, rgb(0 0 0 / 0.36) 65%, rgb(0 0 0 / 0.28)), var(--turn-grain);
+  -webkit-mask: radial-gradient(farthest-corner at var(--lamp-x) var(--lamp-y), #000, rgb(0 0 0 / 0.55) 30%, rgb(0 0 0 / 0.36) 65%, rgb(0 0 0 / 0.28)), var(--turn-grain) 0 0 / 160px 160px;
   -webkit-mask-composite: source-in;
-  mask: radial-gradient(farthest-corner at var(--lamp-x) var(--lamp-y), #000, rgb(0 0 0 / 0.55) 30%, rgb(0 0 0 / 0.36) 65%, rgb(0 0 0 / 0.28)), var(--turn-grain);
+  mask: radial-gradient(farthest-corner at var(--lamp-x) var(--lamp-y), #000, rgb(0 0 0 / 0.55) 30%, rgb(0 0 0 / 0.36) 65%, rgb(0 0 0 / 0.28)), var(--turn-grain) 0 0 / 160px 160px;
   mask-composite: intersect;
 }
 

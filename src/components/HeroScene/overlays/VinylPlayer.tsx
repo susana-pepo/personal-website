@@ -129,23 +129,23 @@ export function VinylPlayer({ highlighted, motionAllowed, discoveryIndex }: Viny
       className="vinyl-player"
       dataAttributes={{ 'data-spinning': spinning ? '' : undefined }}
     >
-      <img className="vinyl-player__body" src={VINYL_PARTS.body} alt="" decoding="async" draggable={false} />
+      <img className="vinyl-player__body" src={VINYL_PARTS.body} alt="" draggable={false} />
       <span className="vinyl-player__disc" style={DISC_BOX}>
         <span className="vinyl-player__edge" style={{ transform: `translateY(${(VINYL_PARTS.edge / DH) * 100}%)` }} />
         <span className="vinyl-player__face" style={{ transform: `translateY(-50%) scaleY(${VINYL_PARTS.tilt})` }}>
           <span ref={discRef} className="vinyl-player__spin" style={inView ? undefined : { willChange: 'auto' }}>
-            <img src={VINYL_PARTS.disc} alt="" decoding="async" draggable={false} />
+            <img src={VINYL_PARTS.disc} alt="" draggable={false} />
             <span className="vinyl-player__shade" />
             <span className="vinyl-player__shimmer" />
           </span>
         </span>
         <span className="vinyl-player__face vinyl-player__face--sheen" style={{ transform: `translateY(-50%) scaleY(${VINYL_PARTS.tilt})` }}>
-          <img src={VINYL_PARTS.discSheen} alt="" decoding="async" draggable={false} />
+          <img src={VINYL_PARTS.discSheen} alt="" draggable={false} />
         </span>
       </span>
-      <img className="vinyl-player__part" src={VINYL_PARTS.spindle} alt="" decoding="async" draggable={false} />
-      <img className="vinyl-player__part" src={VINYL_PARTS.tonearmArm} alt="" decoding="async" draggable={false} />
-      <img className="vinyl-player__part" src={VINYL_PARTS.tonearmBase} alt="" decoding="async" draggable={false} />
+      <img className="vinyl-player__part" src={VINYL_PARTS.spindle} alt="" draggable={false} />
+      <img className="vinyl-player__part" src={VINYL_PARTS.tonearmArm} alt="" draggable={false} />
+      <img className="vinyl-player__part" src={VINYL_PARTS.tonearmBase} alt="" draggable={false} />
     </SceneObject>
   )
 }

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
+import { onRoomCovered, roomCovered } from '../../../hooks/useRoomCovered'
 import { easeInOut } from '../../../lib/motion'
 import { formed, frostBuilder, type FrostField } from '../../../scene/frost'
 import { overcastRgb } from '../../../scene/glassDrops'
@@ -41,6 +42,8 @@ interface FrostLayerProps {
   time: TimeOfDay
   /** The room may move: frost forms and melts slowly only then (otherwise it's there or not, at once). */
   moving: boolean
+  /** Told after every paint whether any frost is left on the canvas (WeatherLayer hides the empty glass). */
+  onDrawn?: (drawn: boolean) => void
 }
 
 /**
@@ -52,7 +55,7 @@ interface FrostLayerProps {
  * with the view's when the time changes. Its shape is worked out once, the
  * first time it snows. Decorative only.
  */
-export function FrostLayer({ snowing, time, moving }: FrostLayerProps) {
+export function FrostLayer({ snowing, time, moving, onDrawn }: FrostLayerProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const reducedMotion = usePrefersReducedMotion()
   const state = useRef({
@@ -142,6 +145,8 @@ export function FrostLayer({ snowing, time, moving }: FrostLayerProps) {
       out[p + 3] = A * 255
     }
     ctx.putImageData(img, 0, 0)
+    // It melts on after the snow has stopped, so the clear sky's glass waits for it.
+    onDrawn?.(s.progress > 0)
   }
 
   // The frost's shape, worked out the first time it snows, a few rows at a time
@@ -228,6 +233,11 @@ export function FrostLayer({ snowing, time, moving }: FrostLayerProps) {
       frame = 0
       const s = state.current
       const p = props.current
+      if (p.moving && roomCovered()) {
+        // Under the phone's page: the ice rests exactly as it is, and carries on from there once uncovered.
+        last = 0
+        return
+      }
       const dt = last ? Math.min(0.2, (now - last) / 1000) : 0
       last = now
       const goal = p.snowing ? 1 : 0
@@ -253,9 +263,11 @@ export function FrostLayer({ snowing, time, moving }: FrostLayerProps) {
       if (!frame) frame = requestAnimationFrame(step)
     }
     kick.current()
+    const offCovered = onRoomCovered((covered) => !covered && kick.current())
     return () => {
       cancelAnimationFrame(frame)
       kick.current = () => {}
+      offCovered()
     }
   }, [snowing, moving, reducedMotion])
 

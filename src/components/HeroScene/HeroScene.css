@@ -242,8 +242,9 @@
 }
 
 .scene-object__art > img {
-  /* Resting lift: still objects sit slightly brighter than the room around them. */
-  filter: brightness(var(--lift));
+  /* Resting lift: still objects sit slightly brighter than the room around them (none without a
+     lift, set in SceneObject.tsx, so no identity filter pass runs on the others). */
+  filter: var(--lift-filter, none);
 }
 
 .scene-object[data-highlighted] {
@@ -946,8 +947,16 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * The hit, hover and reach shapes are for hit-testing only, so they are never drawn: visibility
+ * hidden keeps the room-sized svg from painting a layer of invisible shapes, while SVG's
+ * pointer-events values all and stroke still hit hidden shapes. Their fill and stroke stay
+ * transparent rather than none, because the browser only counts a stroke (the 28 px reach) in
+ * a shape's hit bounds when it has one.
+ */
 .hotspot__hit {
   fill: transparent;
+  visibility: hidden;
   pointer-events: all;
   cursor: pointer;
 }
@@ -955,6 +964,7 @@
 /* Hover-only outlines (the plant sways when a pointer comes onto it): not a control, so no pointer cursor. */
 .hotspots__hover path {
   fill: transparent;
+  visibility: hidden;
   pointer-events: all;
   cursor: default;
 }
@@ -968,6 +978,7 @@
   stroke-width: 28px;
   vector-effect: non-scaling-stroke;
   stroke-linejoin: round;
+  visibility: hidden;
   pointer-events: none;
   cursor: pointer;
 }
@@ -999,6 +1010,7 @@
 }
 
 /* Keyboard focus: a fine vermilion line traced around the object, on a dark halo so it reads on any part of the painting. */
+/* Both lines are also hidden at rest, so nothing at opacity 0 is painted while no object has focus. */
 .hotspot__focus-halo {
   fill: none;
   stroke: oklch(0.15 0.01 45 / 0.75);
@@ -1006,11 +1018,13 @@
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
 }
 
 .hotspot:focus-visible .hotspot__focus-halo {
   opacity: 1;
+  visibility: visible;
 }
 
 .hotspot__focus {
@@ -1020,12 +1034,20 @@
   stroke-linejoin: round;
   vector-effect: non-scaling-stroke;
   opacity: 0;
+  visibility: hidden;
   pointer-events: none;
-  transition: opacity var(--dur-quick) var(--ease-out);
+  /* The line hides only once its fade-out has finished, so the fade looks as it did. */
+  transition:
+    opacity var(--dur-quick) var(--ease-out),
+    visibility 0s linear var(--dur-quick);
 }
 
 .hotspot:focus-visible .hotspot__focus {
   opacity: 1;
+  visibility: visible;
+  transition:
+    opacity var(--dur-quick) var(--ease-out),
+    visibility 0s;
 }
 
 /* ── Labels: small editorial annotations tied to each object ── */
@@ -1615,6 +1637,33 @@
     visibility: hidden;
     transition: visibility 0s linear 500ms;
   }
+}
+
+/*
+ * The same moment for the room's other endless loops: html[data-room-covered] is set by
+ * src/hooks/useRoomCovered.ts once the sheet has landed over the room (only at the media above),
+ * and taken off the moment the page starts to close. Each loop pauses where it is and carries on
+ * from there, so nothing is seen to change. Only the loops, named here: a one-shot whose end a
+ * timer sets (her greeting, the first-look halos, a breath, a speech line, a click's answer) keeps
+ * running on the clock, or the timer would take it away part-way once the room is uncovered.
+ * The laptop's typing pauses with its cursor, whose start waits for the typing to finish.
+ * Important, because a rule that sets an animation with its shorthand (the laptop's cursor, the
+ * piano's screen) would otherwise set it running again.
+ */
+html[data-room-covered] .scene :is(
+    .lamp-light *,
+    .laptop-terminal__typed,
+    .laptop-terminal__cursor,
+    .power-light__bloom,
+    .power-light__core,
+    .tower-light__dot,
+    .glimmer-cursor *,
+    .piano__screen,
+    .piano__screen *
+  ),
+html[data-room-covered] .scene .piano__screen::before,
+html[data-room-covered] .scene .piano__screen::after {
+  animation-play-state: paused !important;
 }
 
 /* ── Evening mood: a warm dimming over the room and every object, clear where the
