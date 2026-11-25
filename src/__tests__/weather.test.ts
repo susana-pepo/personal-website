@@ -25,9 +25,9 @@ import { easeInOut } from '../lib/motion'
 import { optionForKey } from '../lib/radioGroup'
 
 describe('weathers', () => {
-  it('has clear, rain and snow, and starts in the painting’s rain', () => {
+  it('has clear, rain and snow, and starts clear', () => {
     expect(WEATHERS).toEqual(['clear', 'rain', 'snow'])
-    expect(DEFAULT_WEATHER).toBe('rain')
+    expect(DEFAULT_WEATHER).toBe('clear')
     expect(WEATHER_CHOICES).toContain(DEFAULT_WEATHER)
   })
 

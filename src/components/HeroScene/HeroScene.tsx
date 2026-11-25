@@ -22,7 +22,7 @@ import { PressedObject, SceneObject } from './overlays/SceneObject'
 import { PowerLight, VinylPlayer } from './overlays/VinylPlayer'
 import { LampLiquid } from './lamp/LampLiquid'
 import { LampColour } from './lamp/LampColour'
-import { nextTone, splashColour, toneAt } from '../../scene/lampTones'
+import { LAMP_OFF, nextTone, splashColour, toneAt } from '../../scene/lampTones'
 import { LampSplash, type LampSplashHandle } from './lamp/LampSplash'
 import { findGlimmer, isGlimmer, unfoundGlimmers } from '../../scene/glimmers'
 import { BREATH_MS, linesLeft, nextLine } from '../../scene/roomCues'
@@ -231,7 +231,7 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
   // (A time they pick is said by screen readers, as the control is a radio group;
   // one the clock brings is not, like the rest of the room's ambient changes.)
   const [time, setTime] = useState<TimeOfDay>(() => timeAt(new Date()))
-  // The weather outside: the painting's rain until the visitor picks another.
+  // The weather outside: clear until the visitor picks another.
   const [weather, setWeather] = useState<Weather>(weatherRequested ?? DEFAULT_WEATHER)
   // The room's light (the washes, the tower light, the lit windows) waits for the
   // window to really show its view; until then it's the painting's own dawn.
@@ -282,9 +282,9 @@ export function HeroScene({ stageRef, videoRef, playback, controlSlot }: HeroSce
     }
   }, [])
 
-  // The desk lamp's light colour (a click steps to the next one).
-  const [lampTone, setLampTone] = useState(0)
-  const lampToneRef = useRef(0)
+  // The desk lamp's light colour: off until a click turns it on (each click steps to the next one).
+  const [lampTone, setLampTone] = useState(LAMP_OFF)
+  const lampToneRef = useRef(LAMP_OFF)
   const lampSplash = useRef<LampSplashHandle>(null)
   // Arriving on the lamp with a mouse or the keyboard: it twitches (three tiny comic
   // jiggle marks) and its bulb warms. On a touch screen a tap is the click itself.

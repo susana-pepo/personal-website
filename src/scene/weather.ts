@@ -1,9 +1,9 @@
 import { WINDOW_VIEW_BOX, type TimeOfDay } from './windowViews'
 
-/** The weather outside the window. Rain is the painting's own (a rainy evening). */
+/** The weather outside the window. Rain is the painting's own (a rainy evening); the room starts clear. */
 export const WEATHERS = ['clear', 'rain', 'snow'] as const
 export type Weather = (typeof WEATHERS)[number]
-export const DEFAULT_WEATHER: Weather = 'rain'
+export const DEFAULT_WEATHER: Weather = 'clear'
 
 /** The weathers the control offers, in order. */
 export const WEATHER_CHOICES: readonly Weather[] = WEATHERS
