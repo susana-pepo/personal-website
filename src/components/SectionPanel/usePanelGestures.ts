@@ -2,7 +2,7 @@ import { useEffect, type RefObject } from 'react'
 import { SECTION_IDS, type SectionId } from '../../content/types'
 import { closeSection, currentSection, hrefFor } from '../../lib/router'
 import { prefersReducedMotion } from '../../lib/motion'
-import { FOLLOW_PX, createRecognizer, createRoomRecognizer, type WheelInput } from './panelGestures'
+import { FOLLOW_PX, createRecognizer, createRoomRecognizer, createTouchSwipe, type WheelInput } from './panelGestures'
 
 /** Desktop with a trackpad or mouse: phones and tablets keep their own touch behaviour. */
 const GESTURE_MEDIA = '(min-width: 640px) and (hover: hover) and (pointer: fine)'
@@ -122,6 +122,58 @@ export function usePanelGestures(
     })
     if (pagesRef.current) watch.observe(pagesRef.current, { childList: true, subtree: true, attributeFilter: ['class'] })
 
+    /** Turns to the next (1) or previous (-1) section; the sections loop round at the ends. */
+    const turn = (go: 1 | -1) => {
+      carry()
+      const here = currentSection()
+      const n = SECTION_IDS.length
+      const next = here ? SECTION_IDS[(SECTION_IDS.indexOf(here) + go + n) % n] : undefined
+      if (next) {
+        swiped = { to: next, dir: go, at: performance.now() }
+        window.location.hash = hrefFor(next)
+      }
+    }
+
+    // Touch (phones, tablets): one finger swiping sideways turns the section. Nothing else: opening
+    // and closing stay with the room's objects and the close button.
+    const touch = createTouchSwipe()
+    const onTouchStart = (event: TouchEvent) => {
+      if (!dialog.open || performance.now() - openedAt < SETTLE_MS) return
+      if (event.touches.length > 1) {
+        touch.cancel()
+        setLean(0)
+        return
+      }
+      const f = event.touches[0]!
+      const target = event.target instanceof Element ? event.target : null
+      // the record crate flips with a sideways drag of its own
+      const claimed = target?.closest('.crate') ? true : (sideScroller(target, dialog) ?? false)
+      touch.start({ t: event.timeStamp, x: f.clientX, y: f.clientY, width: window.innerWidth, claimed })
+    }
+    const onTouchMove = (event: TouchEvent) => {
+      if (event.touches.length > 1) {
+        touch.cancel()
+        setLean(0)
+        return
+      }
+      const f = event.touches[0]!
+      const { lean } = touch.move(f.clientX, f.clientY, event.timeStamp)
+      // a sideways swipe: the page doesn't also scroll up or down under it
+      if (lean !== 0 && event.cancelable) event.preventDefault()
+      if (!handing) setLean(lean)
+    }
+    const onTouchEnd = (event: TouchEvent) => {
+      if (event.touches.length > 0) return
+      const { go } = touch.end(event.timeStamp)
+      if (go) turn(go)
+      else if (!handing) setLean(0)
+    }
+    const onTouchCancel = () => {
+      touch.cancel()
+      touch.end(0)
+      setLean(0)
+    }
+
     const onWheel = (event: WheelEvent) => {
       if (!media.matches || !dialog.open) return
       // still arriving: this gesture doesn't count
@@ -145,17 +197,8 @@ export function usePanelGestures(
       })
       if (out.prevent && event.cancelable) event.preventDefault()
 
-      if (out.go) {
-        carry()
-        const here = currentSection()
-        const n = SECTION_IDS.length
-        // the sections loop: past the last comes the first, before the first the last
-        const next = here ? SECTION_IDS[(SECTION_IDS.indexOf(here) + out.go + n) % n] : undefined
-        if (next) {
-          swiped = { to: next, dir: out.go, at: performance.now() }
-          window.location.hash = hrefFor(next)
-        }
-      } else if (!handing) setLean(out.lean, out.pull ?? 0)
+      if (out.go) turn(out.go)
+      else if (!handing) setLean(out.lean, out.pull ?? 0)
       if (out.close) {
         setLean(0)
         closeSection()
@@ -169,11 +212,19 @@ export function usePanelGestures(
     }
 
     dialog.addEventListener('wheel', onWheel, { passive: false })
+    dialog.addEventListener('touchstart', onTouchStart, { passive: true })
+    dialog.addEventListener('touchmove', onTouchMove, { passive: false })
+    dialog.addEventListener('touchend', onTouchEnd, { passive: true })
+    dialog.addEventListener('touchcancel', onTouchCancel, { passive: true })
     window.addEventListener('keydown', onKey)
     window.addEventListener('keyup', onKey)
     window.addEventListener('blur', onBlur)
     return () => {
       dialog.removeEventListener('wheel', onWheel)
+      dialog.removeEventListener('touchstart', onTouchStart)
+      dialog.removeEventListener('touchmove', onTouchMove)
+      dialog.removeEventListener('touchend', onTouchEnd)
+      dialog.removeEventListener('touchcancel', onTouchCancel)
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('keyup', onKey)
       window.removeEventListener('blur', onBlur)

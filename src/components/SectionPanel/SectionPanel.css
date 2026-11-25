@@ -783,6 +783,8 @@ html[data-panel] {
 
 /* The page turning away: fades in 180ms and slides 14px against the direction of travel. */
 .panel__page.is-leaving {
+  /* a swipe's turn: it leaves from where the finger leaned it (usePanelGestures.ts) */
+  translate: var(--swipe-carry, 0px) 0;
   pointer-events: none;
   animation:
     folio-leave-fade 180ms ease forwards,

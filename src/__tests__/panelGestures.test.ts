@@ -4,6 +4,7 @@ import {
   SWIPE_PX,
   createRecognizer,
   createRoomRecognizer,
+  createTouchSwipe,
   lean,
   type RoomWheel,
   type WheelInput,
@@ -254,5 +255,62 @@ describe('scroll down in the room: reliability', () => {
     const glideUp = Array.from({ length: 20 }, (_, i) => ev(i, -20 * 0.85 ** i))
     const down = [4, 8, 13, 18, 18, 18].map((dy, i) => ev(20 + i, dy))
     expect([...glideUp, ...down].map((e) => rec.feed(e)).filter(Boolean)).toHaveLength(1)
+  })
+})
+
+describe('touch swipe (phones)', () => {
+  const W = 390
+  /** A one-finger drag from (x0, y0) by (dx, dy) over `ms`, then lifted after `hold` ms. */
+  const drag = (dx: number, dy: number, ms = 200, opts: { x0?: number; claimed?: boolean | { forward: boolean; back: boolean }; hold?: number } = {}) => {
+    const t = createTouchSwipe()
+    const x0 = opts.x0 ?? 200
+    t.start({ t: 0, x: x0, y: 400, width: W, claimed: opts.claimed ?? false })
+    let lean = 0
+    const n = 12
+    for (let i = 1; i <= n; i++) lean = t.move(x0 + (dx * i) / n, 400 + (dy * i) / n, (ms * i) / n).lean
+    return { ...t.end(ms + (opts.hold ?? 0)), lean }
+  }
+
+  it('a long drag left turns forward, right turns back', () => {
+    expect(drag(-120, 6).go).toBe(1)
+    expect(drag(120, -6).go).toBe(-1)
+  })
+
+  it('a short quick flick turns; the same short drag made slowly doesn’t', () => {
+    expect(drag(-40, 2, 60).go).toBe(1)
+    expect(drag(-40, 2, 600).go).toBeUndefined()
+  })
+
+  it('the page leans with the finger', () => {
+    expect(drag(-50, 0, 300, { hold: 200 }).lean).toBeLessThan(0)
+  })
+
+  it('a drag that stops before lifting doesn’t flick', () => {
+    expect(drag(-40, 0, 60, { hold: 200 }).go).toBeUndefined()
+  })
+
+  it('a scroll up or down never turns, even if it drifts sideways', () => {
+    expect(drag(-30, 200).go).toBeUndefined()
+    expect(drag(-100, -120).go).toBeUndefined()
+  })
+
+  it('leaves the screen edges to the system’s back gesture', () => {
+    expect(drag(150, 0, 200, { x0: 6 }).go).toBeUndefined()
+    expect(drag(-150, 0, 200, { x0: W - 6 }).go).toBeUndefined()
+  })
+
+  it('a shelf that can still scroll keeps the drag; one at its end lets it turn; the crate always keeps it', () => {
+    expect(drag(-120, 0, 200, { claimed: { forward: true, back: false } }).go).toBeUndefined()
+    expect(drag(-120, 0, 200, { claimed: { forward: false, back: true } }).go).toBe(1)
+    expect(drag(-120, 0, 200, { claimed: true }).go).toBeUndefined()
+  })
+
+  it('a second finger (a pinch) ends the swipe', () => {
+    const t = createTouchSwipe()
+    t.start({ t: 0, x: 200, y: 400, width: W, claimed: false })
+    t.move(150, 400, 50)
+    t.cancel()
+    t.move(60, 400, 150)
+    expect(t.end(160).go).toBeUndefined()
   })
 })

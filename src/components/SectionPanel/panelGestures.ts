@@ -355,3 +355,71 @@ export function createRoomRecognizer() {
     },
   }
 }
+
+/** Touch: a finger's sideways drag turns once it has travelled this far, or flicks this fast. */
+export const TOUCH_TURN_PX = 64
+export const TOUCH_FLICK_PX = 28
+export const TOUCH_FLICK_SPEED = 0.45 // px per ms
+/** Drags that start this close to the screen's side are the system's back gesture, not ours. */
+export const TOUCH_EDGE_PX = 18
+
+export interface TouchStart {
+  t: number
+  x: number
+  y: number
+  /** The screen's width, to keep clear of its edges. */
+  width: number
+  /** The finger landed on something that drags sideways itself (a shelf that scrolls, the crate). */
+  claimed: boolean | { forward: boolean; back: boolean }
+}
+
+/**
+ * A phone's sideways swipe through the sections, one finger: it leans with the finger once it's
+ * clearly sideways, and turns when the finger lifts after a long enough drag or a quick flick. A
+ * drag that starts up or down is a scroll for good; a second finger (a pinch) ends it; a drag that
+ * starts at the screen's edge is the system's own back gesture; something that drags sideways
+ * itself (a shelf with room to scroll that way, the record crate) keeps its drag.
+ */
+export function createTouchSwipe() {
+  let s: { x: number; y: number; t: number; axis: 'none' | 'x' | 'ignore'; claimed: TouchStart['claimed']; dx: number; lastX: number; lastT: number; v: number } | null = null
+  return {
+    start(e: TouchStart) {
+      const edge = e.x < TOUCH_EDGE_PX || e.x > e.width - TOUCH_EDGE_PX
+      s = { x: e.x, y: e.y, t: e.t, axis: edge || e.claimed === true ? 'ignore' : 'none', claimed: e.claimed, dx: 0, lastX: e.x, lastT: e.t, v: 0 }
+    },
+    /** A second finger: not a swipe any more. */
+    cancel() {
+      if (s) s.axis = 'ignore'
+    },
+    move(x: number, y: number, t: number): { lean: number } {
+      if (!s || s.axis === 'ignore') return { lean: 0 }
+      const dx = x - s.x
+      const dy = y - s.y
+      if (s.axis === 'none') {
+        if (Math.hypot(dx, dy) < AXIS_PX) return { lean: 0 }
+        s.axis = Math.abs(dx) >= AXIS_RATIO * Math.abs(dy) ? 'x' : 'ignore'
+        // a shelf that can still scroll this way takes the drag (finger left scrolls it forward)
+        const c = s.claimed
+        if (s.axis === 'x' && typeof c === 'object' && c && (dx < 0 ? c.forward : c.back)) s.axis = 'ignore'
+        if (s.axis === 'ignore') return { lean: 0 }
+      }
+      // speed over the last moment, for a flick
+      const dt = Math.max(1, t - s.lastT)
+      s.v = 0.6 * s.v + 0.4 * ((x - s.lastX) / dt)
+      s.lastX = x
+      s.lastT = t
+      s.dx = dx
+      return { lean: lean(dx * (SWIPE_PX / TOUCH_TURN_PX) * 0.9) }
+    },
+    end(t: number): { go?: 1 | -1 } {
+      const g = s
+      s = null
+      if (!g || g.axis !== 'x') return {}
+      // a finger that stopped before lifting isn't flicking
+      const v = t - g.lastT > 80 ? 0 : g.v
+      const turn = Math.abs(g.dx) >= TOUCH_TURN_PX || (Math.abs(g.dx) >= TOUCH_FLICK_PX && Math.abs(v) >= TOUCH_FLICK_SPEED && Math.sign(v) === Math.sign(g.dx))
+      // the finger moving left brings the next section in from the right
+      return turn ? { go: g.dx < 0 ? 1 : -1 } : {}
+    },
+  }
+}
