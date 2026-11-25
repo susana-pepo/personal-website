@@ -1,22 +1,21 @@
 /*
- * Section objects "speak" their line the way the cat purrs: just the words, in the
- * same airy cream ink, no box, no leader line. After a brief intentional hover they
- * rise softly into place out of a slight blur and float once, very gently, while you stay;
- * when you move on they drift upward and fade. (The laptop answers with its
- * terminal, the lamp with its strokes, the cat with its purr.)
+ * Section objects "speak" their line the way the cat purrs: the words in the same airy cream
+ * ink, no leader line, on a small slab of glass. After a brief intentional hover they rise
+ * softly into place out of a slight blur and float once, very gently, while you stay; when you
+ * move on they drift upward and fade. (The laptop answers with its terminal, the lamp with its
+ * strokes, the cat with its purr.)
+ *
+ * The label itself only holds the line's place over the object. Every motion (the rise, the
+ * fade, the blur, the float) runs on the glass inside it, .hotspot-label__text: the glass blurs
+ * the room behind it, and a fading or blurred parent would cut it off from the room (the
+ * parent becomes its backdrop, and there is nothing behind the glass to blur).
  */
 .hotspot-labels .hotspot-label--speech {
   --shift-x: -50%;
   --shift-y: calc(-100% - 0.35em);
-  transform: translate(var(--shift-x), var(--shift-y)) translateY(-0.55em);
-  opacity: 0;
-  filter: blur(1.5px);
-  /* Leaving: a short drift up and away, so the next object's line isn't waiting on it. */
-  transition:
-    opacity 360ms var(--ease-drift, cubic-bezier(0.33, 0, 0.2, 1)),
-    transform 480ms var(--ease-drift, cubic-bezier(0.33, 0, 0.2, 1)),
-    filter 360ms var(--ease-drift, cubic-bezier(0.33, 0, 0.2, 1));
-  transition-delay: 0ms;
+  transform: translate(var(--shift-x), var(--shift-y));
+  opacity: 1;
+  transition: none;
 }
 
 .hotspot-labels .hotspot-label--speech::before,
@@ -24,94 +23,162 @@
   display: none;
 }
 
-.hotspot-labels .hotspot-label--speech[data-visible] {
+.hotspot-labels .hotspot-label--speech > .hotspot-label__text {
+  transform: translateY(-0.55em);
+  opacity: 0;
+  filter: blur(1.5px);
+  /* Leaving: a short drift up and away, so the next object's line isn't waiting on it. */
+  transition:
+    opacity 360ms var(--ease-drift, cubic-bezier(0.33, 0, 0.2, 1)),
+    transform 480ms var(--ease-drift, cubic-bezier(0.33, 0, 0.2, 1)),
+    filter 360ms var(--ease-drift, cubic-bezier(0.33, 0, 0.2, 1));
+}
+
+.hotspot-labels .hotspot-label--speech[data-visible] > .hotspot-label__text {
   opacity: 1;
   filter: none;
-  transform: translate(var(--shift-x), var(--shift-y));
+  transform: none;
   transition: none;
-  /* backwards, not both: the last keyframe is this resting state, and a held animation would
-     block the drift-up-and-fade transition when the label is let go */
-  animation: speech-in 480ms var(--ease-out) 320ms backwards;
+  /* The rise, then a very gentle float once it's there: up and back down a single time, then it
+     rests (a cue in the chrome plays once; only the painting loops). The float moves `translate`,
+     so it never fights the rise's `transform`. backwards, not both: the rise's last keyframe is
+     this resting state, and a held animation would block the drift-up-and-fade when let go. */
+  animation:
+    speech-in 480ms var(--ease-out) 320ms backwards,
+    speech-float 3.6s cubic-bezier(0.45, 0, 0.55, 1) 1.1s 2 alternate;
 }
 
 /* While the visitor is exploring (HotspotLayer's data-warm: another line was up a moment ago),
    the next one answers almost at once and rises quicker. */
-.hotspot-labels .hotspot-label--speech[data-visible][data-warm] {
-  animation-duration: 320ms;
-  animation-delay: 80ms;
+.hotspot-labels .hotspot-label--speech[data-visible][data-warm] > .hotspot-label__text {
+  animation-duration: 320ms, 3.6s;
+  animation-delay: 80ms, 1.1s;
 }
 
 /* Keyboard focus never waits, warm or not (comes after the warm rule, so its delay wins). */
-.hotspot-labels .hotspot-label--speech[data-visible][data-immediate] {
-  animation-delay: 0ms;
+.hotspot-labels .hotspot-label--speech[data-visible][data-immediate] > .hotspot-label__text {
+  animation-delay: 0ms, 1.1s;
 }
 
 @keyframes speech-in {
   from {
     opacity: 0;
     filter: blur(2px);
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(0.5em) scale(0.96);
+    transform: translateY(0.5em) scale(0.96);
   }
   to {
     opacity: 1;
     filter: none;
-    transform: translate(var(--shift-x), var(--shift-y));
+    transform: none;
   }
 }
 
+@keyframes speech-float {
+  to {
+    translate: 0 -0.18em;
+  }
+}
+
+/*
+ * The glass: a small slab of the section panel's smoked glass (SectionPanel.css, Glass), cut
+ * down to its essentials, and here truly see-through: the room behind it shows, blurred and a
+ * little darkened, through a thin wash of the panel's smoke (--g-top to --g-bottom), deeper at
+ * the foot. The panel's grain; the slab's thickness as a dark band just inside the edge; and its
+ * edge, a 1px line of light caught in the glass, brightest at the top left (the lamp's side) and
+ * fading along the edges. Squared-off corners like the panel's, scaled down. The blur covers
+ * only these small slabs, never the room (a blur over the whole room flickered on Retina).
+ */
+.hotspot-labels {
+  --label-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .2 0 0 0 0 .14 0 0 0 0 .1 0 0 0 .07 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  --label-blur: blur(12px) saturate(140%) brightness(0.8);
+}
+
 .hotspot-labels .hotspot-label--speech .hotspot-label__text {
-  padding: 0;
-  background: none;
-  border-radius: 0;
-  box-shadow: none;
+  position: relative;
+  padding: 0.44em 0.78em 0.48em;
+  border-radius: 0.55em;
+  background:
+    var(--label-fibre),
+    linear-gradient(180deg, transparent 40%, oklch(0.08 0.01 45 / 0.18)),
+    linear-gradient(165deg, oklch(0.245 0.011 60 / 0.42), oklch(0.178 0.009 55 / 0.55));
+  -webkit-backdrop-filter: var(--label-blur);
+  backdrop-filter: var(--label-blur);
+  box-shadow:
+    /* the slab's thickness, just inside the edge */
+    inset 0 0 0 1.5px oklch(0.09 0.01 45 / 0.14),
+    /* on the room: its contact, then a short soft fall-off */
+    0 1px 2px oklch(0.05 0.01 45 / 0.3),
+    0 6px 16px -6px oklch(0.05 0.01 45 / 0.45);
   /* small words over the painting: the sans (Geist), whose strokes hold up; the display serif's
      hairlines go thin at this size */
   font-family: var(--font-sans);
   font-weight: 500;
   font-size: clamp(12px, 1.02cqi, 17px);
   letter-spacing: 0.01em;
-  color: oklch(0.97 0.02 80);
-  text-shadow:
-    0 1px 2px oklch(0.2 0.03 45 / 0.6),
-    0 0 10px oklch(0.2 0.03 45 / 0.35);
+  color: oklch(0.95 0.012 80);
+  text-shadow: 0 1px 1px oklch(0.1 0.01 45 / 0.35);
 }
 
-/* Her greeting is the room's first words: a touch larger and warmer than the others' lines,
-   and it arrives on its own on a first visit (HotspotLayer's `speech`). Her longer lines about the
-   room (on hover) wrap onto a second line, centred, rather than running across the painting. */
+/* Without a backdrop blur, the smoke thickens instead, so the words still read. */
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .hotspot-labels .hotspot-label--speech .hotspot-label__text {
+    background:
+      var(--label-fibre),
+      linear-gradient(180deg, transparent 40%, oklch(0.08 0.01 45 / 0.2)),
+      linear-gradient(165deg, oklch(0.245 0.011 60 / 0.92), oklch(0.178 0.009 55 / 0.94));
+  }
+}
+
+/* the edge: a 1px line of light in the glass, lit at the top left and fading round the slab */
+.hotspot-labels .hotspot-label--speech .hotspot-label__text::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 1px;
+  border-radius: inherit;
+  background: linear-gradient(
+    160deg,
+    oklch(1 0 0 / 0.3),
+    oklch(1 0 0 / 0.08) 35%,
+    oklch(1 0 0 / 0.03) 70%,
+    oklch(1 0 0 / 0.08)
+  );
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Her greeting is the room's first words: a touch larger than the others' lines, and it arrives
+   on its own on a first visit (HotspotLayer's `speech`). Her lines run on one line, so the glass
+   stays a slim strip; only a line too long for the room wraps, centred and balanced. */
 .hotspot-labels .hotspot-label--greeting .hotspot-label__text {
-  font-size: clamp(14px, 1.3cqi, 22px);
+  font-size: clamp(13px, 1.15cqi, 19px);
   letter-spacing: 0.005em;
   white-space: normal;
   width: max-content;
-  max-width: 17em;
+  max-width: min(36em, 70cqi);
   text-align: center;
   text-wrap: balance;
   line-height: 1.25;
-  text-shadow:
-    0 1px 2px oklch(0.2 0.03 45 / 0.65),
-    0 0 14px oklch(0.2 0.03 45 / 0.4),
-    0 0 26px oklch(0.75 0.1 70 / 0.18);
 }
 
 /* On a first visit the greeting is one floating moment, like a thought rising: it drifts up
    into view out of a soft blur, keeps rising gently while it's read, then floats on upward
-   and fades away. */
-.hotspot-labels .hotspot-label--speech[data-visible][data-greeting] {
+   and fades away. (It replaces the hover float.) */
+.hotspot-labels .hotspot-label--speech[data-visible][data-greeting] > .hotspot-label__text {
   animation: greet-float 4.6s linear both;
-}
-
-.hotspot-labels .hotspot-label--speech[data-greeting] .hotspot-label__text {
-  animation: none;
 }
 
 /* Her lines about the room (on hover) are hints, not her greeting: a touch smaller. */
 .hotspot-labels .hotspot-label--greeting[data-line] .hotspot-label__text {
-  font-size: clamp(12px, 1.12cqi, 19px);
+  font-size: clamp(12px, 1.05cqi, 17px);
 }
 
 /* Her greeting itself is brief: the same float, over 3 s, so it has faded before her second line. */
-.hotspot-labels .hotspot-label--speech[data-visible][data-greeting][data-brief] {
+.hotspot-labels .hotspot-label--speech[data-visible][data-greeting][data-brief] > .hotspot-label__text {
   animation-duration: 3s;
 }
 
@@ -120,6 +187,9 @@
    two hand over without overlapping (GREETING_FOR_MS in HeroScene.tsx covers both). */
 .hotspot-labels .hotspot-label--speech.hotspot-label--follow[data-visible][data-greeting] {
   pointer-events: none;
+}
+
+.hotspot-labels .hotspot-label--speech.hotspot-label--follow[data-visible][data-greeting] > .hotspot-label__text {
   animation-delay: 2.3s;
 }
 
@@ -129,73 +199,73 @@
   0% {
     opacity: 0;
     filter: blur(3px);
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(1.1em) scale(0.96);
+    transform: translateY(1.1em) scale(0.96);
   }
   9% {
     opacity: 0.6;
     filter: blur(1px);
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(0.55em) scale(0.985);
+    transform: translateY(0.55em) scale(0.985);
   }
   17% {
     opacity: 1;
     filter: none;
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(0.2em) scale(1);
+    transform: translateY(0.2em) scale(1);
   }
   30% {
     opacity: 0.92;
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(-0.05em);
+    transform: translateY(-0.05em);
   }
   43% {
     opacity: 0.8;
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(-0.3em);
+    transform: translateY(-0.3em);
   }
   60% {
     opacity: 0.55;
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(-0.6em);
+    transform: translateY(-0.6em);
   }
   76% {
     opacity: 0.3;
     filter: blur(0.5px);
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(-0.85em);
+    transform: translateY(-0.85em);
   }
   90% {
     opacity: 0.1;
     filter: blur(1px);
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(-1.05em);
+    transform: translateY(-1.05em);
   }
   100% {
     opacity: 0;
     filter: blur(1.5px);
-    transform: translate(var(--shift-x), var(--shift-y)) translateY(-1.15em);
+    transform: translateY(-1.15em);
   }
 }
 
-
-/* a very gentle float once it's there: up and back down a single time, then it rests (a cue
-   in the chrome plays once; only the painting loops) */
-.hotspot-labels .hotspot-label--speech[data-visible] .hotspot-label__text {
-  animation: speech-float 3.6s cubic-bezier(0.45, 0, 0.55, 1) 1.1s 2 alternate;
+/* High contrast: a solid pane, no see-through. */
+@media (prefers-contrast: more) {
+  .hotspot-labels .hotspot-label--speech .hotspot-label__text {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+    background: oklch(0.15 0.008 50);
+    color: oklch(0.97 0.01 80);
+  }
 }
 
-@keyframes speech-float {
-  to {
-    transform: translateY(-0.18em);
+@media (forced-colors: active) {
+  .hotspot-labels .hotspot-label--speech .hotspot-label__text::before {
+    display: none;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hotspot-labels .hotspot-label--speech,
-  .hotspot-labels .hotspot-label--speech[data-visible] {
+  .hotspot-labels .hotspot-label--speech > .hotspot-label__text,
+  .hotspot-labels .hotspot-label--speech[data-visible] > .hotspot-label__text {
     filter: none;
-    transform: translate(var(--shift-x), var(--shift-y));
+    transform: none;
     animation: none;
     transition: opacity 160ms ease;
   }
-  .hotspot-labels .hotspot-label--speech[data-visible] .hotspot-label__text {
-    animation: none;
-  }
 
-  .hotspot-labels .hotspot-label--speech[data-visible][data-greeting] {
+  .hotspot-labels .hotspot-label--speech[data-visible][data-greeting] > .hotspot-label__text {
     animation: greet-fade 4.6s ease both;
   }
 
