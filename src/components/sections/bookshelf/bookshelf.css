@@ -361,6 +361,25 @@
   letter-spacing: 0.01em;
 }
 
+/* On the shelf the spines are small, so the lettering is set for clarity, the books' sizes
+   untouched: a little heavier, the authors at full strength, and without the stamped edge
+   (BookSpine's DEF.stamp), whose half-unit light and shadow offsets turn to a blur at a
+   pixel or so per unit. The turned book in the drawer is large and keeps its stamping. */
+.bookshelf .bs-book svg g[filter] {
+  filter: none;
+}
+
+.bookshelf .bs-book .bs-t-d {
+  font-weight: 700;
+  text-rendering: geometricPrecision;
+}
+
+.bookshelf .bs-book .bs-t-s {
+  font-weight: 600;
+  opacity: 1;
+  text-rendering: geometricPrecision;
+}
+
 /* The slip of paper between the pages: pale on books being read, vermilion on the chosen one. */
 .bs-slip {
   position: absolute;
