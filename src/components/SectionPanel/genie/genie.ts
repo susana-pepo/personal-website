@@ -26,7 +26,6 @@
  */
 import { HOTSPOTS } from '../../../scene/hotspots'
 import type { SectionId } from '../../../content/types'
-import { ROOM_ANCHORED_FROM } from '../panelGeometry'
 import {
   CLOSE,
   OPEN,
@@ -48,8 +47,13 @@ import {
 import { checkSurface, glassSignature, rasterise, type Surface } from './raster'
 import { Renderer } from './renderer'
 
-/** Where the genie runs at all. */
-export const GENIE_MEDIA = `(min-width: ${ROOM_ANCHORED_FROM}px) and (hover: hover) and (pointer: fine)`
+/**
+ * Where the genie runs at all: any desktop window with a mouse, from the width where the panel is a
+ * sheet beside the room (640px) — docked to the room's edge from 1025px (panelGeometry.ts), a tall sheet at
+ * the window's right below it; the pour plans from wherever the sheet actually is.
+ */
+export const GENIE_FROM = 640
+export const GENIE_MEDIA = `(min-width: ${GENIE_FROM}px) and (hover: hover) and (pointer: fine)`
 
 /**
  * The browsers it has been verified in: Chromium's (Chrome, Edge, Arc, Brave, Opera). Safari and

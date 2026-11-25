@@ -1,0 +1,198 @@
+/*
+ * The page turn's content, "melting into the smoke" (DESIGN.md §6, with turn-fx.css): the leaving
+ * page sinks into the smoked glass (its headline goes first, so two headlines are never read
+ * together) and the new page condenses out of it, headline first, readable by ~125ms and still by
+ * ~320ms, inside the tab mark's 460ms. It only ever dims, never lightens, and adds no light.
+ * Pictures (and blocks holding one) soften no further than 1.5-2px; text reaches 3-3.5px only while
+ * nearly invisible. Only the panel's own content is filtered; the room never.
+ * Wide screens with motion only: phones and reduced motion keep SectionPanel.css's own rules.
+ * An interrupted turn is handled by meltTurn.ts (holdArrival), called from SectionPanel's turn.
+ */
+@media (min-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .panel {
+    /* How slow the turn plays (1 is the quick tuning, settled by ~320ms). Susana wanted it slower,
+       so you see the page sink into the smoke and the new one come out: the arrival plays 2.5x
+       slower, the leave only 1.5x, and the new body waits until the old page has gone soft, so a
+       slower turn never shows sharp text over sharp text. */
+    --melt-slow: 2.5;
+    --melt-leave-slow: 1.5;
+    --melt-at: calc(45ms * var(--melt-slow));      /* the headline starts */
+    --melt-body-at: calc(50ms * var(--melt-slow)); /* the first body block starts */
+    --melt-step: calc(20ms * var(--melt-slow));
+    --melt-head: calc(110ms * var(--melt-slow));   /* the headline's condensing */
+    --melt-in: calc(160ms * var(--melt-slow));     /* a body block's condensing */
+    --melt-settle: calc(260ms * var(--melt-slow)); /* the small drift into place, after the clearing */
+  }
+
+  /* A turn that interrupts a page still arriving: the next page's body starts at once, its
+     headline as soon as the interrupted one has gone (meltTurn.ts sets the mark). */
+  .panel[data-melt-quick] {
+    --melt-at: calc(35ms * var(--melt-slow));
+    --melt-body-at: calc(15ms * var(--melt-slow));
+  }
+
+  /* How soft a block gets: arriving text starts at 3px and leaving text melts to 3.5px; anything
+     holding a picture stays within 1.5px arriving and 2px leaving. */
+  .panel .panel__page > .panel__header,
+  .panel .panel__page > .section > * {
+    --melt-b: 3px;
+    --melt-lb: 3.5px;
+  }
+
+  .panel .panel__page > .panel__header:has(img, picture, svg, canvas, video),
+  .panel .panel__page > .section > :is(img, picture, svg, canvas, video),
+  .panel .panel__page > .section > :has(img, picture, svg, canvas, video) {
+    --melt-b: 1.5px;
+    --melt-lb: 2px;
+  }
+
+  /* Leaving: the whole page thins and drifts back, 200ms × --melt-leave-slow (SectionPanel reads this to remove it).
+     It holds most of its light while the new page begins, so the glass never goes dark. */
+  .panel .panel__page.is-leaving {
+    animation: melt-leave calc(200ms * var(--melt-leave-slow)) linear forwards;
+    will-change: opacity, transform;
+  }
+
+  @keyframes melt-leave {
+    0% {
+      opacity: 1;
+      transform: none;
+      animation-timing-function: cubic-bezier(0.4, 0, 0.8, 1);
+    }
+    25% {
+      opacity: 0.96;
+      transform: translate(calc(var(--dir, 1) * -1.5px), 0.4px);
+      animation-timing-function: linear;
+    }
+    50% {
+      opacity: 0.55;
+      transform: translate(calc(var(--dir, 1) * -3px), 1px);
+      animation-timing-function: linear;
+    }
+    75% {
+      opacity: 0.18;
+      transform: translate(calc(var(--dir, 1) * -4.5px), 1.8px);
+      animation-timing-function: cubic-bezier(0.3, 0, 0.6, 1);
+    }
+    100% {
+      opacity: 0;
+      transform: translate(calc(var(--dir, 1) * -6px), 2.5px);
+    }
+  }
+
+  /* ...while each of its blocks melts at once: the words soften past reading within ~100ms (a blur
+     keeps the page's light where it was, only its edges go), pictures no further than 2px. No
+     `from`: an interrupted block carries on from where it was written down. */
+  .panel .panel__page.is-leaving > .panel__header,
+  .panel .panel__page.is-leaving > .section > * {
+    animation: melt-leave-soft calc(140ms * var(--melt-leave-slow)) cubic-bezier(0.3, 0.3, 0.5, 1) forwards;
+  }
+
+  @keyframes melt-leave-soft {
+    to {
+      filter: blur(var(--melt-lb));
+    }
+  }
+
+  /* The leaving headline's words go first (its picture stays with the page, so the glass keeps its
+     light), from wherever they are: no `from`, so an interrupted headline carries on from its
+     written-down opacity, never back up to full. */
+  .panel .panel__page.is-leaving > .panel__header > .panel__title {
+    animation: melt-leave-head calc(55ms * var(--melt-leave-slow)) cubic-bezier(0.2, 0.4, 0.5, 1) forwards;
+  }
+
+  @keyframes melt-leave-head {
+    to {
+      opacity: 0;
+    }
+  }
+
+  /* Arriving on a turn: the headline, then the body blocks a little apart. */
+  .panel .panel__page[data-enter='turn'] > .panel__header,
+  .panel .panel__page[data-enter='turn'] > .section > * {
+    animation:
+      melt-clear var(--melt-in) linear backwards,
+      melt-settle var(--melt-settle) var(--ease-out) backwards;
+    animation-delay: calc(var(--melt-body-at) + var(--melt-k, 0) * var(--melt-step));
+    transform-origin: 50% 0;
+  }
+
+  .panel .panel__page[data-enter='turn'] > .panel__header {
+    animation-duration: var(--melt-head), var(--melt-settle);
+    animation-delay: var(--melt-at);
+  }
+
+  .panel .panel__page[data-enter='turn'] > .section > :nth-child(1) { --melt-k: 0; }
+  .panel .panel__page[data-enter='turn'] > .section > :nth-child(2) { --melt-k: 1; }
+  .panel .panel__page[data-enter='turn'] > .section > :nth-child(n + 3) { --melt-k: 2; }
+
+  /* Clears ahead of its opacity: by the time a line is nearly there, it is sharp. */
+  @keyframes melt-clear {
+    0% {
+      opacity: 0;
+      filter: blur(var(--melt-b));
+      animation-timing-function: cubic-bezier(0.3, 0.2, 0.6, 1);
+    }
+    35% {
+      opacity: 0.5;
+      filter: blur(calc(var(--melt-b) * 0.35));
+      animation-timing-function: linear;
+    }
+    62% {
+      opacity: 0.88;
+      filter: blur(calc(var(--melt-b) * 0.08));
+      animation-timing-function: cubic-bezier(0.3, 0, 0.5, 1);
+    }
+    100% {
+      opacity: 1;
+      filter: blur(0px);
+    }
+  }
+
+  @keyframes melt-settle {
+    from {
+      transform: translate(calc(var(--dir, 1) * 6px), 4px) scaleY(1.015);
+    }
+  }
+
+  /* Opening from the genie: a soft 3px (pictures 1.5px) for 280ms, mostly gone by the time the
+     content is most of the way there, so it condenses rather than refocuses. Timed to the slab's landing. */
+  .panel[data-genie-rise] .panel__sheet .panel__page[data-enter='open'] > .panel__header,
+  .panel[data-genie-rise] .panel__sheet .panel__page[data-enter='open'] > .section > * {
+    animation-name: melt-rise-clear, genie-rise;
+    animation-duration: 280ms, 300ms;
+    animation-timing-function: linear, var(--ease-out);
+    animation-fill-mode: backwards;
+  }
+
+  /* Opening without the genie (no WebGL, a deep link): folio-rise plus the condensing. */
+  .panel:not([data-genie-rise]) .panel__sheet .panel__page[data-enter='open'] > .panel__header,
+  .panel:not([data-genie-rise]) .panel__sheet .panel__page[data-enter='open'] > .section > * {
+    animation-name: melt-rise-clear, folio-rise;
+    animation-duration: 280ms, var(--dur-panel);
+    animation-timing-function: linear, var(--ease-out);
+    animation-fill-mode: backwards;
+  }
+
+  @keyframes melt-rise-clear {
+    0% {
+      opacity: 0;
+      filter: blur(var(--melt-b));
+      animation-timing-function: linear;
+    }
+    20% {
+      opacity: 0.22;
+      filter: blur(calc(var(--melt-b) * 0.9));
+      animation-timing-function: cubic-bezier(0.3, 0.3, 0.6, 1);
+    }
+    60% {
+      opacity: 0.8;
+      filter: blur(calc(var(--melt-b) * 0.25));
+      animation-timing-function: cubic-bezier(0.3, 0, 0.5, 1);
+    }
+    100% {
+      opacity: 1;
+      filter: blur(0px);
+    }
+  }
+}

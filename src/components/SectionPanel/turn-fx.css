@@ -29,6 +29,15 @@
   --turn-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 1.2 0 0 0 .3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
 }
 
+/* With the melt (turn-melt.css) the light is the melt's own: it passes while the old page sinks
+   into the smoke, its heart crosses the reading column as the new page clears (~200-330ms), and it
+   has gone as the last block settles. */
+@media (min-width: 640px) and (prefers-reduced-motion: no-preference) {
+  .panel {
+    --turn-light: 640ms;
+  }
+}
+
 /* Daylight: the lamp matters less. */
 .panel[data-light='midday'] {
   --turn-light-face: 0.041;

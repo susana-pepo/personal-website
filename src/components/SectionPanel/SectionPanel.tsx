@@ -31,9 +31,11 @@ import '../sections/sections.css'
 import '../sections/panel-sections.css'
 import './SectionPanel.css'
 import './turn-fx.css'
+import './turn-melt.css'
 import { HeaderArt } from './HeaderArt'
 import { moveInk } from './liquidInk'
 import { clearLight, passLight } from './turnLight'
+import { clearMelt, holdArrival } from './meltTurn'
 import { closeAfterPour, useGenie } from './genie/useGenie'
 
 /**
@@ -156,6 +158,8 @@ export function SectionPanel({ section }: SectionPanelProps) {
       const previous = pageRef.current
       if (previous?.id === section) return
       const dir = turnDirection(previous?.id ?? null, section)
+      // a page still condensing melts away from where it is, not from sharp
+      if (previous) holdArrival(dialog)
       if (previous) setLeaving({ ...previous, dir, offset: bodyRef.current?.scrollTop ?? 0 })
       const next: Page = { id: section, key: ++keyRef.current, enter: previous ? 'turn' : 'open', dir }
       pageRef.current = next
@@ -165,6 +169,7 @@ export function SectionPanel({ section }: SectionPanelProps) {
 
     const finish = () => {
       setState('closed')
+      clearMelt(dialog)
       pageRef.current = null
       setPage(null)
       setLeaving(null)
