@@ -67,9 +67,9 @@ const samplers: Partial<Record<Instrument, { sampler: ToneLib.Sampler; panner: T
 let samplesReady = false
 let keysGain: ToneLib.Gain | null = null // the recorded instruments of the keys go here (the pads: padBus)
 // The two brass knobs: how loud the loop is, and how loud the keys are (0-1). The loops are
-// mastered quieter than the keys sound (about -18 dBFS), so the loop's knob reaches higher: at its
-// default it sits just under the keys, a band you play with rather than a radio in another room.
-let loopVolume = 0.85
+// mastered quieter than the keys sound (about -18 dBFS), so the loop's knob reaches higher. They
+// start with the keys at 80 and the loop at 60: the keys lead, the band plays under them.
+let loopVolume = 0.6
 let keysVolume = 0.8
 const loopLevel = () => loopVolume ** 2 * 3
 const keysLevel = () => keysVolume ** 2 * 1.5
