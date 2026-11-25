@@ -19,6 +19,7 @@
  */
 import type * as ToneLib from 'tone'
 import type { Piano } from '../scene/piano'
+import { purrStop } from './purr'
 import { roomRadio } from './radio'
 import {
   FIGURES, INSTRUMENTS, LANDSCAPES, LOOPS, LOOP_STEPS, TONES, loopInterval, loopStep, midiOf, stepSeconds,
@@ -674,6 +675,44 @@ export function setVolume(which: 'loop' | 'keys', v: number) {
   keysGain?.gain.rampTo(keysLevel(), 0.05)
   loopsGain?.gain.rampTo(loopLevel(), 0.05)
   click()
+}
+
+/**
+ * The piano has landed up close: the room's other sounds stop, so it plays alone. The focus music
+ * (with its rain, and its focus session) is paused, as the footer's own button would; the cat's
+ * purr fades away. When the piano is back on the shelf, the music that was playing plays on
+ * (restoreTheRoom), from where it stopped, and the focus session carries on.
+ */
+let hushedRadio = false
+let stopWaiting: (() => void) | null = null
+export function quietTheRoom() {
+  const radio = roomRadio()
+  purrStop()
+  const hush = () => {
+    if (radio.getSnapshot().status !== 'playing') return false
+    radio.pause()
+    hushedRadio = true
+    return true
+  }
+  if (hush() || radio.getSnapshot().status !== 'loading') return
+  // still loading its track: pause it as soon as it starts (a pause now would be overtaken by the load)
+  hushedRadio = true
+  stopWaiting?.()
+  const off = radio.subscribe(() => {
+    if (radio.getSnapshot().status === 'loading') return
+    off()
+    stopWaiting = null
+    hush()
+  })
+  stopWaiting = () => void off()
+}
+export function restoreTheRoom() {
+  stopWaiting?.()
+  stopWaiting = null
+  if (!hushedRadio) return
+  hushedRadio = false
+  const radio = roomRadio()
+  if (radio.getSnapshot().status === 'paused') void radio.play()
 }
 
 /**

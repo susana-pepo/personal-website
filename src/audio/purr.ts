@@ -135,6 +135,13 @@ function end() {
   }, 1600)
 }
 
+/** Hush the purr at once (the room's other sounds stop for the piano computer up close). */
+export function purrStop() {
+  if (typeof window === 'undefined') return
+  hovering = false
+  end()
+}
+
 /** A mouse arrives on the cat (true) or leaves it (false). Silent until the cat has been clicked once. */
 export function purrHover(on: boolean) {
   if (typeof window === 'undefined') return

@@ -10,7 +10,7 @@ import {
 } from 'react'
 import { content } from '../../../content/content'
 import { usePrefersReducedMotion } from '../../../hooks/useMediaQuery'
-import { listenTo, loopOn, onLoopChange, setLandscape, setLoop, setVolume, settings, toggleLoop } from '../../../audio/pianoEngine'
+import { listenTo, loopOn, onLoopChange, quietTheRoom, restoreTheRoom, setLandscape, setLoop, setVolume, settings, toggleLoop } from '../../../audio/pianoEngine'
 import { overlay, pctX, pctY } from '../../../scene/layout'
 import { KEYBOARD_NOTES, PIANO_ATLAS, PIANO_CLOSE_SRC, PIANO_KEYS, PIANO_KNOBS, PIANO_SCREEN, PIANO_SHELF, PIANO_SHELF_SHEAR, PIANO_SIZE, piano, type PianoKnob } from '../../../scene/piano'
 import { TITLE_H, TITLE_W, paintName, type Put } from '../../../scene/pianoTitle'
@@ -596,8 +596,14 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
       if (!live) return
       const from = reducedMotion ? null : fromShelf()
       setState('open')
-      if (from) travel(from, false)
-      else lend(true) // (no journey: it simply steps out of the room)
+      // once it has landed up close, the room's other sounds stop (the focus music, the rain, the purr)
+      const landed = () => live && quietTheRoom()
+      const coming = from ? travel(from, false) : null
+      if (coming) void coming.finished.then(landed, landed)
+      else {
+        if (!from) lend(true) // (no journey: it simply steps out of the room)
+        landed()
+      }
       if (body) body.style.opacity = ''
       if (shelfPicture) shelfPicture.style.opacity = ''
     })
@@ -622,6 +628,7 @@ export function PianoCloseUp({ open, onClosed }: PianoCloseUpProps) {
       box.close()
       setState('closed')
       onClosed()
+      restoreTheRoom() // (the music that was playing before plays on)
     }
     const to = fromShelf()
     if (!to || reducedMotion) return void window.setTimeout(finish, reducedMotion ? 160 : 0)
